@@ -18,6 +18,14 @@ Creator/operator (opens and funds cases), submitter/payee, agent, rule_engine, a
 - Payout stuck at the end of a case (payee left below the rent-exempt minimum): open_case rejects any `amount` below the rent-exempt minimum of a zero-data account, read from the Rent sysvar at runtime (AmountBelowRentExempt).
 - Supply chain: pinned versions, committed lockfiles, CI on every push.
 - Secrets: keys only in .local/ (gitignored); never logged.
+- Wrong network: the bridge refuses to send unless the RPC reports the devnet genesis hash; mainnet is never reachable by accident.
+- Key files: the bridge refuses key files readable by group or others and keypairs whose public half does not match the seed; key material never appears in output or errors.
+- Bridge input: strict JSON members, canonical hex/u64/base58 parsing, validated before any network call; the bridge is spawned without a shell.
+
+## Bridge dependencies (checked 2026-10-08)
+- Single direct dependency, pinned: @solana/web3.js 1.99.0 (published 2026-09-08). Lockfile committed; installs use `npm ci` with install scripts disabled (bridge/.npmrc).
+- uuid < 11.1.1 (GHSA-w5hq-g745-h8pq, via jayson): only `uuid.v4` is used, which the advisory does not cover; still overridden to 11.1.1, which keeps the CommonJS `v4` export jayson needs.
+- stream-json <= 3.5.0 (GHSA-528h-pc64-c93x, GHSA-hqr4-qq8f-hg3x, GHSA-mjw6-4jj6-33hc, via jayson): no compatible patched release exists (3.x changed its module layout). The code is unreachable: @solana/web3.js imports only `jayson/lib/client/browser`, and stream-json is loaded only by `jayson/lib/utils.js`. A runtime test (bridge/test/deps.test.mjs) fails if stream-json is ever loaded. CI fails on any high or critical advisory.
 
 ## Declared limitations
 Devnet only; custodial demo keys; no verifiable build; no fuzzing; simulated agent (no LLM); public RPC rate limits.

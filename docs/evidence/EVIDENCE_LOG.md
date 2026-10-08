@@ -73,3 +73,13 @@ Entry template:
 - Result: cargo fmt/clippy -D warnings clean; 84 tests passed (coorre-engine 18, coorre-model 58, W3C B.3 8), 0 failed.
 - Limitations / deviations: Rust 1.68.0 toolchain installed only to mirror Playground for local checks; stable remains the default. An initial attempt with cargo 1.68 started cloning the full git registry index; it was stopped, the partial cache removed, and the check re-run with the sparse protocol.
 - Commit(s): feat(engine): add the case state machine and the supplier-docs rule
+
+### 2026-10-08 14:40 BRT — Bridge (Node) and CI for bridge and wasm
+- Author: Clarkson Luiz Buriche Bartalini
+- Environment: Node v24.21.0, npm 11.19.0.
+- Work: bridge/anchor.mjs (open-case, anchor-transition, fetch-account) and bridge/lib.mjs. Transactions are built with @solana/web3.js only, using the Anchor 0.29 encodings verified on devnet (ADR-001); @coral-xyz/anchor is not needed. Devnet genesis-hash guard (EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG, read from api.devnet.solana.com; mainnet and testnet hashes checked too), optional fallback RPC, one retry on blockhash expiry after a signature-status check, strict input parsing, private key-file check, program error names parsed from logs.
+- Dependencies: @solana/web3.js 1.99.0 pinned (latest 1.x, published 2026-09-08). npm audit reported uuid and stream-json advisories through jayson; uuid overridden to 11.1.1 (CommonJS v4 export verified); stream-json has no compatible fix and is shown unreachable by a runtime module trace, now enforced by bridge/test/deps.test.mjs. Install scripts disabled via bridge/.npmrc. Details in docs/SECURITY.md.
+- CI: new `bridge` job (actions/setup-node pinned to v7.0.0 commit 820762786026740c76f36085b0efc47a31fe5020; v7.1.0 was skipped because it was published the same day), `npm ci`, `npm test`, `npm audit --audit-level=high`; `offchain` job now also builds coorre-model and coorre-engine for wasm32-unknown-unknown.
+- Result: bridge 17 tests passed (offline: encodings against devnet-observed bytes, PDAs, account order, CaseRecord decoding, error parsing, input validation, network guard with a local fake RPC, RPC fallback, key-file checks, dependency guards); clean reinstall with `npm ci` reproduces the same result.
+- Limitations / deviations: live bridge calls against coorre_anchor wait for the program deploy on devnet.
+- Commit(s): feat(bridge): add the devnet bridge with network and key guards
