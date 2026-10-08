@@ -56,14 +56,14 @@ Entry template:
 - Limitations / deviations: the first test runs failed because two test titles contained words the Playground runtime blocks ("document", "top"); titles renamed in commit 1747b25. A second run failed because the program had not been deployed yet; after `deploy` the suite passed. Devnet rent is 5,080 lamports per byte (including overhead) on this date, lower than the commonly quoted mainnet figure, so rent is always read at runtime.
 - Commit(s): docs: record the Playground spike deployment and results
 
-### 2026-10-08 13:30 BRT — Spec update: minimum case amount and early wasm check
+### 2026-10-08 13:22 BRT — Spec update: minimum case amount and early wasm check
 - Author: Clarkson Luiz Buriche Bartalini
 - Decision: open_case must reject any `amount` below the rent-exempt minimum of a zero-data account, read from the Rent sysvar at execution time (new error AmountBelowRentExempt). Reason: the spike showed that a payout leaving a new account below that minimum makes the whole transaction fail, which would block a case at its final step. Devnet minimum on this date: 650,240 lamports.
 - Decision: move a first wasm32-unknown-unknown compile check of coorre-model to Friday 2026-10-09 (target only; the rest of the wasm toolchain stays on Sunday), to catch problems with the new ed25519-dalek 3 / curve25519-dalek 5 versions early.
 - Files: docs/spec/SPEC.md (sections 5, 10, 12), docs/SECURITY.md.
 - Commit(s): docs: require a rent-safe minimum amount when opening a case
 
-### 2026-10-08 14:05 BRT — Friday scope started early: program, model types, wasm check, engine
+### 2026-10-08 13:49 BRT — Friday scope started early: program, model types, wasm check, engine
 - Author: Clarkson Luiz Buriche Bartalini
 - Program `coorre_anchor` (onchain/programs/coorre_anchor/src/lib.rs) and its Playground suite (onchain/tests/coorre_anchor.test.ts, 16 tests). Compiled locally with the exact Playground `legacy` toolchain: Rust 1.68.0 and the template's Cargo.lock (anchor-lang 0.29.0, solana-program 1.16.24), `cargo +1.68.0 check`, 0 errors, 0 warnings. TS tests syntax-checked with Node 24 `module.stripTypeScriptTypes` and screened for Playground-blocked words. Devnet deploy pending (human, Playground).
 - Anchor 0.29 encodings verified against the deployed spike: account (`account:Vault`), event (`event:VaultDeposited`, `event:VaultWithdrawn`) and instruction (`global:open_vault`, `global:withdraw`) discriminators equal sha256(prefix:name)[0..8]; u64 args little-endian. Recorded in docs/decisions/ADR-001-shared-codes-and-encodings.md.
@@ -74,7 +74,7 @@ Entry template:
 - Limitations / deviations: Rust 1.68.0 toolchain installed only to mirror Playground for local checks; stable remains the default. An initial attempt with cargo 1.68 started cloning the full git registry index; it was stopped, the partial cache removed, and the check re-run with the sparse protocol.
 - Commit(s): feat(engine): add the case state machine and the supplier-docs rule
 
-### 2026-10-08 14:40 BRT — Bridge (Node) and CI for bridge and wasm
+### 2026-10-08 13:57 BRT — Bridge (Node) and CI for bridge and wasm
 - Author: Clarkson Luiz Buriche Bartalini
 - Environment: Node v24.21.0, npm 11.19.0.
 - Work: bridge/anchor.mjs (open-case, anchor-transition, fetch-account) and bridge/lib.mjs. Transactions are built with @solana/web3.js only, using the Anchor 0.29 encodings verified on devnet (ADR-001); @coral-xyz/anchor is not needed. Devnet genesis-hash guard (EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG, read from api.devnet.solana.com; mainnet and testnet hashes checked too), optional fallback RPC, one retry on blockhash expiry after a signature-status check, strict input parsing, private key-file check, program error names parsed from logs.
@@ -91,14 +91,14 @@ Entry template:
 - Limitations / deviations: the first test run failed because `deploy` had not been executed yet, and it showed only 13 tests: a `for...of` over `Array.entries()` registered nothing after Playground's ES5 transpile (fixed in 0f82355). The deploy itself hit public RPC rate limits and took 6m40s.
 - Commit(s): docs: record the coorre_anchor deployment and its test run
 
-### 2026-10-08 15:20 BRT — Playground preflight (prevents the issues above from recurring)
+### 2026-10-08 15:59 BRT — Playground preflight (prevents the issues above from recurring)
 - Author: Clarkson Luiz Buriche Bartalini
 - Work: `scripts/playground-preflight` (tools/playground-preflight). Reads the official Playground sources live (js-runtime.ts, supported-packages.json, client/package.json, server templates and the legacy Cargo.lock) and compares them with a pinned reference (Playground commit 3fb888f, 2026-10-08). For each test file it reproduces Playground's handling: blocked-word substring check, `describe` requirement, globals actually provided, the exact code wrapper and ES5 transpile with TypeScript 5.0.4, and counts tests that register versus `it()` call sites. Programs are checked with `cargo check` on Rust 1.68.0 using the template's own Cargo.lock, warnings as errors, confirming anchor-lang 0.29.0 and solana-program 1.16.24.
 - Result: all checks PASS for the current repository; 12 regression tests pass; run against the historical files it FAILS both as expected (spike test from a3c3ee4: blocked words "document" line 123 and "top" line 54; coorre_anchor test from dd057f8: 14 it() call sites but 13 registered). New CI job runs it on every push, so a change in Playground itself fails CI until reviewed.
 - Dependency: typescript 5.0.4 (pinned to the version Playground uses), tooling only, install scripts disabled; npm audit: 0 vulnerabilities.
 - Commit(s): feat(tools): add the Playground preflight and run it in CI
 
-### 2026-10-08 16:20 BRT — Full audit: comments removed, facts re-verified, gaps closed
+### 2026-10-08 16:12 BRT — Full audit: comments removed, facts re-verified, gaps closed
 - Author: Clarkson Luiz Buriche Bartalini
 - Code comments removed from every Rust, JS/TS, shell and YAML file (shebangs kept). Removal was syntax-aware (TypeScript AST for JS/TS, a Rust lexer that respects strings, raw strings, chars and lifetimes); the diff was checked to contain only comment lines and trailing comments. Test-vector provenance moved into constant names (`RFC8032_TEST1_*`, `FIPS180_SHA256_ABC_HEX`, `RFC8785_SEC_3_2_*`, `W3C_B3_*`, `EXnn_*` for W3C examples) and the vectors' README files; action versions moved into CI step names.
 - Re-run after the change: Rust fmt/clippy -D warnings clean, 84 tests passed, wasm32 build OK; bridge 22 tests passed; preflight 12 regression tests passed and the full preflight (live Playground reference, both test files, both programs on Rust 1.68.0) passed.
@@ -108,14 +108,14 @@ Entry template:
 - Correction to the 14:05 entry: it said the Playground suite had 16 tests. The file at commit dd057f8 had 14 `it()` call sites, of which 13 registered in Playground (ES5 transpile issue, fixed in 0f82355; 17 tests since then).
 - Commit(s): chore: remove code comments and record the full audit
 
-### 2026-10-08 16:35 BRT — Bridge smoke test against coorre_anchor on devnet
+### 2026-10-08 16:15 BRT — Bridge smoke test against coorre_anchor on devnet
 - Author: Clarkson Luiz Buriche Bartalini
 - Commands run: `node bridge/anchor.mjs open-case|anchor-transition|fetch-account --input <file>` with COORRE_PROGRAM_ID=9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv and the demo keys in .local/keys (inputs kept in out/, gitignored).
 - Result: case `urn:coorre:case:BRIDGE-SMOKE-20261008` opened and taken through SUBMITTED, AGENT_REVIEWED and AUTO_APPROVED; an AUTO_APPROVED attempt signed by the agent key was rejected in simulation with UnauthorizedActor (6002) and reported by name with exit code 1. On-chain state verified with an independent decoder: final state 3, payout exactly 1,000,000 lamports to the submitter, escrow back to its rent-exempt minimum, three EvidenceAnchors with the expected fields. Accounts and transactions listed in onchain/DEPLOYMENTS.md.
 - Limitations / deviations: evidence hashes in this smoke test are labelled placeholders (`bridge-smoke:<case_ref>:<step>`); signed credentials come with the CLI demo.
 - Commit(s): docs: record the bridge smoke test on devnet
 
-### 2026-10-08 17:05 BRT — On-chain account codec and coorre-verify
+### 2026-10-08 16:23 BRT — On-chain account codec and coorre-verify
 - Author: Clarkson Luiz Buriche Bartalini
 - coorre-model::accounts: CaseRecord (254 bytes) and EvidenceAnchor (188 bytes) decode/encode with Anchor discriminators. Tested against the real account bytes of the bridge smoke case read from devnet (tests/vectors/devnet-bridge-smoke): every field matches the case and re-encoding reproduces the on-chain bytes exactly.
 - coorre-verify: the six checks of spec section 8 over (bundle, artifact bytes, account snapshots, expected program id), pure and building for wasm32. Security decisions in ADR-002: the expected program id never comes from the bundle; addresses and receipts are hints only. Artifact names are restricted to block path traversal when files are read by name.
@@ -124,7 +124,7 @@ Entry template:
 - Result: workspace tests 18 + 66 + 8 + 12 passed (verifier tests include the spec's mandatory cases: a valid signature from a non-role key fails check 4, an account with the wrong owner fails check 6, one changed artifact byte fails check 1); bridge 22 passed; clippy -D warnings clean.
 - Commit(s): feat(verify): add the account codec and the six-check verifier
 
-### 2026-10-08 17:40 BRT — coorre-anchor, coorre CLI and the first full demo on devnet
+### 2026-10-08 16:35 BRT — coorre-anchor, coorre CLI and the first full demo on devnet
 - Author: Clarkson Luiz Buriche Bartalini
 - coorre-anchor: `Anchorer` trait; `BridgeAnchorer` spawns `node bridge/anchor.mjs` without a shell, with a cleared environment (PATH and COORRE_* only), inputs written to files; program rejections come back by name. `MemoryAnchorer` replays the program's rules through coorre-engine and writes accounts in the real layout, identified as `memory:simulated` so its bundles never pass as devnet ones (the verifier now takes the expected network as an input, like the program id).
 - coorre CLI: `coorre demo run` (narrated, Explorer links, bundles and artifacts under out/, rejected attempts kept under attempts/, verification and a one-byte tamper test at the end of each case) and `coorre verify --bundle --artifacts` (fetches accounts through the bridge, exit 1 on any FAIL, `--json`). Demo fixtures are synthetic (demo/fixtures); actor autonomy choices and per-run case references in ADR-003.
@@ -134,7 +134,7 @@ Entry template:
 - Limitations / deviations: the rogue-attempt file of this run stores the error name only; the CLI now also stores the error code and the full program message, which the next run will include.
 - Commit(s): feat(cli): add coorre demo run and coorre verify with the bridge anchorer
 
-### 2026-10-08 18:20 BRT — Browser verifier (WebAssembly)
+### 2026-10-08 16:54 BRT — Browser verifier (WebAssembly)
 - Author: Clarkson Luiz Buriche Bartalini
 - Sources checked before use: wasm-bindgen on crates.io (0.2.129 published 13 days earlier was skipped; 0.2.128 of 2026-09-04 pinned exactly); official CLI release `wasm-bindgen-0.2.128-x86_64-unknown-linux-musl.tar.gz` from github.com/wasm-bindgen/wasm-bindgen, SHA-256 b51f0208fdff83515a787bd8ab9ac5865ed84dabb66d0c709957bb59793c645f matched the published checksum; `JsError` conversion and `initSync({ module })` read in the crate and generated sources; devnet RPC CORS answers checked with an Origin header (allows the page origin and `content-type`); `getMultipleAccounts` response shape checked on devnet; GitHub Pages actions resolved to commit SHAs (configure-pages v6.0.0, upload-pages-artifact v5.0.0, deploy-pages v5.0.1) and the workflow mirrors GitHub's official static-site starter.
 - Work: `coorre-verify` feature `wasm` (`BundleVerifier` binding; the same Rust verification as the CLI); bundle helpers `required_accounts` and `declared_artifact_names` moved into coorre-verify and reused by the CLI; timeline entries now carry the transition payload (decision, reasons, justification); `scripts/build-verifier`; static page web/verifier (no framework, strict CSP, text-only rendering) with the two devnet samples; CI job `web-verifier`; manual Pages workflow.
@@ -142,7 +142,7 @@ Entry template:
 - Limitations / deviations: publishing to GitHub Pages is prepared but not run; it publishes a public website and waits for explicit approval.
 - Commit(s): feat(web): add the WebAssembly verifier page and its CI
 
-### 2026-10-08 20:10 BRT — Verification check 7: automated decisions reproduced (ADR-004)
+### 2026-10-08 17:13 BRT — Verification check 7: automated decisions reproduced (ADR-004)
 - Author: Clarkson Luiz Buriche Bartalini
 - Gap found in review: the chain enforces the amount against the mandate but cannot see documents, and checks 1 to 6 prove integrity, authorship and anchoring only. A holder of the rule-engine key could anchor AUTO_APPROVED for a case with an expired license, within the limit, and all six checks would pass.
 - Work: coorre-engine now owns the document format (`DocumentArtifact`) and `evaluation_date_is_credible`; coorre-verify check 7 re-runs supplier-docs v1 for every rule-engine decision over the documents of the SUBMITTED evidence, the mandate in the evidence and the payload's evaluation_date, and compares state, decision and reasons. The agent's recommendation is compared and reported as informational. Only the rule the verifier ships can run (id, version and hash must match). The evaluation date must be the UTC signing day or the day before, so it cannot be backdated. SPEC sections 7 to 10, SECURITY and ADR-004 updated. The CLI reuses the engine's document type.
@@ -150,10 +150,15 @@ Entry template:
 - Limitations / deviations: the forged-decision scenario is covered by tests, not by a transaction on devnet. Tampering with a document now fails two checks instead of one; the spec text ("check 1 FAILS") still holds.
 - Commit(s): feat(verify): add check 7, automated decisions reproduced from the rule
 
-### 2026-10-08 20:40 BRT — Full audit after check 7
+### 2026-10-08 17:15 BRT — Full audit after check 7
 - Author: Clarkson Luiz Buriche Bartalini
 - Scans: no comments left in Rust, JS/TS, shell, YAML, HTML or CSS (the one `//` hit is inside a test fixture string); no key-like files tracked, no 64-byte key arrays, PEM blocks or secret assignments in the full history; no AI-tool files tracked and no tool-related words in any diff (only Cargo's lockfile header and the Apache text); all 20 commits authored and committed by Clarkson Luiz Buriche Bartalini <catitodev@gmail.com>; key files mode 600 in a 700 folder.
 - Dependencies: all 79 locked crates matched against RustSec (1,275 advisories). Fifteen advisories touch our crates and none applies: anstream 1.0.0 (patched >= 0.6.8), anyhow 1.0.104 (>= 1.0.103), bumpalo 3.20.3 (>= 3.11.1), curve25519-dalek 5.0.0 (>= 4.1.3), ed25519-dalek 3.0.0 (>= 2), futures-task 0.3.34 (>= 0.3.6), futures-util 0.3.34 (>= 0.3.7), once_cell 1.21.4 (>= 1.0.1), sha2 0.11.0 (>= 0.9.8), slab 0.4.12 (>= 0.4.11), time 0.3.55 (0.1 and < 0.3.47 only). npm: the verifier page has no dependencies, the preflight tool reports 0 vulnerabilities, the bridge keeps the documented, unreachable stream-json advisories and no high or critical ones.
 - Coherence fixes: SPEC section 2 said "rogue agent" although only the rule-engine key can reach MandateExceeded (the agent key is rejected earlier with UnauthorizedActor); SPEC section 9 said getAccountInfo while the page uses one getMultipleAccounts call. The assembly the Pages workflow performs was reproduced in a scratch folder and every file the page references is present.
 - Checks re-run from scratch: fmt, clippy -D warnings, 128 Rust tests, wasm32 release build, bridge 22, preflight tool 12, page 10, Playground preflight (live reference, both test files, both programs on Rust 1.68.0). Devnet re-read: program 9esN1A8K…Wv executable, upgrade authority 7yAwBDhF…87zyZ unchanged.
 - Commit(s): docs: align the spec with the build and record the full audit
+
+### 2026-10-08 17:20 BRT — Correction of entry times
+- Author: Clarkson Luiz Buriche Bartalini
+- Found during the final audit: the headers of eleven entries carried times that had been estimated while writing instead of read from the clock (the last three read 18:20, 20:10 and 20:40 while the work was done between 16:54 and 17:15). They were aligned to the author timestamps of the commits that close each task (`git log`), except the 11:13, 11:20, 11:33, 13:15 and 14:50 entries, whose times came from the clock or from on-chain transaction times. Dates, contents, transaction signatures and commit hashes were not changed. From now on an entry's time is taken from `date` when it is written.
+- Commit(s): docs: correct the times recorded in the evidence log
