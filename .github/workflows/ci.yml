@@ -40,7 +40,7 @@ jobs:
         run: cargo test --workspace --locked
 
       - name: wasm32 build of the verification crates
-        run: cargo build -p coorre-model -p coorre-engine --target wasm32-unknown-unknown --release --locked
+        run: cargo build -p coorre-model -p coorre-engine -p coorre-verify --target wasm32-unknown-unknown --release --locked
 
   bridge:
     name: bridge (npm ci, test, audit)

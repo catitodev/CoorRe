@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/coorre-model", "crates/coorre-engine", "crates/coorre-verify"]
+members = ["crates/coorre-model", "crates/coorre-engine", "crates/coorre-verify", "crates/coorre-anchor", "crates/coorre-cli"]
 
 [workspace.package]
 version = "0.1.0"
@@ -19,6 +19,9 @@ serde_json_canonicalizer = "0.3.2"
 sha2 = "0.11.0"
 thiserror = "2.0.21"
 time = { version = "0.3.55", default-features = false, features = ["parsing"] }
+anyhow = "1.0.104"
+clap = { version = "4.6.7", features = ["derive", "env"] }
+uuid = { version = "1.26.1", features = ["v4"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

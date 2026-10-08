@@ -22,7 +22,7 @@ Creator/operator (opens and funds cases), submitter/payee, agent, rule_engine, a
 - Supply chain: pinned versions, committed lockfiles, CI on every push.
 - Secrets: keys only in .local/ (gitignored); never logged.
 - Wrong network: the bridge refuses to send unless the RPC reports the devnet genesis hash; mainnet is never reachable by accident.
-- Key files: the bridge refuses key files readable by group or others and keypairs whose public half does not match the seed; key material never appears in output or errors.
+- Key files: the bridge and the CLI refuse key files readable by group or others and keypairs whose public half does not match the seed; key material never appears in output or errors. The CLI spawns the bridge without a shell, with a cleared environment that carries only PATH and the COORRE_* settings.
 - Bridge input: strict JSON members, canonical hex/u64/base58 parsing, validated before any network call; the bridge is spawned without a shell.
 
 ## Bridge dependencies (checked 2026-10-08)

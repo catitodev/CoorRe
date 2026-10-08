@@ -49,6 +49,32 @@ evidence, lamports back to its rent-exempt minimum (1,940,560); submitter balanc
 exactly 1,000,000; each EvidenceAnchor holds the expected hash, case record,
 prev_hash, from/to states, actor kind (1, 2, 3) and rule hash.
 
+### Demo run on devnet: `coorre demo run` (2026-10-08 19:32 UTC)
+
+Cases `urn:coorre:case:SUP-001-20261008T193251Z` and `urn:coorre:case:SUP-002-20261008T193251Z`,
+signed transition credentials (eddsa-jcs-2022) anchored with the demo keys.
+
+| Case | Step | Transaction |
+|---|---|---|
+| SUP-001 | OPEN | [`2G4u72fT6QU4eAQt…`](https://explorer.solana.com/tx/2G4u72fT6QU4eAQth6N2cXHE9mvsvmcmP9cgxF1hTAE2MKR5gvEZJA5PpfMRYwM7J1mbVtq49cuD7S6xRfAMPBya?cluster=devnet) |
+| SUP-001 | SUBMITTED | [`aArpmRa31yEhipKg…`](https://explorer.solana.com/tx/aArpmRa31yEhipKgNeT332NyduktZvmx1j4StYw8vgbF5tGYo9NqXPrtwMrQkUBaQfoPonLHKNgZ2GbhwSbmprn?cluster=devnet) |
+| SUP-001 | AGENT_REVIEWED | [`2P2BfG1RxruVZidh…`](https://explorer.solana.com/tx/2P2BfG1RxruVZidhRHvm9o8x8gp2gfsJJwvECgLKpmrWwkAGaX79UEBcBs51piN2P318s4x1ufsVrtn1DotuJdjd?cluster=devnet) |
+| SUP-001 | AUTO_APPROVED | [`4rtRyvcu4nUrBWRn…`](https://explorer.solana.com/tx/4rtRyvcu4nUrBWRnPRUMmDNdidDVGCnkY7QwUtUJ9sn9R65RBHQrVRHG1523NMj6HGVLHQ8fhVU7KyDMyM7jo2QR?cluster=devnet) |
+| SUP-002 | OPEN | [`rBt7urt2sexKvv4k…`](https://explorer.solana.com/tx/rBt7urt2sexKvv4kYWKfXCam54wxJsq46Zjs8hiV1HL2rWt8VJMMQKW8BB4HGxiMbirGzofe4CzHLbLh5GhascB?cluster=devnet) |
+| SUP-002 | SUBMITTED | [`3eduiGPv3z2KbVNi…`](https://explorer.solana.com/tx/3eduiGPv3z2KbVNicNovUKYcvJn5UYMEhhhRcwsNB7g9D8bDNpWgT8JPy2sbqmZwK4ujEaGuX4WmkM577JUEy8LN?cluster=devnet) |
+| SUP-002 | AGENT_REVIEWED | [`4tb5Us6gM4dMkyHr…`](https://explorer.solana.com/tx/4tb5Us6gM4dMkyHrFSVLBXWDme5ATisEW5QADx5NRibGeZb4fMg5HG6exgX4cyCpNADV6JAUVrPzZLUo4YwzpxZi?cluster=devnet) |
+| SUP-002 | ROGUE AUTO_APPROVED (rule_engine key, 0.2 SOL > 0.1 SOL limit) | rejected in simulation: `MandateExceeded`, no transaction |
+| SUP-002 | ESCALATED | [`3zQBE5sYP5GyqazD…`](https://explorer.solana.com/tx/3zQBE5sYP5GyqazDYLh445kPeCWmWDBewRHFYsNjJKWye8Q28nFDeMnL4whmmWzmDTPwfZqXxgbZAdg3ZySmNQd2?cluster=devnet) |
+| SUP-002 | APPROVED | [`2nQ2pHJ7ACi6LQeN…`](https://explorer.solana.com/tx/2nQ2pHJ7ACi6LQeNSzDAhM2N2ji9kkAZEmgsfTghSNNToQizXVXwkZiR3Ejiz2jwmiz8FUZMR3hG6RUDW1aapfYc?cluster=devnet) |
+
+Case records: SUP-001 `AKfwr5fcW6zCy2TN7LDYcwe8Cqa2TPYRNdogQBv1GkHA` (AUTO_APPROVED),
+SUP-002 `6DTcj3BDKpyacSBVWeQW6AaUtF7Z9T8XinXCi9ukZcaX` (APPROVED). `coorre verify` run
+separately on both bundles: 6/6 PASS each; with one byte flipped in a copy of an
+artifact, check 1 FAILS and the command exits 1. Balances read from the chain: the
+submitter received exactly 50,000,000 + 200,000,000 lamports; both case records are
+back to their rent-exempt minimum (1,940,560); the creator spent 0.26519808 SOL.
+
+
 ## Spike: `playground_spike` (2026-10-08)
 
 Throwaway program used to validate the escrow pattern before writing

@@ -14,7 +14,7 @@ use coorre_model::{CaseState, EvidenceDocument, did_key, jcs};
 use crate::bundle::AuditBundle;
 use crate::report::{CaseSummary, CheckResult, Report, Status, TimelineEntry};
 
-pub const EXPECTED_NETWORK_ID: &str = "solana:devnet";
+pub const SOLANA_DEVNET_NETWORK_ID: &str = "solana:devnet";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AccountSnapshot {
@@ -27,6 +27,7 @@ pub struct Inputs<'a> {
     pub artifacts: &'a BTreeMap<String, Vec<u8>>,
     pub accounts: &'a BTreeMap<String, AccountSnapshot>,
     pub expected_program_id: &'a str,
+    pub expected_network_id: &'a str,
 }
 
 struct Entry {
@@ -419,10 +420,10 @@ fn check_onchain(
             bundle.program_id, inputs.expected_program_id
         ));
     }
-    if bundle.network_id != EXPECTED_NETWORK_ID {
+    if bundle.network_id != inputs.expected_network_id {
         failures.push(format!(
-            "bundle network is {}, expected {EXPECTED_NETWORK_ID}",
-            bundle.network_id
+            "bundle network is {}, expected {}",
+            bundle.network_id, inputs.expected_network_id
         ));
     }
     let case_record_key = pubkey_from_base58(&bundle.case_record).map_err(|e| e.to_string());

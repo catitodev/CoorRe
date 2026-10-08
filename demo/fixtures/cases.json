@@ -1,0 +1,46 @@
+{
+  "cases": [
+    {
+      "id": "SUP-001",
+      "supplier": "Fornecedor Demo A Ltda",
+      "amount_lamports": "50000000",
+      "autonomy_limit_lamports": "100000000",
+      "documents": [
+        "SUP-001/tax-certificate.json",
+        "SUP-001/environmental-license.json"
+      ],
+      "approver": null,
+      "demo": true
+    },
+    {
+      "id": "SUP-002",
+      "supplier": "Fornecedor Demo B Ltda",
+      "amount_lamports": "200000000",
+      "autonomy_limit_lamports": "100000000",
+      "documents": [
+        "SUP-002/tax-certificate.json",
+        "SUP-002/environmental-license.json"
+      ],
+      "approver": {
+        "decision": "approve",
+        "justification": "Environmental license renewal is under way and the purchase is time-critical; the procurement manager approves this payment above the automation limit."
+      },
+      "demo": true
+    },
+    {
+      "id": "SUP-003",
+      "supplier": "Fornecedor Demo C Ltda",
+      "amount_lamports": "200000000",
+      "autonomy_limit_lamports": "100000000",
+      "documents": [
+        "SUP-003/tax-certificate.json",
+        "SUP-003/environmental-license.json"
+      ],
+      "approver": {
+        "decision": "reject",
+        "justification": "Expired environmental license and no renewal on file; payment refused and escrow returned to the buyer."
+      },
+      "demo": false
+    }
+  ]
+}

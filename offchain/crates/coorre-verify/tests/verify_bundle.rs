@@ -228,6 +228,7 @@ fn run(f: &Fixture) -> Report {
         artifacts: &f.artifacts,
         accounts: &f.accounts,
         expected_program_id: PROGRAM,
+        expected_network_id: "solana:devnet",
     })
 }
 
@@ -311,6 +312,7 @@ fn a_bundle_naming_another_program_fails_check_6() {
         artifacts: &f.artifacts,
         accounts: &f.accounts,
         expected_program_id: PROGRAM,
+        expected_network_id: "solana:devnet",
     });
     assert!(failing(&report).contains(&6));
     assert!(!report.passed());

@@ -1,0 +1,19 @@
+[package]
+name = "coorre-anchor"
+description = "Network-agnostic Anchorer trait for CoorRe, with the Solana bridge and an in-memory simulator"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+coorre-engine = { path = "../coorre-engine" }
+coorre-model = { path = "../coorre-model" }
+coorre-verify = { path = "../coorre-verify" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true
