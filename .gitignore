@@ -1,0 +1,5 @@
+target/
+.local/
+out/
+node_modules/
+*.log

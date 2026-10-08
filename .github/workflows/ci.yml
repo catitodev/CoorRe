@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  offchain:
+    name: offchain (fmt, clippy, test)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Detect Cargo workspace
+        id: detect
+        run: |
+          if [ -f offchain/Cargo.toml ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "offchain/Cargo.toml not found yet; skipping Rust checks."
+          fi
+
+      - name: Install Rust toolchain
+        if: steps.detect.outputs.present == 'true'
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          rustup default stable
+          rustc --version
+          cargo --version
+
+      - name: cargo fmt
+        if: steps.detect.outputs.present == 'true'
+        working-directory: offchain
+        run: cargo fmt --all -- --check
+
+      - name: cargo clippy
+        if: steps.detect.outputs.present == 'true'
+        working-directory: offchain
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - name: cargo test
+        if: steps.detect.outputs.present == 'true'
+        working-directory: offchain
+        run: cargo test --workspace --locked
