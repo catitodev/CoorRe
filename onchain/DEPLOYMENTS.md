@@ -3,6 +3,31 @@
 Devnet only. Every entry was checked against the chain through JSON-RPC
 (`getAccountInfo`, `getTransaction`) at https://api.devnet.solana.com.
 
+## `coorre_anchor` v0.1.0 (2026-10-08)
+
+| Field | Value |
+|---|---|
+| Network | Solana devnet |
+| Program ID | [`9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv`](https://explorer.solana.com/address/9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv?cluster=devnet) |
+| ProgramData account | `FHJ9rgj9U8R77s7QPfngAK543EonGpznTA7cirnxFN3S` (261,301 bytes) |
+| Upgrade authority | `7yAwBDhFs8TdMurdwJsq4AB41tX2H9PULpxeAnf87zyZ` (Solana Playground wallet; keypair backed up in `.local/`, gitignored) |
+| Deploy transaction | [`2ku5UxeTyM1qrVcKhB3s68pDVh2cZyyTpFXuhF8orWjzvswoCguiN5AjoLAAvbxLbG6yRBDHvxgAFYKzcsq7JJxY`](https://explorer.solana.com/tx/2ku5UxeTyM1qrVcKhB3s68pDVh2cZyyTpFXuhF8orWjzvswoCguiN5AjoLAAvbxLbG6yRBDHvxgAFYKzcsq7JJxY?cluster=devnet) — `deployWithMaxDataLen` (max data len 261,256), slot 508896714, 2026-10-08 17:46:34 UTC |
+| Toolchain | Solana Playground, default `legacy` template (anchor-lang 0.29.0, Rust 1.68.0, Solana 1.17.25) |
+| Source | `onchain/programs/coorre_anchor/src/lib.rs` as of commit `dd057f8` (later commits only set `declare_id!` to this id) |
+| IDL | `onchain/idl/coorre_anchor.json` (pre-0.30 format) |
+| Program keypair | backed up in `.local/` (gitignored); public half matches the Program ID |
+
+Deploy note: the Playground deploy hit public RPC rate limits and retried for 6m40s
+before succeeding.
+
+Test run (Playground, `onchain/tests/coorre_anchor.test.ts`): **17 passing**, covering
+every case in spec section 10 (forbidden transitions from each state, InvalidState,
+wrong role signer, PrevHashMismatch, RolesNotDistinct, AmountBelowRentExempt,
+MandateExceeded, exact release and refund amounts, replayed evidence, wrong payee or
+refund account, two creators with the same case_id). The program account shows 33
+successful transactions after the run, none failed (rejected attempts fail in
+simulation and are never sent).
+
 ## Spike: `playground_spike` (2026-10-08)
 
 Throwaway program used to validate the escrow pattern before writing

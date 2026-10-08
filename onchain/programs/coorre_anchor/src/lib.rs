@@ -1,8 +1,8 @@
 use anchor_lang::prelude::*;
 use anchor_lang::system_program;
 
-// Solana Playground rewrites this on build with the project's program id.
-declare_id!("11111111111111111111111111111111");
+// Devnet deployment; see onchain/DEPLOYMENTS.md.
+declare_id!("9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv");
 
 /// Case states (u8 codes shared with the off-chain core).
 pub mod case_state {
