@@ -1,0 +1,18 @@
+{
+  "name": "coorre-playground-preflight",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Checks programs and tests against the current Solana Playground environment before they are pasted there",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "preflight": "node preflight.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "typescript": "5.0.4"
+  }
+}

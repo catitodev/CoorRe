@@ -83,3 +83,17 @@ Entry template:
 - Result: bridge 17 tests passed (offline: encodings against devnet-observed bytes, PDAs, account order, CaseRecord decoding, error parsing, input validation, network guard with a local fake RPC, RPC fallback, key-file checks, dependency guards); clean reinstall with `npm ci` reproduces the same result.
 - Limitations / deviations: live bridge calls against coorre_anchor wait for the program deploy on devnet.
 - Commit(s): feat(bridge): add the devnet bridge with network and key guards
+
+### 2026-10-08 14:50 BRT — coorre_anchor deployed to devnet and tested in Playground
+- Author: Clarkson Luiz Buriche Bartalini
+- Environment: Solana Playground (default `legacy` template: anchor-lang 0.29.0, Rust 1.68.0, Solana 1.17.25).
+- Result: program `9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv` deployed (tx 2ku5UxeTyM1qrVcKhB3s68pDVh2cZyyTpFXuhF8orWjzvswoCguiN5AjoLAAvbxLbG6yRBDHvxgAFYKzcsq7JJxY, upgrade authority 7yAwBDhFs8TdMurdwJsq4AB41tX2H9PULpxeAnf87zyZ), verified on chain (executable, ProgramData 261,301 bytes). Playground suite: 17 passing; 33 program transactions after the run, none failed. Exported IDL matches ADR-001 (account order, fields, events, error codes 6000–6009); a new bridge test (bridge/test/idl.test.mjs) now enforces that. Creator demo key funded with 1 SOL from the Playground wallet (tx 2Ns83yw1MnJcTM9ebqpDQqw9sdZLVXQTeaZF86jgRsGHEZ5qw6qcvzLqwijSgzRmWwPruNRKhEsev6xi3scycGtA).
+- Limitations / deviations: the first test run failed because `deploy` had not been executed yet, and it showed only 13 tests: a `for...of` over `Array.entries()` registered nothing after Playground's ES5 transpile (fixed in 0f82355). The deploy itself hit public RPC rate limits and took 6m40s.
+- Commit(s): docs: record the coorre_anchor deployment and its test run
+
+### 2026-10-08 15:20 BRT — Playground preflight (prevents the issues above from recurring)
+- Author: Clarkson Luiz Buriche Bartalini
+- Work: `scripts/playground-preflight` (tools/playground-preflight). Reads the official Playground sources live (js-runtime.ts, supported-packages.json, client/package.json, server templates and the legacy Cargo.lock) and compares them with a pinned reference (Playground commit 3fb888f, 2026-10-08). For each test file it reproduces Playground's handling: blocked-word substring check, `describe` requirement, globals actually provided, the exact code wrapper and ES5 transpile with TypeScript 5.0.4, and counts tests that register versus `it()` call sites. Programs are checked with `cargo check` on Rust 1.68.0 using the template's own Cargo.lock, warnings as errors, confirming anchor-lang 0.29.0 and solana-program 1.16.24.
+- Result: all checks PASS for the current repository; 12 regression tests pass; run against the historical files it FAILS both as expected (spike test from a3c3ee4: blocked words "document" line 123 and "top" line 54; coorre_anchor test from dd057f8: 14 it() call sites but 13 registered). New CI job runs it on every push, so a change in Playground itself fails CI until reviewed.
+- Dependency: typescript 5.0.4 (pinned to the version Playground uses), tooling only, install scripts disabled; npm audit: 0 vulnerabilities.
+- Commit(s): feat(tools): add the Playground preflight and run it in CI

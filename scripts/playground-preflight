@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Run before pasting any program or test into Solana Playground.
+# Checks them against the current official Playground environment.
+# Usage: scripts/playground-preflight [--offline] [--skip-programs] [--print-live]
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+tool="$root/tools/playground-preflight"
+
+if ! command -v node >/dev/null 2>&1 && [ -s "$HOME/.nvm/nvm.sh" ]; then
+  # shellcheck disable=SC1091
+  . "$HOME/.nvm/nvm.sh"
+fi
+if ! command -v rustup >/dev/null 2>&1 && [ -s "$HOME/.cargo/env" ]; then
+  # shellcheck disable=SC1091
+  . "$HOME/.cargo/env"
+fi
+
+if [ ! -d "$tool/node_modules" ]; then
+  (cd "$tool" && npm ci --no-fund --silent)
+fi
+
+exec node "$tool/preflight.mjs" "$@"

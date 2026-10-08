@@ -1,0 +1,67 @@
+{
+  "_checked": {
+    "date": "2026-10-08",
+    "repository": "https://github.com/solana-playground/solana-playground",
+    "commit": "3fb888f38961738635e6b971b3fd724fc86ce198"
+  },
+  "jsRuntime": {
+    "transpile": {
+      "target": "ES5",
+      "removeComments": true
+    },
+    "wrapper": "(async () => {\n  class __Pg { async __run() {\n${code}\n} }\n  const __pg = new __Pg();\n  try { await __pg.__run(); }\n  catch (e) { console.log(\"Uncaught error:\", e?.message ?? e); }\n  finally { ${endCode} }\n})()",
+    "blacklistedGlobals": [
+      "window",
+      "globalThis",
+      "document",
+      "location",
+      "top",
+      "chrome"
+    ],
+    "undefinedGlobals": [
+      "eval",
+      "Function"
+    ],
+    "requiresDescribe": true,
+    "baseGlobals": [
+      "console",
+      "Uint8Array",
+      "sleep",
+      "pg"
+    ],
+    "mochaGlobals": [
+      "after",
+      "afterEach",
+      "before",
+      "beforeEach",
+      "context",
+      "describe",
+      "it",
+      "specify",
+      "xcontext",
+      "xdescribe",
+      "xit",
+      "xspecify"
+    ],
+    "packageGlobals": [
+      "BN",
+      "Buffer",
+      "BufferLayout",
+      "anchor",
+      "assert",
+      "borsh",
+      "mocha",
+      "web3"
+    ]
+  },
+  "typescriptVersion": "5.0.4",
+  "legacyTemplate": {
+    "isDefault": true,
+    "rustVersion": "1.68.0",
+    "solanaVersion": "1.17.25",
+    "anchorLangDependency": "anchor-lang = { version = \"*\", features = [\"anchor-debug\", \"allow-missing-optionals\", \"init-if-needed\"] }",
+    "cargoLockSha256": "73496c34bdc76d1885f8f77f3a37c588cefc21227b73d83089c0a92d07e315cd",
+    "programAnchorLang": "0.29.0",
+    "programSolanaProgram": "1.16.24"
+  }
+}
