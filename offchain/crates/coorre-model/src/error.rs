@@ -43,6 +43,8 @@ pub enum ModelError {
     InvalidProofValue(String),
     #[error("signature verification failed")]
     SignatureInvalid,
+    #[error("invalid evidence document: {0}")]
+    InvalidEvidence(String),
 }
 
 pub type Result<T> = core::result::Result<T, ModelError>;
