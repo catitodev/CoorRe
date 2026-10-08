@@ -11,6 +11,9 @@ Creator/operator (opens and funds cases), submitter/payee, agent, rule_engine, a
 - Reordering or replay of evidence: prev_hash chain checked on-chain and off-chain.
 - Forged evidence with a valid signature from an unrelated key: verifier check 4 binds proof key to the on-chain role key.
 - Fake accounts in an audit bundle: verifier ignores receipts, checks account owner == program and content equality.
+- Bundle naming its own program: the expected program id is an input of the verifier (default: the CoorRe devnet deployment), never read from the bundle (ADR-002).
+- Path traversal through artifact names: names are limited to 1-128 characters of [A-Za-z0-9._-] and cannot start with a dot, enforced in evidence validation and in verification check 1.
+- Identity of role keys: the chain proves which keys acted; the verifier report shows the creator and the four role keys read from the case record so an auditor can match them to people or systems.
 - Ambiguous JSON (parser differentials): evidence is parsed as I-JSON before canonicalization; duplicate member names and integers outside the IEEE 754 safe range are rejected.
 - Signature malleability and weak keys: Ed25519 verification uses strict mode (non-canonical signatures and small-order keys rejected); multibase keys and proof values must be canonically encoded.
 - Key confusion: a proof is only created when its verification method resolves to the signing key; verification resolves did:key only, so no network lookup can substitute a key.

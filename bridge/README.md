@@ -51,7 +51,7 @@ submitter and creator accounts are read from the on-chain case record):
 ```
 
 `fetch-account`: `{ "address": "<base58>" }` returns owner, lamports, executable flag,
-raw data (base64) and the context slot.
+raw data as lowercase hex (`data_hex`) and the context slot.
 
 Receipts: `{ "network_id": "solana:devnet", "program_id", "account", "tx_signature" }`.
 Receipts are hints only; the verifier never trusts them.

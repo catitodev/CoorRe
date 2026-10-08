@@ -95,6 +95,14 @@ impl ActorKind {
             .into_iter()
             .find(|k| k.code() == code)
     }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            ActorKind::Human => "human",
+            ActorKind::Agent => "agent",
+            ActorKind::System => "system",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -104,6 +112,17 @@ pub enum Autonomy {
     ExecuteWithApproval,
     Autonomous,
     Escalate,
+}
+
+impl Autonomy {
+    pub fn name(self) -> &'static str {
+        match self {
+            Autonomy::Recommend => "recommend",
+            Autonomy::ExecuteWithApproval => "execute_with_approval",
+            Autonomy::Autonomous => "autonomous",
+            Autonomy::Escalate => "escalate",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -257,8 +276,13 @@ impl EvidenceDocument {
         self.rule_hash()?;
         self.previous_evidence_hash()?;
         for artifact in &subject.artifacts {
-            if artifact.name.is_empty() || artifact.media_type.is_empty() {
-                return fail("artifact name and mediaType are required");
+            if !is_safe_artifact_name(&artifact.name) {
+                return fail(
+                    "artifact name must be 1-128 characters of [A-Za-z0-9._-] and not start with a dot",
+                );
+            }
+            if artifact.media_type.is_empty() {
+                return fail("artifact mediaType is required");
             }
             hash::from_hex(&artifact.digest_sha256)?;
         }
@@ -285,6 +309,14 @@ pub fn parse_lamports(text: &str) -> Result<u64> {
     }
     text.parse::<u64>()
         .map_err(|_| ModelError::InvalidEvidence(format!("`{text}` does not fit in u64")))
+}
+
+pub fn is_safe_artifact_name(name: &str) -> bool {
+    (1..=128).contains(&name.len())
+        && !name.starts_with('.')
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'.' || b == b'_' || b == b'-')
 }
 
 fn is_case_ref(text: &str) -> bool {
@@ -515,11 +547,53 @@ mod tests {
             Box::new(|d| d.credential_subject.previous_evidence = hash::to_hex(&[0; 32])),
             Box::new(|d| d.credential_subject.artifacts[0].digest_sha256 = "ABC".to_owned()),
             Box::new(|d| d.credential_subject.artifacts[0].media_type.clear()),
+            Box::new(|d| {
+                d.credential_subject.artifacts[0].name = "../keys/creator.json".to_owned()
+            }),
+            Box::new(|d| d.credential_subject.artifacts[0].name = ".hidden".to_owned()),
         ];
         for (i, mutate) in cases.iter().enumerate() {
             let mut doc = document();
             mutate(&mut doc);
             assert!(doc.validate().is_err(), "case {i} should fail validation");
+        }
+    }
+
+    #[test]
+    fn safe_artifact_names() {
+        for good in ["license.pdf", "tax-certificate_2026.json", "A1"] {
+            assert!(is_safe_artifact_name(good), "{good}");
+        }
+        let too_long = "a".repeat(129);
+        for bad in [
+            "",
+            ".env",
+            "../x",
+            "a/b",
+            "a\\b",
+            "c:x",
+            "nome com espaco",
+            too_long.as_str(),
+        ] {
+            assert!(!is_safe_artifact_name(bad), "{bad}");
+        }
+    }
+
+    #[test]
+    fn names_match_the_serialized_forms() {
+        for kind in [ActorKind::Human, ActorKind::Agent, ActorKind::System] {
+            assert_eq!(serde_json::to_value(kind).unwrap(), json!(kind.name()));
+        }
+        for autonomy in [
+            Autonomy::Recommend,
+            Autonomy::ExecuteWithApproval,
+            Autonomy::Autonomous,
+            Autonomy::Escalate,
+        ] {
+            assert_eq!(
+                serde_json::to_value(autonomy).unwrap(),
+                json!(autonomy.name())
+            );
         }
     }
 

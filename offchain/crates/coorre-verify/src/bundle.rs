@@ -1,0 +1,55 @@
+use coorre_model::{ArtifactRef, ModelError, jcs};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+pub const BUNDLE_FORMAT: &str = "coorre-audit-bundle/1";
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Receipt {
+    pub network_id: String,
+    pub program_id: String,
+    pub account: String,
+    pub tx_signature: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BundleEvidence {
+    pub anchor_account: String,
+    pub document: Value,
+    pub receipt: Option<Receipt>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AuditBundle {
+    pub format: String,
+    pub case_ref: String,
+    pub network_id: String,
+    pub program_id: String,
+    pub case_record: String,
+    pub open_receipt: Option<Receipt>,
+    pub evidence: Vec<BundleEvidence>,
+    pub rules: Vec<Value>,
+    pub artifacts: Vec<ArtifactRef>,
+}
+
+impl AuditBundle {
+    pub fn from_json(text: &str) -> Result<Self, ModelError> {
+        let value = jcs::parse(text)?;
+        let bundle: Self = serde_json::from_value(value)
+            .map_err(|e| ModelError::InvalidEvidence(format!("audit bundle: {e}")))?;
+        if bundle.format != BUNDLE_FORMAT {
+            return Err(ModelError::InvalidEvidence(format!(
+                "unsupported bundle format `{}`",
+                bundle.format
+            )));
+        }
+        Ok(bundle)
+    }
+
+    pub fn to_json_pretty(&self) -> Result<String, ModelError> {
+        serde_json::to_string_pretty(self).map_err(|e| ModelError::InvalidEvidence(e.to_string()))
+    }
+}

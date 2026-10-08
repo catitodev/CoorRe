@@ -114,3 +114,12 @@ Entry template:
 - Result: case `urn:coorre:case:BRIDGE-SMOKE-20261008` opened and taken through SUBMITTED, AGENT_REVIEWED and AUTO_APPROVED; an AUTO_APPROVED attempt signed by the agent key was rejected in simulation with UnauthorizedActor (6002) and reported by name with exit code 1. On-chain state verified with an independent decoder: final state 3, payout exactly 1,000,000 lamports to the submitter, escrow back to its rent-exempt minimum, three EvidenceAnchors with the expected fields. Accounts and transactions listed in onchain/DEPLOYMENTS.md.
 - Limitations / deviations: evidence hashes in this smoke test are labelled placeholders (`bridge-smoke:<case_ref>:<step>`); signed credentials come with the CLI demo.
 - Commit(s): docs: record the bridge smoke test on devnet
+
+### 2026-10-08 17:05 BRT — On-chain account codec and coorre-verify
+- Author: Clarkson Luiz Buriche Bartalini
+- coorre-model::accounts: CaseRecord (254 bytes) and EvidenceAnchor (188 bytes) decode/encode with Anchor discriminators. Tested against the real account bytes of the bridge smoke case read from devnet (tests/vectors/devnet-bridge-smoke): every field matches the case and re-encoding reproduces the on-chain bytes exactly.
+- coorre-verify: the six checks of spec section 8 over (bundle, artifact bytes, account snapshots, expected program id), pure and building for wasm32. Security decisions in ADR-002: the expected program id never comes from the bundle; addresses and receipts are hints only. Artifact names are restricted to block path traversal when files are read by name.
+- Dependency choices checked on crates.io and RustSec for the CLI step: clap 4.6.7, anyhow 1.0.104 (RUSTSEC-2026-0190 affects < 1.0.103), uuid 1.26.1 (1.27.0 skipped: 6 days old and needs Rust 1.89, above the workspace's 1.88). time `now_utc` needs feature `std`, enabled through `formatting` in the CLI only (read in the time 0.3.55 source).
+- Bridge: `fetch-account` now returns `data_hex`, so the Rust side needs no base64 crate.
+- Result: workspace tests 18 + 66 + 8 + 12 passed (verifier tests include the spec's mandatory cases: a valid signature from a non-role key fails check 4, an account with the wrong owner fails check 6, one changed artifact byte fails check 1); bridge 22 passed; clippy -D warnings clean.
+- Commit(s): feat(verify): add the account codec and the six-check verifier

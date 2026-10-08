@@ -1,3 +1,4 @@
+pub mod accounts;
 pub mod datetime;
 pub mod did_key;
 pub mod eddsa_jcs_2022;

@@ -211,7 +211,7 @@ async function fetchAccount(input, config) {
     owner: value.owner.toBase58(),
     lamports: value.lamports,
     executable: value.executable,
-    data_base64: value.data.toString("base64"),
+    data_hex: value.data.toString("hex"),
     slot: context.slot,
   };
 }

@@ -1,0 +1,17 @@
+[package]
+name = "coorre-verify"
+description = "Verification of CoorRe audit bundles against on-chain accounts; pure, no I/O"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+coorre-engine = { path = "../coorre-engine" }
+coorre-model = { path = "../coorre-model" }
+serde.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

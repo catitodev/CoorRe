@@ -59,6 +59,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "coorre-verify"
+version = "0.1.0"
+dependencies = [
+ "coorre-engine",
+ "coorre-model",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
