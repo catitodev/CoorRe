@@ -165,6 +165,14 @@ describe("coorre_anchor", () => {
     return (await program.account.caseRecord.fetch(c.caseRecord)).state;
   }
 
+  it("the program is deployed on this cluster", async () => {
+    const info = await pg.connection.getAccountInfo(program.programId, "confirmed");
+    assert.ok(
+      info && info.executable,
+      `program ${program.programId.toBase58()} is not deployed here; run "deploy" in the terminal first`
+    );
+  });
+
   it("opens a case and escrows exactly the amount", async () => {
     const roles = newRoles();
     const caseId = random32();
@@ -318,36 +326,43 @@ describe("coorre_anchor", () => {
       [AGENT_REVIEWED]: [OPEN, SUBMITTED, AGENT_REVIEWED, APPROVED, REJECTED],
       [ESCALATED]: [OPEN, SUBMITTED, AGENT_REVIEWED, AUTO_APPROVED, ESCALATED],
     };
+    // One case walks OPEN -> SUBMITTED -> AGENT_REVIEWED -> ESCALATED; in each
+    // state every forbidden target is tried and must fail.
     let c: Case;
-    const advance: [number, (c: Case) => web3.Keypair][] = [
-      [SUBMITTED, (c) => c.roles.submitter],
-      [AGENT_REVIEWED, (c) => c.roles.agent],
-      [ESCALATED, (c) => c.roles.ruleEngine],
-    ];
+
+    async function expectForbiddenFrom(from: number) {
+      assert.equal(await stateOf(c), from);
+      for (const target of forbidden[from]) {
+        await expectError(() => transition(c, target, c.roles.approver), "InvalidTransition");
+      }
+    }
 
     it("from OPEN", async () => {
       c = await openCase(WITHIN);
-      for (const to of forbidden[OPEN]) {
-        await expectError(() => transition(c, to, c.roles.submitter), "InvalidTransition");
-      }
+      await expectForbiddenFrom(OPEN);
     });
 
-    for (const [i, from] of [SUBMITTED, AGENT_REVIEWED, ESCALATED].entries()) {
-      it(`from state ${from}`, async () => {
-        const [to, signer] = advance[i];
-        await transition(c, to, signer(c));
-        assert.equal(await stateOf(c), from);
-        for (const target of forbidden[from]) {
-          await expectError(() => transition(c, target, c.roles.approver), "InvalidTransition");
-        }
-      });
+    it("from SUBMITTED", async () => {
+      await transition(c, SUBMITTED, c.roles.submitter);
+      await expectForbiddenFrom(SUBMITTED);
+    });
+
+    it("from AGENT_REVIEWED", async () => {
+      await transition(c, AGENT_REVIEWED, c.roles.agent);
+      await expectForbiddenFrom(AGENT_REVIEWED);
+    });
+
+    it("from ESCALATED", async () => {
+      await transition(c, ESCALATED, c.roles.ruleEngine);
+      await expectForbiddenFrom(ESCALATED);
+    });
+  });
+
+  it("unknown state codes fail with InvalidState", async () => {
+    const c = await openCase(WITHIN);
+    for (const code of [7, 42, 255]) {
+      await expectError(() => transition(c, code, c.roles.submitter), "InvalidState");
     }
-
-    it("unknown state codes fail with InvalidState", async () => {
-      for (const code of [7, 42, 255]) {
-        await expectError(() => transition(c, code, c.roles.approver), "InvalidState");
-      }
-    });
   });
 
   it("rejects a wrong prev_hash with PrevHashMismatch", async () => {
