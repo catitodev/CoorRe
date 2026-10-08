@@ -13,7 +13,7 @@ Actors per case (four distinct keys): submitter (supplier, human, also the payee
 Rule "supplier-docs" v1 (deterministic, off-chain): AUTO_APPROVED iff all required documents (tax certificate, environmental license) are present AND valid on the evaluation date AND amount <= autonomy_limit; otherwise ESCALATED with explicit reasons.
 Scenario (devnet SOL, small amounts):
 - SUP-001: amount 0.05 SOL, limit 0.10 SOL, documents valid → AUTO_APPROVED → escrow released to the supplier automatically.
-- SUP-002: amount 0.20 SOL, limit 0.10 SOL, environmental license expired → a "rogue agent" attempt to AUTO_APPROVE is sent on purpose and the program rejects it with MandateExceeded (shown in the demo) → rule engine anchors ESCALATED → approver anchors APPROVED with a justification → escrow released.
+- SUP-002: amount 0.20 SOL, limit 0.10 SOL, environmental license expired → a "rogue automation" attempt to AUTO_APPROVE (the rule-engine key approving above its limit; the AI agent's key would be rejected earlier with UnauthorizedActor, see ADR-001 and ADR-003) is sent on purpose and the program rejects it with MandateExceeded (shown in the demo) → rule engine anchors ESCALATED → approver anchors APPROVED with a justification → escrow released.
 - SUP-003 (tests only): ESCALATED → REJECTED → escrow refunded to the creator.
 - Tamper: changing 1 byte of an artifact makes verification fail.
 
@@ -88,7 +88,7 @@ Audit bundle: case_ref, case_record address, program_id, ordered secured evidenc
 Rationale: only the program can write program-owned accounts, so owner check + content match proves anchoring without deriving PDAs in the verifier. The chain enforces the amount against the mandate but cannot see documents, so check 7 closes the gap where a compromised rule-engine key anchors an approval that the rule would not give (ADR-004).
 
 ## 9. Browser verifier (web/verifier/)
-Static page: drop bundle + artifact files; computes everything locally with the wasm build; fetches accounts via JSON-RPC getAccountInfo; shows the timeline (actor kind, decision, mandate, Explorer links) and the seven checks. Deployed to GitHub Pages by a GitHub Actions workflow.
+Static page: drop bundle + artifact files; computes everything locally with the wasm build; fetches all accounts of the bundle in one JSON-RPC getMultipleAccounts call carrying only public addresses; shows the timeline (actor kind, decision, mandate, Explorer links) and the seven checks. Deployed to GitHub Pages by a GitHub Actions workflow.
 
 ## 10. Mandatory acceptance tests
 - coorre-model reproduces W3C vc-di-eddsa test vector B.3 (eddsa-jcs-2022): canonical document hash 59b7cb6251b8991add1ce0bc83107e3db9dbbab5bd2c28f687db1a03abc92f19, proof config hash 66ab154f5c2890a140cb8388a22a160454f80575f6eae09e5a097cabe539a1db, and verifies the published proofValue with the published key (https://www.w3.org/TR/vc-di-eddsa/, Appendix B.3).
