@@ -33,7 +33,7 @@ cd web/verifier && npm test
 ```
 
 Runs the real WebAssembly build against recorded devnet RPC answers
-(`test/fixtures`): both samples pass 6/6, one changed byte fails check 1, another
+(`test/fixtures`): both samples pass 7/7, one changed byte fails checks 1 and 7, another
 expected program fails check 6, missing files are reported, only public addresses are
 sent, and the page never builds HTML from data.
 

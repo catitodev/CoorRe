@@ -59,7 +59,7 @@ fn the_three_spec_cases_run_and_verify_offline() {
     for (outcome, (state, rogue)) in outcomes.iter().zip(expected) {
         assert_eq!(outcome.final_state, state, "{}", outcome.case_ref);
         assert!(outcome.report.passed(), "{:#?}", outcome.report.checks);
-        assert_eq!(outcome.report.passed_count(), 6);
+        assert_eq!(outcome.report.passed_count(), 7);
         assert!(outcome.tamper_detected, "{}", outcome.case_ref);
         assert_eq!(outcome.rogue_rejected_with.as_deref(), rogue);
     }
@@ -148,7 +148,7 @@ fn the_coorre_binary_runs_the_demo_offline() {
         "{stdout}\n{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    assert_eq!(stdout.matches("6/6 checks passed").count(), 2, "{stdout}");
+    assert_eq!(stdout.matches("7/7 checks passed").count(), 2, "{stdout}");
     assert!(stdout.contains("rejected on-chain: MandateExceeded"));
     assert!(stdout.contains("Offline mode"));
     assert!(

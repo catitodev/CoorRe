@@ -19,7 +19,7 @@ use coorre_model::{
 use coorre_verify::{
     AccountSnapshot, AuditBundle, BUNDLE_FORMAT, BundleEvidence, Inputs, Report, Status, verify,
 };
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 
 const PROGRAM: &str = "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv";
 const OTHER_PROGRAM: &str = "11111111111111111111111111111111";
@@ -49,6 +49,7 @@ struct Step<'a> {
     kind: ActorKind,
     autonomy: Autonomy,
     artifacts: Vec<ArtifactRef>,
+    payload: Value,
 }
 
 fn document(step: &Step, previous: String) -> Value {
@@ -62,6 +63,7 @@ fn document(step: &Step, previous: String) -> Value {
         ..
     } = *step;
     let artifacts = step.artifacts.clone();
+    let payload = step.payload.as_object().unwrap().clone();
     let doc = EvidenceDocument {
         context: vec![VC_CONTEXT_V2.to_owned(), COORRE_CONTEXT.to_owned()],
         id: format!("urn:uuid:00000000-0000-4000-8000-00000000000{n}"),
@@ -87,7 +89,7 @@ fn document(step: &Step, previous: String) -> Value {
                 hash: to_prefixed(&rule_hash().unwrap()),
             },
             artifacts,
-            payload: Map::new(),
+            payload,
             previous_evidence: previous,
         },
     };
@@ -95,18 +97,62 @@ fn document(step: &Step, previous: String) -> Value {
     sign_document(&doc.to_value().unwrap(), &options, signer).unwrap()
 }
 
+struct Scenario {
+    license_until: &'static str,
+    final_state: CaseState,
+    evaluation_date: &'static str,
+    recommendation: &'static str,
+    findings: Vec<&'static str>,
+    reasons: Vec<&'static str>,
+}
+
+impl Scenario {
+    fn valid() -> Self {
+        Self {
+            license_until: "2027-05-31",
+            final_state: CaseState::AutoApproved,
+            evaluation_date: "2026-10-09",
+            recommendation: "auto_approve",
+            findings: vec![],
+            reasons: vec![],
+        }
+    }
+
+    fn expired_license_escalated() -> Self {
+        Self {
+            license_until: "2026-09-30",
+            final_state: CaseState::Escalated,
+            evaluation_date: "2026-10-09",
+            recommendation: "escalate",
+            findings: vec!["environmental license expired"],
+            reasons: vec!["environmental license expired"],
+        }
+    }
+}
+
+fn document_file(kind: &str, until: &str) -> Vec<u8> {
+    format!(
+        r#"{{"synthetic":true,"kind":"{kind}","supplier":"Demo Supplier","issuer":"Demo Registry","number":"N-1","valid_from":"2025-01-01","valid_until":"{until}"}}"#
+    )
+    .into_bytes()
+}
+
 fn fixture() -> Fixture {
+    fixture_with(&Scenario::valid())
+}
+
+fn fixture_with(scenario: &Scenario) -> Fixture {
     let (creator, submitter, agent, rule_engine, approver) =
         (key(1), key(2), key(3), key(4), key(5));
     let case_record = address(50);
     let files = [
         (
             "tax-certificate.json",
-            b"{\"kind\":\"tax_certificate\"}".to_vec(),
+            document_file("tax_certificate", "2027-12-31"),
         ),
         (
             "environmental-license.json",
-            b"{\"kind\":\"environmental_license\"}".to_vec(),
+            document_file("environmental_license", scenario.license_until),
         ),
     ];
     let refs: Vec<ArtifactRef> = files
@@ -127,6 +173,7 @@ fn fixture() -> Fixture {
             kind: ActorKind::Human,
             autonomy: Autonomy::Escalate,
             artifacts: refs.clone(),
+            payload: json!({}),
         },
         Step {
             signer: &agent,
@@ -136,15 +183,25 @@ fn fixture() -> Fixture {
             kind: ActorKind::Agent,
             autonomy: Autonomy::Recommend,
             artifacts: vec![],
+            payload: json!({
+                "recommendation": scenario.recommendation,
+                "findings": scenario.findings,
+                "evaluation_date": scenario.evaluation_date,
+            }),
         },
         Step {
             signer: &rule_engine,
             n: 3,
             from: CaseState::AgentReviewed,
-            to: CaseState::AutoApproved,
+            to: scenario.final_state,
             kind: ActorKind::System,
             autonomy: Autonomy::Autonomous,
             artifacts: vec![],
+            payload: json!({
+                "decision": scenario.final_state.name(),
+                "reasons": scenario.reasons,
+                "evaluation_date": scenario.evaluation_date,
+            }),
         },
     ];
     let mut previous = genesis_previous_evidence(CASE_REF);
@@ -192,7 +249,7 @@ fn fixture() -> Fixture {
         approver: approver.public_key(),
         amount: AMOUNT,
         autonomy_limit: LIMIT,
-        state: CaseState::AutoApproved.code(),
+        state: scenario.final_state.code(),
         last_evidence_hash: last_hash,
         transition_count: 3,
         bump: 254,
@@ -242,31 +299,31 @@ fn failing(report: &Report) -> Vec<u8> {
 }
 
 #[test]
-fn a_valid_bundle_passes_all_six_checks() {
+fn a_valid_bundle_passes_all_seven_checks() {
     let report = run(&fixture());
     assert!(report.passed(), "{:#?}", report.checks);
     assert_eq!(
         report.checks.iter().map(|c| c.id).collect::<Vec<_>>(),
-        [1, 2, 3, 4, 5, 6]
+        [1, 2, 3, 4, 5, 6, 7]
     );
-    assert_eq!(report.passed_count(), 6);
+    assert_eq!(report.passed_count(), 7);
     assert_eq!(report.timeline.len(), 3);
     assert_eq!(report.summary.final_state.as_deref(), Some("AUTO_APPROVED"));
     assert_eq!(report.summary.submitter, Some(address(2)));
 }
 
 #[test]
-fn one_changed_byte_in_an_artifact_fails_check_1() {
+fn one_changed_byte_in_an_artifact_fails_check_1_and_the_decision_is_no_longer_reproducible() {
     let mut f = fixture();
     f.artifacts.get_mut("environmental-license.json").unwrap()[0] ^= 0x01;
-    assert_eq!(failing(&run(&f)), [1]);
+    assert_eq!(failing(&run(&f)), [1, 7]);
 }
 
 #[test]
-fn a_missing_artifact_fails_check_1() {
+fn a_missing_artifact_fails_check_1_and_check_7() {
     let mut f = fixture();
     f.artifacts.remove("tax-certificate.json");
-    assert_eq!(failing(&run(&f)), [1]);
+    assert_eq!(failing(&run(&f)), [1, 7]);
 }
 
 #[test]
@@ -366,4 +423,97 @@ fn bundle_json_round_trip_and_strict_parsing() {
     let mut value: Value = serde_json::from_str(&text).unwrap();
     value["unexpected"] = json!(true);
     assert!(AuditBundle::from_json(&value.to_string()).is_err());
+}
+
+fn first_detail(report: &Report, id: u8) -> String {
+    report
+        .checks
+        .iter()
+        .find(|c| c.id == id)
+        .unwrap()
+        .details
+        .join(" | ")
+}
+
+#[test]
+fn an_escalation_with_the_right_reasons_passes_check_7() {
+    let f = fixture_with(&Scenario::expired_license_escalated());
+    let report = run(&f);
+    assert!(report.passed(), "{:#?}", report.checks);
+    assert!(first_detail(&report, 7).contains("ESCALATED reproduced"));
+}
+
+#[test]
+fn a_compromised_rule_engine_approving_an_expired_license_passes_1_to_6_and_fails_7() {
+    let mut scenario = Scenario::expired_license_escalated();
+    scenario.final_state = CaseState::AutoApproved;
+    scenario.recommendation = "auto_approve";
+    scenario.findings = vec![];
+    scenario.reasons = vec![];
+    let report = run(&fixture_with(&scenario));
+    assert_eq!(failing(&report), [7], "{:#?}", report.checks);
+    let detail = first_detail(&report, 7);
+    assert!(
+        detail.contains("the rule gives ESCALATED but AUTO_APPROVED was recorded"),
+        "{detail}"
+    );
+    assert!(detail.contains("environmental license expired"), "{detail}");
+}
+
+#[test]
+fn wrong_reasons_fail_check_7() {
+    let mut scenario = Scenario::expired_license_escalated();
+    scenario.reasons = vec!["amount exceeds autonomy limit"];
+    let report = run(&fixture_with(&scenario));
+    assert_eq!(failing(&report), [7], "{:#?}", report.checks);
+}
+
+#[test]
+fn a_backdated_evaluation_date_fails_check_7() {
+    let mut scenario = Scenario::valid();
+    scenario.license_until = "2026-09-30";
+    scenario.evaluation_date = "2026-09-01";
+    let report = run(&fixture_with(&scenario));
+    assert_eq!(failing(&report), [7], "{:#?}", report.checks);
+    assert!(first_detail(&report, 7).contains("is not the signing day"));
+}
+
+#[test]
+fn a_missing_evaluation_date_or_document_fails_check_7() {
+    let mut f = fixture();
+    f.artifacts.remove("tax-certificate.json");
+    let failed = failing(&run(&f));
+    assert!(failed.contains(&1) && failed.contains(&7), "{failed:?}");
+}
+
+#[test]
+fn an_agent_that_disagrees_with_the_rule_is_noted_but_does_not_fail() {
+    let mut scenario = Scenario::valid();
+    scenario.recommendation = "escalate";
+    scenario.findings = vec!["made-up concern"];
+    let report = run(&fixture_with(&scenario));
+    assert!(report.passed(), "{:#?}", report.checks);
+    assert!(first_detail(&report, 7).contains("agent recommendation differs from the rule"));
+}
+
+#[test]
+fn a_rule_the_verifier_cannot_run_fails_check_7() {
+    let mut f = fixture();
+    let evidence = &mut f.bundle.evidence[2];
+    let mut doc = EvidenceDocument::from_secured(&evidence.document).unwrap();
+    doc.credential_subject.rule.id = "other-rule".to_owned();
+    let signer = key(4);
+    let options = ProofOptions::assertion(doc.valid_from.clone(), signer.verification_method());
+    evidence.document = sign_document(&doc.to_value().unwrap(), &options, &signer).unwrap();
+    let failed = failing(&run(&f));
+    assert!(failed.contains(&7), "{failed:?}");
+}
+
+#[test]
+fn a_case_without_automated_decisions_has_nothing_to_reproduce() {
+    let mut f = fixture();
+    f.bundle.evidence.truncate(1);
+    let report = run(&f);
+    assert_eq!(report.checks[6].status, Status::Pass);
+    assert!(first_detail(&report, 7).contains("no automated decision recorded yet"));
 }

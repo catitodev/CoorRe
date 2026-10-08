@@ -43,15 +43,15 @@ async function check(id, options = {}) {
 
 const failing = (report) => report.checks.filter((c) => c.status === "FAIL").map((c) => c.id);
 
-test("SUP-001 sample verifies 6/6 in WebAssembly", async () => {
+test("SUP-001 sample verifies 7/7 in WebAssembly", async () => {
   const { report } = await check("SUP-001");
   assert.deepEqual(failing(report), []);
-  assert.equal(report.checks.length, 6);
+  assert.equal(report.checks.length, 7);
   assert.equal(report.summary.final_state, "AUTO_APPROVED");
   assert.equal(report.timeline.length, 3);
 });
 
-test("SUP-002 sample verifies 6/6 and carries the approver's justification", async () => {
+test("SUP-002 sample verifies 7/7 and carries the approver's justification", async () => {
   const { report } = await check("SUP-002");
   assert.deepEqual(failing(report), []);
   assert.equal(report.summary.final_state, "APPROVED");
@@ -60,10 +60,10 @@ test("SUP-002 sample verifies 6/6 and carries the approver's justification", asy
   assert.equal(typeof report.timeline[3].payload.justification, "string");
 });
 
-test("one changed byte fails check 1 only", async () => {
+test("one changed byte fails check 1 and the decision is no longer reproducible", async () => {
   const { report, tamperedName } = await check("SUP-002", { tamper: true });
   assert.ok(tamperedName);
-  assert.deepEqual(failing(report), [1]);
+  assert.deepEqual(failing(report), [1, 7]);
 });
 
 test("another expected program fails check 6", async () => {
@@ -71,11 +71,11 @@ test("another expected program fails check 6", async () => {
   assert.ok(failing(report).includes(6));
 });
 
-test("a missing artifact is reported and fails check 1", async () => {
+test("a missing artifact is reported and fails checks 1 and 7", async () => {
   const s = sample("SUP-001");
   const { report, missing } = await check("SUP-001", { files: s.files.slice(1) });
   assert.deepEqual(missing, [s.files[0].name]);
-  assert.deepEqual(failing(report), [1]);
+  assert.deepEqual(failing(report), [1, 7]);
 });
 
 test("only the public account addresses are sent, in one getMultipleAccounts call", async () => {

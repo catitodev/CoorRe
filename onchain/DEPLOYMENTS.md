@@ -69,7 +69,7 @@ signed transition credentials (eddsa-jcs-2022) anchored with the demo keys.
 
 Case records: SUP-001 `AKfwr5fcW6zCy2TN7LDYcwe8Cqa2TPYRNdogQBv1GkHA` (AUTO_APPROVED),
 SUP-002 `6DTcj3BDKpyacSBVWeQW6AaUtF7Z9T8XinXCi9ukZcaX` (APPROVED). `coorre verify` run
-separately on both bundles: 6/6 PASS each; with one byte flipped in a copy of an
+separately on both bundles: 6/6 PASS each at the time (7/7 after verification check 7 was added; same bundles); with one byte flipped in a copy of an
 artifact, check 1 FAILS and the command exits 1. Balances read from the chain: the
 submitter received exactly 50,000,000 + 200,000,000 lamports; both case records are
 back to their rent-exempt minimum (1,940,560); the creator spent 0.26519808 SOL.

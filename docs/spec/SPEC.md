@@ -71,7 +71,7 @@ Receipt: { network_id: "solana:devnet", program_id, account, tx_signature }.
 
 ## 7. Off-chain core (offchain/, Cargo workspace)
 - coorre-model: types, JCS, hashing, did:key, eddsa-jcs-2022 create/verify.
-- coorre-engine: state machine and rule "supplier-docs" v1; pure, no I/O.
+- coorre-engine: state machine and rule "supplier-docs" v1 (including the document artifact format and the evaluation-date check used by verification check 7); pure, no I/O.
 - coorre-verify: pure verification over (bundle, artifact bytes, on-chain account bytes); native + wasm (feature "wasm").
 - coorre-anchor: `Anchorer` trait (network_id, open_case, anchor_transition, fetch_account) + `BridgeAnchorer`.
 - coorre-cli: `coorre demo run` (narrated scenario with Solana Explorer links; writes audit bundles and artifacts to out/) and `coorre verify --bundle <file> --artifacts <dir>`.
@@ -84,17 +84,18 @@ Audit bundle: case_ref, case_record address, program_id, ordered secured evidenc
 4 Signer binding: proof key == issuer did:key == on-chain EvidenceAnchor.actor == role key in on-chain CaseRecord for that transition.
 5 Hash chain continuity from genesis to final state.
 6 On-chain match: account owner == program_id, Anchor discriminator correct, stored evidence_hash/prev_hash/to_state/actor/rule_hash equal the recomputed values; final CaseRecord state and amount consistent with the bundle.
-Rationale: only the program can write program-owned accounts, so owner check + content match proves anchoring without deriving PDAs in the verifier.
+7 Automated decisions reproduced: for every rule-engine decision (AGENT_REVIEWED to AUTO_APPROVED or ESCALATED) the verifier re-runs the rule named in the evidence (supplier-docs v1, whose hash must equal the one the verifier ships) over the documents listed by the SUBMITTED evidence (digest-checked by check 1), the mandate in the evidence and the payload's evaluation_date; the recorded state, decision and reasons must equal the result. The evaluation_date must be the UTC signing day of the evidence or the day before. The agent's recommendation is compared too, but a difference is reported as informational: the agent advises, the rule engine decides. Cases with no automated decision yet pass with a note.
+Rationale: only the program can write program-owned accounts, so owner check + content match proves anchoring without deriving PDAs in the verifier. The chain enforces the amount against the mandate but cannot see documents, so check 7 closes the gap where a compromised rule-engine key anchors an approval that the rule would not give (ADR-004).
 
 ## 9. Browser verifier (web/verifier/)
-Static page: drop bundle + artifact files; computes everything locally with the wasm build; fetches accounts via JSON-RPC getAccountInfo; shows the timeline (actor kind, decision, mandate, Explorer links) and the six checks. Deployed to GitHub Pages by a GitHub Actions workflow.
+Static page: drop bundle + artifact files; computes everything locally with the wasm build; fetches accounts via JSON-RPC getAccountInfo; shows the timeline (actor kind, decision, mandate, Explorer links) and the seven checks. Deployed to GitHub Pages by a GitHub Actions workflow.
 
 ## 10. Mandatory acceptance tests
 - coorre-model reproduces W3C vc-di-eddsa test vector B.3 (eddsa-jcs-2022): canonical document hash 59b7cb6251b8991add1ce0bc83107e3db9dbbab5bd2c28f687db1a03abc92f19, proof config hash 66ab154f5c2890a140cb8388a22a160454f80575f6eae09e5a097cabe539a1db, and verifies the published proofValue with the published key (https://www.w3.org/TR/vc-di-eddsa/, Appendix B.3).
 - Different key order/whitespace → identical hash.
 - On-chain TS tests (Playground): every forbidden transition → its specific error; wrong role signer → UnauthorizedActor; wrong prev_hash → PrevHashMismatch; repeated role keys → RolesNotDistinct; amount below the rent-exempt minimum → AmountBelowRentExempt; AUTO_APPROVED above limit → MandateExceeded; release and refund move exactly `amount` (balance assertions); two creators using the same case_id get different CaseRecords (no squatting).
-- coorre-verify: valid signature from a non-role key → check 4 FAILS; account with wrong owner → check 6 FAILS.
-- E2E on devnet: SUP-001 → AUTO_APPROVED + released; SUP-002 → MandateExceeded attempt rejected → ESCALATED → APPROVED + released; verify 6/6 PASS for both in CLI and browser; 1-byte artifact change → check 1 FAILS.
+- coorre-verify: valid signature from a non-role key → check 4 FAILS; account with wrong owner → check 6 FAILS; a rule-engine approval the rule would not give (expired license anchored as AUTO_APPROVED within the limit) → checks 1 to 6 pass and check 7 FAILS; a backdated evaluation_date → check 7 FAILS.
+- E2E on devnet: SUP-001 → AUTO_APPROVED + released; SUP-002 → MandateExceeded attempt rejected → ESCALATED → APPROVED + released; verify 7/7 PASS for both in CLI and browser; 1-byte artifact change → check 1 FAILS.
 
 ## 11. Repository layout
 README.md · LICENSE · docs/spec/ · docs/SECURITY.md · docs/evidence/ · docs/decisions/ (ADR-NNN-*.md) · onchain/programs/coorre_anchor/src/lib.rs · onchain/tests/ · onchain/idl/ · onchain/DEPLOYMENTS.md · bridge/ · offchain/crates/{coorre-model,coorre-engine,coorre-verify,coorre-anchor,coorre-cli} · web/verifier/ · demo/fixtures/ · tools/playground-preflight/ (Playground preflight, run with scripts/playground-preflight) · scripts/ · .github/workflows/ · .local/ (gitignored) · out/ (gitignored)

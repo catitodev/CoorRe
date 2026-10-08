@@ -1,7 +1,8 @@
 use std::path::Path;
 
 use anyhow::{Context, bail};
-use coorre_engine::{DocumentKind, SubmittedDocument};
+use coorre_engine::SubmittedDocument;
+use coorre_engine::rule::DocumentArtifact;
 use coorre_model::evidence::{is_safe_artifact_name, parse_lamports};
 use coorre_model::hash::{sha256, to_hex};
 use coorre_model::{ArtifactRef, jcs};
@@ -51,23 +52,11 @@ struct CasesFile {
     cases: Vec<CaseSpec>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct DocumentFixture {
-    pub synthetic: bool,
-    pub kind: DocumentKind,
-    pub supplier: String,
-    pub issuer: String,
-    pub number: String,
-    pub valid_from: String,
-    pub valid_until: String,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Artifact {
     pub name: String,
     pub bytes: Vec<u8>,
-    pub fixture: DocumentFixture,
+    pub fixture: DocumentArtifact,
 }
 
 impl Artifact {
@@ -80,12 +69,7 @@ impl Artifact {
     }
 
     pub fn submitted(&self) -> SubmittedDocument {
-        SubmittedDocument {
-            kind: self.fixture.kind,
-            valid_from: self.fixture.valid_from.clone(),
-            valid_until: self.fixture.valid_until.clone(),
-            digest_sha256: to_hex(&sha256(&self.bytes)),
-        }
+        self.fixture.submitted(&self.bytes)
     }
 }
 
@@ -117,8 +101,7 @@ pub fn load_artifacts(dir: &Path, case: &CaseSpec) -> anyhow::Result<Vec<Artifac
         }
         let bytes =
             std::fs::read(&path).with_context(|| format!("cannot read {}", path.display()))?;
-        let text = std::str::from_utf8(&bytes).with_context(|| format!("{name} is not UTF-8"))?;
-        let fixture: DocumentFixture = serde_json::from_value(jcs::parse(text)?)
+        let fixture = DocumentArtifact::parse(&bytes)
             .with_context(|| format!("invalid document fixture {name}"))?;
         if !fixture.synthetic {
             bail!("{name}: only synthetic documents are allowed in the demo");

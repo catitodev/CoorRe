@@ -58,6 +58,53 @@ pub struct SubmittedDocument {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct DocumentArtifact {
+    pub synthetic: bool,
+    pub kind: DocumentKind,
+    pub supplier: String,
+    pub issuer: String,
+    pub number: String,
+    pub valid_from: String,
+    pub valid_until: String,
+}
+
+impl DocumentArtifact {
+    pub fn parse(bytes: &[u8]) -> Result<Self> {
+        let text = std::str::from_utf8(bytes)
+            .map_err(|_| EngineError::InvalidRuleInput("document is not UTF-8".to_owned()))?;
+        let value = jcs::parse(text).map_err(|e| EngineError::InvalidRuleInput(e.to_string()))?;
+        serde_json::from_value(value)
+            .map_err(|e| EngineError::InvalidRuleInput(format!("document format: {e}")))
+    }
+
+    pub fn submitted(&self, bytes: &[u8]) -> SubmittedDocument {
+        SubmittedDocument {
+            kind: self.kind,
+            valid_from: self.valid_from.clone(),
+            valid_until: self.valid_until.clone(),
+            digest_sha256: hash::to_hex(&hash::sha256(bytes)),
+        }
+    }
+}
+
+pub fn submitted_document(bytes: &[u8]) -> Result<SubmittedDocument> {
+    Ok(DocumentArtifact::parse(bytes)?.submitted(bytes))
+}
+
+pub const MAX_EVALUATION_AGE_DAYS: i32 = 1;
+
+pub fn evaluation_date_is_credible(evaluation_date: &str, signed_at: &str) -> Result<bool> {
+    let evaluated = parse_date(evaluation_date)?;
+    let signed_date = signed_at
+        .get(..10)
+        .ok_or_else(|| EngineError::InvalidRuleInput(format!("invalid timestamp `{signed_at}`")))?;
+    let signed = parse_date(signed_date)?;
+    let age = signed.to_julian_day() - evaluated.to_julian_day();
+    Ok((0..=MAX_EVALUATION_AGE_DAYS).contains(&age))
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SupplierDocsInput {
     pub evaluation_date: String,
     pub amount_lamports: u64,
@@ -310,6 +357,51 @@ mod tests {
                 "{bad:?}"
             );
         }
+    }
+
+    fn artifact_bytes(kind: &str, from: &str, until: &str) -> Vec<u8> {
+        format!(
+            r#"{{"synthetic":true,"kind":"{kind}","supplier":"S","issuer":"I","number":"N-1","valid_from":"{from}","valid_until":"{until}"}}"#
+        )
+        .into_bytes()
+    }
+
+    #[test]
+    fn artifacts_parse_strictly_and_carry_their_own_digest() {
+        let bytes = artifact_bytes("tax_certificate", "2026-01-01", "2026-12-31");
+        let parsed = DocumentArtifact::parse(&bytes).unwrap();
+        assert_eq!(parsed.kind, DocumentKind::TaxCertificate);
+        let submitted = submitted_document(&bytes).unwrap();
+        assert_eq!(submitted.digest_sha256, hash::to_hex(&hash::sha256(&bytes)));
+        assert_eq!(
+            (
+                submitted.valid_from.as_str(),
+                submitted.valid_until.as_str()
+            ),
+            ("2026-01-01", "2026-12-31")
+        );
+        let extra = String::from_utf8(bytes.clone())
+            .unwrap()
+            .replace("\"number\"", "\"extra\":1,\"number\"");
+        assert!(DocumentArtifact::parse(extra.as_bytes()).is_err());
+        assert!(DocumentArtifact::parse(&[0xff, 0xfe]).is_err());
+        assert!(DocumentArtifact::parse(b"{}").is_err());
+        assert!(
+            DocumentArtifact::parse(&artifact_bytes("passport", "2026-01-01", "2026-12-31"))
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn evaluation_date_must_be_the_signing_day_or_the_day_before() {
+        assert!(evaluation_date_is_credible("2026-10-09", "2026-10-09T12:00:00Z").unwrap());
+        assert!(evaluation_date_is_credible("2026-10-08", "2026-10-09T00:00:01Z").unwrap());
+        assert!(!evaluation_date_is_credible("2026-10-07", "2026-10-09T12:00:00Z").unwrap());
+        assert!(!evaluation_date_is_credible("2026-10-10", "2026-10-09T12:00:00Z").unwrap());
+        assert!(!evaluation_date_is_credible("2026-01-01", "2026-10-09T12:00:00Z").unwrap());
+        assert!(evaluation_date_is_credible("2026-09-30", "2026-10-01T08:00:00Z").unwrap());
+        assert!(evaluation_date_is_credible("bad", "2026-10-09T12:00:00Z").is_err());
+        assert!(evaluation_date_is_credible("2026-10-09", "short").is_err());
     }
 
     #[test]

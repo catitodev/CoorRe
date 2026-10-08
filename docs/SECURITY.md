@@ -11,6 +11,7 @@ Creator/operator (opens and funds cases), submitter/payee, agent, rule_engine, a
 - Reordering or replay of evidence: prev_hash chain checked on-chain and off-chain.
 - Forged evidence with a valid signature from an unrelated key: verifier check 4 binds proof key to the on-chain role key.
 - Fake accounts in an audit bundle: verifier ignores receipts, checks account owner == program and content equality.
+- Compromised or misconfigured rule engine anchoring an approval the rule would not give (the chain only enforces the amount): verification check 7 re-runs supplier-docs v1 over the digest-checked documents and compares state, decision and reasons; the evaluation date must be the signing day or the day before so it cannot be backdated; any rule other than the one the verifier ships fails instead of being trusted (ADR-004). Not covered: authenticity of the documents themselves and custody of the role keys.
 - Bundle naming its own program: the expected program id is an input of the verifier (default: the CoorRe devnet deployment), never read from the bundle (ADR-002).
 - Path traversal through artifact names: names are limited to 1-128 characters of [A-Za-z0-9._-] and cannot start with a dot, enforced in evidence validation and in verification check 1.
 - Identity of role keys: the chain proves which keys acted; the verifier report shows the creator and the four role keys read from the case record so an auditor can match them to people or systems.

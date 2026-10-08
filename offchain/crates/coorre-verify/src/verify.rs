@@ -1,6 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use coorre_engine::{CaseTracker, RoleKeys, required_role};
+use coorre_engine::rule::{
+    RULE_ID, RULE_VERSION, evaluation_date_is_credible, rule_hash, submitted_document,
+};
+use coorre_engine::{
+    CaseTracker, Decision, RoleKeys, SubmittedDocument, SupplierDocsInput, evaluate, required_role,
+};
 use coorre_model::accounts::{
     CaseRecordAccount, EvidenceAnchorAccount, pubkey_from_base58, pubkey_to_base58,
 };
@@ -117,6 +122,7 @@ pub fn verify(inputs: &Inputs) -> Report {
         check_signers(&record, &entries),
         check_chain(bundle, &record, &entries),
         check_onchain(inputs, &record, &entries),
+        check_decisions(inputs, &entries),
     ];
 
     Report {
@@ -549,6 +555,177 @@ fn check_onchain(
         failures,
         passed,
     )
+}
+
+fn submitted_documents(
+    inputs: &Inputs,
+    entries: &[Entry],
+) -> Result<Vec<SubmittedDocument>, String> {
+    let submission = entries
+        .iter()
+        .filter_map(|e| e.document.as_ref())
+        .find(|d| d.credential_subject.to_state == CaseState::Submitted)
+        .ok_or("no SUBMITTED evidence lists the documents")?;
+    let refs = &submission.credential_subject.artifacts;
+    if refs.is_empty() {
+        return Err("the SUBMITTED evidence lists no documents".to_owned());
+    }
+    refs.iter()
+        .map(|artifact| {
+            let bytes = inputs
+                .artifacts
+                .get(&artifact.name)
+                .ok_or_else(|| format!("{}: file not provided", artifact.name))?;
+            submitted_document(bytes).map_err(|e| format!("{}: {e}", artifact.name))
+        })
+        .collect()
+}
+
+fn reproduce(
+    document: &EvidenceDocument,
+    documents: &Result<Vec<SubmittedDocument>, String>,
+) -> Result<(Decision, String), String> {
+    let subject = &document.credential_subject;
+    if subject.rule.id != RULE_ID || subject.rule.version != RULE_VERSION {
+        return Err(format!(
+            "rule {} v{} is not one this verifier can run",
+            subject.rule.id, subject.rule.version
+        ));
+    }
+    let known_hash = rule_hash().map_err(|e| e.to_string())?;
+    if subject.rule.hash != to_prefixed(&known_hash) {
+        return Err(
+            "the rule hash differs from the supplier-docs v1 this verifier runs".to_owned(),
+        );
+    }
+    let evaluation_date = subject
+        .payload
+        .get("evaluation_date")
+        .and_then(Value::as_str)
+        .ok_or("the payload has no evaluation_date")?;
+    if !evaluation_date_is_credible(evaluation_date, &document.valid_from)
+        .map_err(|e| e.to_string())?
+    {
+        return Err(format!(
+            "evaluation date {evaluation_date} is not the signing day ({}) or the day before",
+            &document.valid_from[..10]
+        ));
+    }
+    let documents = documents.clone()?;
+    let input = SupplierDocsInput {
+        evaluation_date: evaluation_date.to_owned(),
+        amount_lamports: document.amount_lamports().map_err(|e| e.to_string())?,
+        autonomy_limit_lamports: document
+            .autonomy_limit_lamports()
+            .map_err(|e| e.to_string())?,
+        documents,
+    };
+    let decision = evaluate(&input).map_err(|e| e.to_string())?;
+    Ok((decision, evaluation_date.to_owned()))
+}
+
+fn string_list(payload: &serde_json::Map<String, Value>, key: &str) -> Option<Vec<String>> {
+    payload
+        .get(key)?
+        .as_array()?
+        .iter()
+        .map(|v| v.as_str().map(str::to_owned))
+        .collect()
+}
+
+fn check_decisions(inputs: &Inputs, entries: &[Entry]) -> CheckResult {
+    let name = "Automated decisions reproduced from the rule";
+    let mut failures = Vec::new();
+    let mut passed = Vec::new();
+    if entries.is_empty() {
+        return finish(
+            7,
+            name,
+            vec!["the bundle contains no evidence".to_owned()],
+            vec![],
+        );
+    }
+    let documents = submitted_documents(inputs, entries);
+    let mut automated = 0;
+    for (i, entry) in entries.iter().enumerate() {
+        let n = i + 1;
+        let Some(doc) = &entry.document else { continue };
+        let subject = &doc.credential_subject;
+        let is_agent = subject.from_state == CaseState::Submitted
+            && subject.to_state == CaseState::AgentReviewed;
+        let is_rule_engine = subject.from_state == CaseState::AgentReviewed
+            && matches!(
+                subject.to_state,
+                CaseState::AutoApproved | CaseState::Escalated
+            );
+        if !is_agent && !is_rule_engine {
+            continue;
+        }
+        automated += 1;
+        let (decision, evaluated_on) = match reproduce(doc, &documents) {
+            Ok(result) => result,
+            Err(e) if is_agent => {
+                passed.push(format!(
+                    "evidence {n}: agent recommendation not compared ({e})"
+                ));
+                continue;
+            }
+            Err(e) => {
+                failures.push(format!("evidence {n}: decision cannot be reproduced: {e}"));
+                continue;
+            }
+        };
+        let payload = &subject.payload;
+        if is_agent {
+            let expected = match decision {
+                Decision::AutoApproved => "auto_approve",
+                Decision::Escalated { .. } => "escalate",
+            };
+            if payload.get("recommendation").and_then(Value::as_str) == Some(expected)
+                && string_list(payload, "findings").as_deref() == Some(decision.reasons())
+            {
+                passed.push(format!(
+                    "evidence {n}: agent recommendation matches the rule ({expected})"
+                ));
+            } else {
+                passed.push(format!(
+                    "evidence {n}: agent recommendation differs from the rule, which gives {expected}; informational, the rule engine decides"
+                ));
+            }
+            continue;
+        }
+        let mut differences = Vec::new();
+        if decision.to_state() != subject.to_state {
+            differences.push(format!(
+                "the rule gives {} but {} was recorded",
+                decision.to_state().name(),
+                subject.to_state.name()
+            ));
+        }
+        if payload.get("decision").and_then(Value::as_str) != Some(subject.to_state.name()) {
+            differences.push("the payload decision does not match the state".to_owned());
+        }
+        let recorded = string_list(payload, "reasons").unwrap_or_default();
+        if recorded != decision.reasons() {
+            differences.push(format!(
+                "reasons recorded [{}] but the rule gives [{}]",
+                recorded.join("; "),
+                decision.reasons().join("; ")
+            ));
+        }
+        if differences.is_empty() {
+            passed.push(format!(
+                "evidence {n}: {} reproduced from the submitted documents on {evaluated_on}",
+                subject.to_state.name()
+            ));
+        } else {
+            failures.push(format!("evidence {n}: {}", differences.join("; ")));
+        }
+    }
+    if automated == 0 {
+        passed.push("no automated decision recorded yet".to_owned());
+    }
+    finish(7, name, failures, passed)
 }
 
 fn summary(inputs: &Inputs, record: &Result<CaseRecordAccount, String>) -> CaseSummary {
