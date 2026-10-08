@@ -27,3 +27,23 @@ Entry template:
 - Not installed by design: Solana CLI, Anchor CLI (all on-chain work goes through Solana Playground); wasm toolchain deferred to 2026-10-11.
 - Limitations / deviations: none.
 - Commit(s): chore: environment, license, gitignore and CI
+- CI: first run green (Rust steps skipped as designed): https://github.com/catitodev/CoorRe/actions/runs/37790733309
+- Repository created: https://github.com/catitodev/CoorRe (public).
+
+### 2026-10-08 11:20 BRT — Playground spike prepared (pending execution in the browser)
+- Author: Clarkson Luiz Buriche Bartalini
+- Work: spike/playground_spike.rs (vault PDA seeded by ["vault", signer]; open_vault/deposit via system transfer; withdraw by direct lamport edit keeping the rent-exempt minimum; VaultDeposited/VaultWithdrawn events) and spike/playground_spike.test.ts (exact balance deltas, events, rent floor, wrong signer, zero amount, runtime rent rule for new recipients).
+- Findings from the official Solana Playground repository (github.com/solana-playground/solana-playground, checked 2026-10-08): the default build template is `legacy`, whose Cargo.lock pins anchor-lang 0.29.0 (solana-program 1.16.24); an `anchor-1.1.2` template also exists. A commit on 2026-10-08 removed the `anchor`/`web3` test globals only when the experimental "unstable" setting is on; the default mode keeps them. `ctx.bumps.<account>` is valid from Anchor 0.29.0 (CHANGELOG #2542).
+- Result: pending human execution on beta.solpg.io (build, deploy, test, IDL export, wallet backup).
+- Commit(s): chore: add Playground spike for the PDA vault pattern
+
+### 2026-10-08 11:33 BRT — Task 1: offchain workspace and coorre-model
+- Author: Clarkson Luiz Buriche Bartalini
+- Environment: rustc 1.99.0, cargo 1.99.0, edition 2024, rust-version 1.88 (required by time 0.3.55).
+- Dependencies (latest stable on crates.io, checked 2026-10-08): bs58 0.5.1, ed25519-dalek 3.0.0, hex 0.4.3, serde 1.0.229, serde_json 1.0.151, serde_json_canonicalizer 0.3.2, sha2 0.11.0, thiserror 2.0.21, time 0.3.55. Cargo.lock committed; CI uses --locked.
+- Work: modules jcs (strict I-JSON parsing + RFC 8785), hash (SHA-256, lowercase hex, `sha256:` prefix), did_key (ed25519-pub 0xed01 / ed25519-priv 0x1300, base58btc, canonical encoding enforced), keys (Solana 64-byte keypair loading with public-key check, strict Ed25519 verification, secret never printed), datetime (RFC 3339; strict UTC-seconds form), eddsa_jcs_2022 (W3C sections 3.3.1–3.3.7 and the CoorRe evidence hash). Clippy denies unwrap/expect/panic outside tests; unsafe code forbidden.
+- Official test data: W3C vc-di-eddsa Appendix B.3 (Examples 29–39) and RFC 8785 sections 3.2.2–3.2.4, both extracted programmatically from the published documents (sources and sha256 in tests/vectors/*/README.md); RFC 8032 section 7.1 TEST 1; FIPS 180-2 SHA-256("abc").
+- Commands run: cargo fmt --all -- --check; cargo clippy --workspace --all-targets --locked -- -D warnings; cargo test --workspace --locked; cargo doc --no-deps.
+- Result: 55 tests passed (47 unit, 8 W3C B.3 integration), 0 failed. Reproduced canonical document hash 59b7cb62…abc92f19, proof config hash 66ab154f…be539a1db, the published signature and proofValue byte for byte, and verified the published signed credential with the published key. Key order/whitespace changes give an identical hash. Mutation check: swapping the hash order in hash_data makes the suite fail. Peak build memory about 360 MB.
+- Limitations / deviations: evidence document types and state codes will land in coorre-model in a follow-up commit (planned before coorre-engine). Only did:key verification methods are resolved, by design.
+- Commit(s): feat: add coorre-model with JCS, did:key and eddsa-jcs-2022

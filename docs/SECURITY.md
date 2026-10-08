@@ -11,6 +11,9 @@ Creator/operator (opens and funds cases), submitter/payee, agent, rule_engine, a
 - Reordering or replay of evidence: prev_hash chain checked on-chain and off-chain.
 - Forged evidence with a valid signature from an unrelated key: verifier check 4 binds proof key to the on-chain role key.
 - Fake accounts in an audit bundle: verifier ignores receipts, checks account owner == program and content equality.
+- Ambiguous JSON (parser differentials): evidence is parsed as I-JSON before canonicalization; duplicate member names and integers outside the IEEE 754 safe range are rejected.
+- Signature malleability and weak keys: Ed25519 verification uses strict mode (non-canonical signatures and small-order keys rejected); multibase keys and proof values must be canonically encoded.
+- Key confusion: a proof is only created when its verification method resolves to the signing key; verification resolves did:key only, so no network lookup can substitute a key.
 - Escrow draining or rent violation: exact `amount` movements, rent-exempt minimum preserved, checked arithmetic, payee/refund accounts constrained to stored keys.
 - Supply chain: pinned versions, committed lockfiles, CI on every push.
 - Secrets: keys only in .local/ (gitignored); never logged.
