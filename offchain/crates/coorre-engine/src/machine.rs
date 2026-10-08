@@ -1,12 +1,7 @@
-//! Case state machine. Mirrors `anchor_transition` in the on-chain program,
-//! including the order of its checks, so the off-chain core can predict and
-//! replay exactly what the program accepts.
-
 use coorre_model::{ActorKind, CaseState, Role};
 
 use crate::error::{EngineError, Result};
 
-/// The only allowed transitions and the role that must sign each one.
 pub fn required_role(from: CaseState, to: CaseState) -> Option<Role> {
     use CaseState::*;
     match (from, to) {
@@ -18,16 +13,12 @@ pub fn required_role(from: CaseState, to: CaseState) -> Option<Role> {
     }
 }
 
-/// Escrow movement triggered by entering a terminal state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Payout {
-    /// Escrow released to the submitter (AUTO_APPROVED, APPROVED).
     Release,
-    /// Escrow refunded to the creator (REJECTED).
     Refund,
 }
 
-/// Payout caused by entering `to`, if any.
 pub fn payout_for(to: CaseState) -> Option<Payout> {
     match to {
         CaseState::AutoApproved | CaseState::Approved => Some(Payout::Release),
@@ -36,8 +27,6 @@ pub fn payout_for(to: CaseState) -> Option<Payout> {
     }
 }
 
-/// Validates a transition without keys or hashes: terminal source, allowed
-/// pair and, for AUTO_APPROVED, the autonomy limit. Returns the signing role.
 pub fn check_transition(
     from: CaseState,
     to: CaseState,
@@ -54,7 +43,6 @@ pub fn check_transition(
     Ok(role)
 }
 
-/// Public keys of the four roles of a case.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RoleKeys {
     pub submitter: [u8; 32],
@@ -73,7 +61,6 @@ impl RoleKeys {
         }
     }
 
-    /// Separation of duties: the four keys must be pairwise distinct.
     pub fn ensure_distinct(&self) -> Result<()> {
         let keys = [self.submitter, self.agent, self.rule_engine, self.approver];
         for (i, a) in keys.iter().enumerate() {
@@ -85,7 +72,6 @@ impl RoleKeys {
     }
 }
 
-/// Result of an accepted transition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AppliedTransition {
     pub from: CaseState,
@@ -95,7 +81,6 @@ pub struct AppliedTransition {
     pub payout: Option<Payout>,
 }
 
-/// Off-chain replica of a `CaseRecord`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CaseTracker {
     case_id: [u8; 32],
@@ -108,8 +93,6 @@ pub struct CaseTracker {
 }
 
 impl CaseTracker {
-    /// Mirrors `open_case`. `payout_floor` is the rent-exempt minimum of a
-    /// zero-data account on the target network.
     pub fn open(
         case_id: [u8; 32],
         roles: RoleKeys,
@@ -160,7 +143,6 @@ impl CaseTracker {
         self.transition_count
     }
 
-    /// The `prev_hash` the next transition must carry.
     pub fn expected_prev_hash(&self) -> [u8; 32] {
         if self.transition_count == 0 {
             self.case_id
@@ -169,7 +151,6 @@ impl CaseTracker {
         }
     }
 
-    /// Mirrors `anchor_transition`. The tracker is left unchanged on error.
     pub fn apply(
         &mut self,
         to_state: u8,
@@ -440,7 +421,6 @@ mod tests {
             Err(EngineError::PrevHashMismatch)
         );
         step(&mut t, AgentReviewed, ROLES.agent, 2).unwrap();
-        // Agent is not the role for AUTO_APPROVED: UnauthorizedActor wins over MandateExceeded.
         assert_eq!(
             step(&mut t, AutoApproved, ROLES.agent, 3),
             Err(EngineError::UnauthorizedActor)

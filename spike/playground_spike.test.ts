@@ -1,5 +1,3 @@
-// Runs inside Solana Playground, where pg, web3, anchor, BN and assert are globals.
-
 describe("playground_spike", () => {
   const authority = pg.wallet.publicKey;
   const [vault] = web3.PublicKey.findProgramAddressSync(
@@ -12,8 +10,8 @@ describe("playground_spike", () => {
     new anchor.BorshCoder(pg.program.idl)
   );
 
-  const DEPOSIT = 20_000_000; // 0.02 SOL
-  const WITHDRAW = 10_000_000; // 0.01 SOL
+  const DEPOSIT = 20_000_000;
+  const WITHDRAW = 10_000_000;
 
   const balanceOf = (key: web3.PublicKey) =>
     pg.connection.getBalance(key, "confirmed");

@@ -16,4 +16,4 @@ HTML (retrieved 2026-10-08, sha256 of the page
 | `signed-credential.json` | Example 39: Signed Credential |
 
 Keys (Example 29), hashes (Examples 32, 35, 36) and signature (Examples 37, 38) are
-constants in `tests/w3c_vc_di_eddsa_b3.rs`.
+constants in `tests/w3c_vc_di_eddsa_b3.rs`, named `EXnn_*` after their example number.

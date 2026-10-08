@@ -1,6 +1,3 @@
-// Pure helpers for the coorre_anchor program: input validation, Anchor 0.29
-// encodings (see docs/decisions/ADR-001), PDAs and error decoding. No I/O.
-
 import { createHash } from "node:crypto";
 import { PublicKey, SystemProgram, TransactionInstruction } from "@solana/web3.js";
 
@@ -21,7 +18,6 @@ export const PROGRAM_ERRORS = [
   "Overflow",
   "AmountBelowRentExempt",
 ];
-// 8 discriminator + case_id + 5 pubkeys + amount + limit + state + last hash + count + bump
 export const CASE_RECORD_SIZE = 8 + 32 + 32 * 5 + 8 + 8 + 1 + 32 + 4 + 1;
 
 const U64_MAX = (1n << 64n) - 1n;
@@ -60,7 +56,6 @@ export function parsePubkey(value, field) {
       const key = new PublicKey(value);
       if (key.toBase58() === value) return key;
     } catch {
-      // reported below
     }
   }
   throw new BridgeError("InvalidInput", `${field} must be a base58 public key`);
@@ -80,7 +75,6 @@ export function parseActorRole(value, field) {
   return value;
 }
 
-/** Accepts exactly the listed members; anything else is an input error. */
 export function requireMembers(input, members) {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
     throw new BridgeError("InvalidInput", "input must be a JSON object");
@@ -196,7 +190,6 @@ export function decodeCaseRecord(data) {
   };
 }
 
-/** Program error name and number from transaction logs, when present. */
 export function parseProgramError(logs = [], message = "") {
   for (const line of logs) {
     const match = /Error Code: (\w+)\. Error Number: (\d+)\./.exec(line);

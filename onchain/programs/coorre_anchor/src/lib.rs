@@ -1,10 +1,8 @@
 use anchor_lang::prelude::*;
 use anchor_lang::system_program;
 
-// Devnet deployment; see onchain/DEPLOYMENTS.md.
 declare_id!("9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv");
 
-/// Case states (u8 codes shared with the off-chain core).
 pub mod case_state {
     pub const OPEN: u8 = 0;
     pub const SUBMITTED: u8 = 1;
@@ -23,8 +21,6 @@ pub mod case_state {
     }
 }
 
-/// Actor kinds recorded on each anchor. Derived from the role, never taken
-/// from instruction input. Zero is left unused so empty data never looks valid.
 pub mod actor_kinds {
     pub const HUMAN: u8 = 1;
     pub const AGENT: u8 = 2;
@@ -58,7 +54,6 @@ impl Role {
     }
 }
 
-/// The only allowed transitions and the role that must sign each one.
 fn required_role(from: u8, to: u8) -> Option<Role> {
     use crate::case_state::*;
     match (from, to) {
@@ -74,7 +69,6 @@ fn required_role(from: u8, to: u8) -> Option<Role> {
 pub mod coorre_anchor {
     use super::*;
 
-    /// Opens a case and moves `amount` lamports from the creator into escrow.
     pub fn open_case(
         ctx: Context<OpenCase>,
         case_id: [u8; 32],
@@ -91,7 +85,6 @@ pub mod coorre_anchor {
                 require_keys_neq!(roles[i], roles[j], CoorreError::RolesNotDistinct);
             }
         }
-        // The payee must end rent-exempt or the final payout would be rejected.
         let payout_floor = Rent::get()?.minimum_balance(0);
         require!(amount >= payout_floor, CoorreError::AmountBelowRentExempt);
 
@@ -129,8 +122,6 @@ pub mod coorre_anchor {
         Ok(())
     }
 
-    /// Anchors one evidence-backed transition and, on a terminal state,
-    /// releases or refunds the escrow.
     pub fn anchor_transition(
         ctx: Context<AnchorTransition>,
         evidence_hash: [u8; 32],
@@ -217,8 +208,6 @@ pub mod coorre_anchor {
     }
 }
 
-/// Moves exactly `amount` lamports out of the program-owned case record,
-/// never leaving it below its rent-exempt minimum.
 fn pay_out<'info>(from: &AccountInfo<'info>, to: &AccountInfo<'info>, amount: u64) -> Result<()> {
     let rent_minimum = Rent::get()?.minimum_balance(from.data_len());
     let remaining = from
@@ -271,10 +260,8 @@ pub struct AnchorTransition<'info> {
     pub actor: Signer<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
-    /// Payee on release; must be the submitter stored in the case.
     #[account(mut, address = case_record.submitter)]
     pub submitter: SystemAccount<'info>,
-    /// Refund target on rejection; must be the creator stored in the case.
     #[account(mut, address = case_record.creator)]
     pub creator: SystemAccount<'info>,
     pub system_program: Program<'info, System>,

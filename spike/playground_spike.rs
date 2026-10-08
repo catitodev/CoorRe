@@ -1,14 +1,12 @@
 use anchor_lang::prelude::*;
 use anchor_lang::system_program;
 
-// Solana Playground rewrites this on build with the project's program id.
 declare_id!("11111111111111111111111111111111");
 
 #[program]
 pub mod playground_spike {
     use super::*;
 
-    /// Creates the vault PDA and funds it with `amount` lamports on top of rent.
     pub fn open_vault(ctx: Context<OpenVault>, amount: u64) -> Result<()> {
         require!(amount > 0, SpikeError::ZeroAmount);
         let vault_info = ctx.accounts.vault.to_account_info();
@@ -32,7 +30,6 @@ pub mod playground_spike {
         Ok(())
     }
 
-    /// Adds `amount` lamports to an existing vault through a system transfer.
     pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
         require!(amount > 0, SpikeError::ZeroAmount);
         let vault_info = ctx.accounts.vault.to_account_info();
@@ -52,8 +49,6 @@ pub mod playground_spike {
         Ok(())
     }
 
-    /// Moves exactly `amount` lamports out of the program-owned vault by
-    /// editing balances directly. The vault never drops below rent exemption.
     pub fn withdraw(ctx: Context<Withdraw>, amount: u64) -> Result<()> {
         require!(amount > 0, SpikeError::ZeroAmount);
         let vault_info = ctx.accounts.vault.to_account_info();

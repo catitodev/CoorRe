@@ -1,10 +1,3 @@
-//! CoorRe evidence model: RFC 8785 canonicalization, SHA-256 digests,
-//! `did:key` identifiers, `eddsa-jcs-2022` Data Integrity proofs and the
-//! transition credential with its shared state and role codes.
-//!
-//! Everything here is pure and free of I/O so it can run natively and in
-//! WebAssembly.
-
 pub mod datetime;
 pub mod did_key;
 pub mod eddsa_jcs_2022;

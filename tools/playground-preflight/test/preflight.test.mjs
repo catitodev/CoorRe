@@ -1,6 +1,3 @@
-// Each case below reproduces a problem that reached Solana Playground before
-// this preflight existed; the preflight must catch all of them.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";

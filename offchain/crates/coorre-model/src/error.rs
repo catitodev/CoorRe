@@ -1,6 +1,5 @@
 use thiserror::Error;
 
-/// Errors produced by the evidence model.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ModelError {
     #[error("invalid JSON: {0}")]

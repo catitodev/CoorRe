@@ -1,9 +1,3 @@
-//! Rule "supplier-docs" v1 (deterministic, off-chain).
-//!
-//! AUTO_APPROVED iff every required document is present exactly once and valid
-//! on the evaluation date, and the amount is within the autonomy limit;
-//! otherwise ESCALATED with explicit reasons.
-
 use coorre_model::{CaseState, hash, jcs};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -16,7 +10,6 @@ pub const RULE_VERSION: &str = "1";
 
 const RULE_DOCUMENT: &str = include_str!("../rules/supplier-docs-v1.json");
 
-/// The rule definition as published in audit bundles.
 pub fn rule_document() -> Result<Value> {
     let value =
         jcs::parse(RULE_DOCUMENT).map_err(|e| EngineError::RuleDefinition(e.to_string()))?;
@@ -29,7 +22,6 @@ pub fn rule_document() -> Result<Value> {
     Ok(value)
 }
 
-/// `rule.hash` value: `SHA-256(JCS(rule document))`.
 pub fn rule_hash() -> Result<[u8; 32]> {
     jcs::hash(&rule_document()?).map_err(|e| EngineError::RuleDefinition(e.to_string()))
 }
@@ -55,7 +47,6 @@ impl DocumentKind {
     }
 }
 
-/// A document submitted by the supplier. Dates are `YYYY-MM-DD`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SubmittedDocument {
@@ -81,7 +72,6 @@ pub enum Decision {
 }
 
 impl Decision {
-    /// State the rule engine anchors for this decision.
     pub fn to_state(&self) -> CaseState {
         match self {
             Decision::AutoApproved => CaseState::AutoApproved,
@@ -97,7 +87,6 @@ impl Decision {
     }
 }
 
-/// Evaluates the rule. Malformed input is an error, never a silent escalation.
 pub fn evaluate(input: &SupplierDocsInput) -> Result<Decision> {
     let today = parse_date(&input.evaluation_date)?;
     let mut validated = Vec::with_capacity(input.documents.len());
@@ -142,7 +131,6 @@ pub fn evaluate(input: &SupplierDocsInput) -> Result<Decision> {
     })
 }
 
-/// Parses a calendar date written strictly as `YYYY-MM-DD`.
 pub fn parse_date(text: &str) -> Result<Date> {
     let invalid = || EngineError::InvalidRuleInput(format!("invalid date `{text}`"));
     let bytes = text.as_bytes();
@@ -198,8 +186,6 @@ mod tests {
 
     #[test]
     fn rule_document_hash_matches_an_independent_computation() {
-        // SHA-256 of the canonical JSON, computed with Python's json.dumps
-        // (sort_keys, compact separators) over the same file.
         assert_eq!(
             hash::to_hex(&rule_hash().unwrap()),
             "7320d1d698663198cb21f5f5cce3e6d0064b8300a1042ebf13fc8934fbdabd2f"

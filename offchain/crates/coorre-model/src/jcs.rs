@@ -1,9 +1,3 @@
-//! JSON parsing and RFC 8785 (JCS) canonicalization.
-//!
-//! [`parse`] accepts only I-JSON (RFC 7493): duplicate member names and
-//! integers outside the IEEE 754 safe range are rejected, so the same input
-//! cannot be read differently by two verifiers.
-
 use std::fmt;
 
 use serde::de::{self, Deserialize, Deserializer, MapAccess, SeqAccess, Visitor};
@@ -12,27 +6,22 @@ use serde_json::{Map, Number, Value};
 use crate::error::{ModelError, Result};
 use crate::hash::sha256;
 
-/// Largest integer that an IEEE 754 double represents exactly (2^53 - 1).
 pub const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 
-/// Parses I-JSON text into a [`Value`].
 pub fn parse(json: &str) -> Result<Value> {
     serde_json::from_str::<StrictValue>(json)
         .map(|StrictValue(value)| value)
         .map_err(|e| ModelError::InvalidJson(e.to_string()))
 }
 
-/// Canonical RFC 8785 serialization of `value` as UTF-8 bytes.
 pub fn canonicalize(value: &Value) -> Result<Vec<u8>> {
     serde_json_canonicalizer::to_vec(value).map_err(|e| ModelError::Canonicalization(e.to_string()))
 }
 
-/// Parses I-JSON text and returns its canonical form.
 pub fn canonicalize_str(json: &str) -> Result<Vec<u8>> {
     canonicalize(&parse(json)?)
 }
 
-/// SHA-256 of the canonical form of `value`.
 pub fn hash(value: &Value) -> Result<[u8; 32]> {
     Ok(sha256(&canonicalize(value)?))
 }
@@ -120,25 +109,24 @@ mod tests {
     use super::*;
     use crate::hash::to_hex;
 
-    // RFC 8785: section 3.2.2 sample, its section 3.2.4 canonical bytes, and
-    // the section 3.2.3 sorting sample (see tests/vectors/rfc8785/README.md).
-    const RFC8785_INPUT: &str = include_str!("../tests/vectors/rfc8785/sample.json");
-    const RFC8785_OUTPUT_HEX: &str = include_str!("../tests/vectors/rfc8785/sample.canonical.hex");
-    const RFC8785_SORTING_INPUT: &str = include_str!("../tests/vectors/rfc8785/sorting.json");
+    const RFC8785_SEC_3_2_2_INPUT: &str = include_str!("../tests/vectors/rfc8785/sample.json");
+    const RFC8785_SEC_3_2_4_OUTPUT_HEX: &str =
+        include_str!("../tests/vectors/rfc8785/sample.canonical.hex");
+    const RFC8785_SEC_3_2_3_INPUT: &str = include_str!("../tests/vectors/rfc8785/sorting.json");
 
     #[test]
     fn canonicalize_str_matches_rfc8785_bytes() {
-        let expected: Vec<u8> = RFC8785_OUTPUT_HEX
+        let expected: Vec<u8> = RFC8785_SEC_3_2_4_OUTPUT_HEX
             .split_whitespace()
             .map(|b| u8::from_str_radix(b, 16).unwrap())
             .collect();
-        assert_eq!(canonicalize_str(RFC8785_INPUT).unwrap(), expected);
+        assert_eq!(canonicalize_str(RFC8785_SEC_3_2_2_INPUT).unwrap(), expected);
     }
 
     #[test]
     fn canonicalize_sorts_properties_by_utf16_code_units() {
         let canonical =
-            String::from_utf8(canonicalize_str(RFC8785_SORTING_INPUT).unwrap()).unwrap();
+            String::from_utf8(canonicalize_str(RFC8785_SEC_3_2_3_INPUT).unwrap()).unwrap();
         let order = [
             "Carriage Return",
             "One",

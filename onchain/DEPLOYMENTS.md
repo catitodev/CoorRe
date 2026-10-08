@@ -13,7 +13,7 @@ Devnet only. Every entry was checked against the chain through JSON-RPC
 | Upgrade authority | `7yAwBDhFs8TdMurdwJsq4AB41tX2H9PULpxeAnf87zyZ` (Solana Playground wallet; keypair backed up in `.local/`, gitignored) |
 | Deploy transaction | [`2ku5UxeTyM1qrVcKhB3s68pDVh2cZyyTpFXuhF8orWjzvswoCguiN5AjoLAAvbxLbG6yRBDHvxgAFYKzcsq7JJxY`](https://explorer.solana.com/tx/2ku5UxeTyM1qrVcKhB3s68pDVh2cZyyTpFXuhF8orWjzvswoCguiN5AjoLAAvbxLbG6yRBDHvxgAFYKzcsq7JJxY?cluster=devnet) — `deployWithMaxDataLen` (max data len 261,256), slot 508896714, 2026-10-08 17:46:34 UTC |
 | Toolchain | Solana Playground, default `legacy` template (anchor-lang 0.29.0, Rust 1.68.0, Solana 1.17.25) |
-| Source | `onchain/programs/coorre_anchor/src/lib.rs` as of commit `dd057f8` (later commits only set `declare_id!` to this id) |
+| Source | `onchain/programs/coorre_anchor/src/lib.rs` as of commit `dd057f8` (later commits only set `declare_id!` to this id and removed source comments; no code change) |
 | IDL | `onchain/idl/coorre_anchor.json` (pre-0.30 format) |
 | Program keypair | backed up in `.local/` (gitignored); public half matches the Program ID |
 

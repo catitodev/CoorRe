@@ -1,6 +1,3 @@
-// Cross-checks the bridge against the IDL exported from the deployed program,
-// so a program change that the bridge does not follow fails CI.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";

@@ -1,5 +1,3 @@
-// Runs inside Solana Playground, where pg, web3, anchor, BN and assert are globals.
-
 describe("coorre_anchor", () => {
   const program = pg.program;
   const wallet = pg.wallet.publicKey;
@@ -21,9 +19,9 @@ describe("coorre_anchor", () => {
   const AGENT = 2;
   const SYSTEM = 3;
 
-  const LIMIT = 2_000_000; // autonomy limit: 0.002 SOL
-  const WITHIN = 1_000_000; // 0.001 SOL, within the mandate
-  const ABOVE = 3_000_000; // 0.003 SOL, above the mandate
+  const LIMIT = 2_000_000;
+  const WITHIN = 1_000_000;
+  const ABOVE = 3_000_000;
   const RULE_HASH = random32();
 
   type Roles = {
@@ -326,8 +324,6 @@ describe("coorre_anchor", () => {
       [AGENT_REVIEWED]: [OPEN, SUBMITTED, AGENT_REVIEWED, APPROVED, REJECTED],
       [ESCALATED]: [OPEN, SUBMITTED, AGENT_REVIEWED, AUTO_APPROVED, ESCALATED],
     };
-    // One case walks OPEN -> SUBMITTED -> AGENT_REVIEWED -> ESCALATED; in each
-    // state every forbidden target is tried and must fail.
     let c: Case;
 
     async function expectForbiddenFrom(from: number) {

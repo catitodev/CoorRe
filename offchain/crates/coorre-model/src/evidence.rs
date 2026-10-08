@@ -1,6 +1,3 @@
-//! CoorRe evidence documents: one W3C Verifiable Credential (`CoorReTransition`)
-//! per case transition, plus the shared state, role and actor codes (ADR-001).
-
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -17,7 +14,6 @@ pub const TRANSITION_TYPE: &str = "CoorReTransition";
 pub const CASE_REF_PREFIX: &str = "urn:coorre:case:";
 pub const UUID_URN_PREFIX: &str = "urn:uuid:";
 
-/// Case states with the u8 codes shared with the on-chain program.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CaseState {
@@ -77,7 +73,6 @@ impl CaseState {
     }
 }
 
-/// Kind of actor behind a transition, with the u8 codes stored on-chain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ActorKind {
@@ -102,7 +97,6 @@ impl ActorKind {
     }
 }
 
-/// Declared autonomy of the actor.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Autonomy {
@@ -112,7 +106,6 @@ pub enum Autonomy {
     Escalate,
 }
 
-/// The four role keys stored in each case record.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Role {
@@ -123,7 +116,6 @@ pub enum Role {
 }
 
 impl Role {
-    /// The actor kind the program derives for this role.
     pub fn actor_kind(self) -> ActorKind {
         match self {
             Role::Submitter | Role::Approver => ActorKind::Human,
@@ -141,7 +133,6 @@ pub struct Actor {
     pub autonomy: Autonomy,
 }
 
-/// Amounts in lamports, written as decimal strings.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Mandate {
@@ -181,7 +172,6 @@ pub struct TransitionSubject {
     pub previous_evidence: String,
 }
 
-/// Unsecured evidence document (the credential without its proof).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EvidenceDocument {
@@ -198,12 +188,10 @@ pub struct EvidenceDocument {
 }
 
 impl EvidenceDocument {
-    /// JSON form of the document.
     pub fn to_value(&self) -> Result<Value> {
         serde_json::to_value(self).map_err(|e| ModelError::InvalidEvidence(e.to_string()))
     }
 
-    /// Parses and validates an unsecured document.
     pub fn from_value(value: &Value) -> Result<Self> {
         let document: Self = serde_json::from_value(value.clone())
             .map_err(|e| ModelError::InvalidEvidence(e.to_string()))?;
@@ -211,15 +199,12 @@ impl EvidenceDocument {
         Ok(document)
     }
 
-    /// Parses and validates the document part of a secured credential
-    /// (the `proof` member is ignored here; check it with `eddsa_jcs_2022`).
     pub fn from_secured(value: &Value) -> Result<Self> {
         let mut object = value.as_object().ok_or(ModelError::NotAnObject)?.clone();
         object.remove("proof");
         Self::from_value(&Value::Object(object))
     }
 
-    /// `SHA-256(JCS(document))`, the hash anchored on-chain.
     pub fn evidence_hash(&self) -> Result<[u8; 32]> {
         eddsa_jcs_2022::evidence_hash(&self.to_value()?)
     }
@@ -232,17 +217,14 @@ impl EvidenceDocument {
         parse_lamports(&self.credential_subject.mandate.autonomy_limit_lamports)
     }
 
-    /// Raw 32-byte previous evidence hash (`sha256:<hex>`).
     pub fn previous_evidence_hash(&self) -> Result<[u8; 32]> {
         hash::from_prefixed(&self.credential_subject.previous_evidence)
     }
 
-    /// Raw 32-byte rule hash (`sha256:<hex>`).
     pub fn rule_hash(&self) -> Result<[u8; 32]> {
         hash::from_prefixed(&self.credential_subject.rule.hash)
     }
 
-    /// Structural checks shared by every CoorRe evidence document.
     pub fn validate(&self) -> Result<()> {
         let fail = |reason: &str| Err(ModelError::InvalidEvidence(reason.to_owned()));
         if self.context != [VC_CONTEXT_V2, COORRE_CONTEXT] {
@@ -284,17 +266,14 @@ impl EvidenceDocument {
     }
 }
 
-/// `case_id = SHA-256(UTF-8(case_ref))`.
 pub fn case_id(case_ref: &str) -> [u8; 32] {
     sha256(case_ref.as_bytes())
 }
 
-/// `previousEvidence` of the first transition of a case: `sha256:<hex(case_id)>`.
 pub fn genesis_previous_evidence(case_ref: &str) -> String {
     hash::to_prefixed(&case_id(case_ref))
 }
 
-/// Parses a lamport amount written as a canonical decimal string.
 pub fn parse_lamports(text: &str) -> Result<u64> {
     let canonical = !text.is_empty()
         && text.bytes().all(|b| b.is_ascii_digit())
@@ -388,7 +367,6 @@ mod tests {
 
     #[test]
     fn case_id_matches_an_independent_sha256() {
-        // Computed with Python's hashlib.sha256(b"urn:coorre:case:SUP-001").
         assert_eq!(
             hash::to_hex(&case_id("urn:coorre:case:SUP-001")),
             "3399ee0b9edb655f3ca4c144f4f37310fc6b20ca53423dd567d890970b50a805"

@@ -1,14 +1,4 @@
 #!/usr/bin/env node
-// Playground preflight: run before pasting any program or test into Solana
-// Playground. It reproduces what Playground does with that code (checked
-// against the official repository, not assumptions) and fails on anything
-// that would break there.
-//
-//   node tools/playground-preflight/preflight.mjs [--offline] [--skip-programs] [--print-live]
-//
-// --offline        skip the live comparison with the official repository (reported as WARN)
-// --skip-programs  skip the Rust 1.68 compile of the programs
-// --print-live     print the live reference as JSON (to review and update reference.json)
 
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
@@ -32,10 +22,6 @@ export const SOURCES = {
   legacyManifest: "server/templates/legacy/programs/program/Cargo.toml",
   legacyLock: "server/templates/legacy/Cargo.lock",
 };
-
-// ---------------------------------------------------------------------------
-// Parsing the official sources
-// ---------------------------------------------------------------------------
 
 export function parseStringArray(source, constName) {
   const match = new RegExp(`const ${constName} = \\[([^\\]]*)\\]`).exec(source);
@@ -66,7 +52,6 @@ export function parseBaseGlobals(source) {
 export function parseWrapper(source) {
   const match = /code = `\(async \(\) => \{([\s\S]*?)\}\)\(\)`;/.exec(source);
   if (!match) throw new Error("code wrapper not found");
-  // Template-literal escapes in the source become real newlines here.
   return `(async () => {${match[1].replace(/\\n/g, "\n")}})()`;
 }
 
@@ -94,7 +79,6 @@ export function lockVersions(lock, crate) {
   return [...lock.matchAll(new RegExp(`name = "${crate}"\\nversion = "([^"]+)"`, "g"))].map((m) => m[1]);
 }
 
-/** Version of `crate` that the template's own `program` package depends on. */
 export function programDependencyVersion(lock, crate) {
   const block = lock.split("[[package]]").find((b) => /\nname = "program"\n/.test(b));
   if (!block) throw new Error("template program package not found in lockfile");
@@ -148,9 +132,7 @@ export async function fetchLiveReference() {
   return { reference: buildReference(files), lock: files.legacyLock };
 }
 
-/** Lists every leaf path whose value differs between two references. */
 export function diffReference(pinned, live, prefix = "") {
-  // Keys starting with "_" are notes about the pin, not Playground facts.
   const keys = new Set([...Object.keys(pinned ?? {}), ...Object.keys(live ?? {})].filter((k) => !k.startsWith("_")));
   const out = [];
   for (const key of keys) {
@@ -166,15 +148,10 @@ export function diffReference(pinned, live, prefix = "") {
   return out;
 }
 
-// ---------------------------------------------------------------------------
-// Test file checks (what Playground does to a test before running it)
-// ---------------------------------------------------------------------------
-
 function lineOf(source, index) {
   return source.slice(0, index).split("\n").length;
 }
 
-/** Call sites of test-registering functions, found in the syntax tree. */
 export function countTestCallSites(source) {
   const file = ts.createSourceFile("t.ts", source, ts.ScriptTarget.Latest, true);
   const counts = { it: 0, specify: 0, xit: 0, xspecify: 0 };
@@ -188,14 +165,12 @@ export function countTestCallSites(source) {
   return { active: counts.it + counts.specify, skipped: counts.xit + counts.xspecify };
 }
 
-/** Names used as values that Playground does not provide (TypeScript "Cannot find name"). */
 export function undefinedNames(source, reference) {
   const r = reference.jsRuntime;
   const declared = [...r.baseGlobals, ...r.mochaGlobals, ...r.packageGlobals, "_run"];
   const ambient = declared
     .map((name) => (name === "sleep" ? "declare function sleep(ms: number): Promise<void>;" : `declare const ${name}: any;`))
     .join("\n");
-  // Tests run as a script inside a browser iframe: ES2020 plus DOM globals.
   const options = { target: ts.ScriptTarget.ES2020, lib: ["lib.es2020.d.ts", "lib.dom.d.ts"], noEmit: true, types: [], skipLibCheck: true };
   const host = ts.createCompilerHost(options);
   const virtual = { "/virtual/test.ts": source, "/virtual/globals.d.ts": ambient };
@@ -206,7 +181,6 @@ export function undefinedNames(source, reference) {
   host.readFile = ((read) => (name) => virtual[name] ?? read(name))(host.readFile.bind(host));
   const program = ts.createProgram(Object.keys(virtual), options, host);
   const file = program.getSourceFile("/virtual/test.ts");
-  // 2304/2552: cannot find name; 2580-2593: cannot find name (needs types).
   const codes = new Set([2304, 2552, 2580, 2582, 2583, 2584, 2591, 2592, 2593]);
   return program
     .getSemanticDiagnostics(file)
@@ -214,7 +188,6 @@ export function undefinedNames(source, reference) {
     .map((d) => `line ${lineOf(source, d.start)}: ${ts.flattenDiagnosticMessageText(d.messageText, " ")}`);
 }
 
-/** Transpiles like Playground and runs the file with inert globals to see which tests register. */
 export async function registeredTests(source, reference) {
   const r = reference.jsRuntime;
   let code = source;
@@ -299,10 +272,6 @@ export async function checkTestSource(source, reference) {
   return { problems, registered, callSites };
 }
 
-// ---------------------------------------------------------------------------
-// Program checks (Rust toolchain and lockfile of the Playground template)
-// ---------------------------------------------------------------------------
-
 function findRustup() {
   const candidates = ["rustup", path.join(homedir(), ".cargo", "bin", "rustup")];
   return candidates.find((c) => spawnSync(c, ["--version"], { stdio: "ignore" }).status === 0);
@@ -360,10 +329,6 @@ export function checkProgram(name, sourceFile, reference, lockFile) {
   }
   return { ok: true, detail: `Rust ${toolchain}, anchor-lang ${expected["anchor-lang"][0]}, solana-program ${expected["solana-program"][0]}, no warnings` };
 }
-
-// ---------------------------------------------------------------------------
-// Runner
-// ---------------------------------------------------------------------------
 
 function listFiles(dir, predicate) {
   const full = path.join(ROOT, dir);

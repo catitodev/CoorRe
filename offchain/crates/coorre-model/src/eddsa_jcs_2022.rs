@@ -1,6 +1,3 @@
-//! The `eddsa-jcs-2022` cryptosuite (W3C Data Integrity EdDSA Cryptosuites
-//! v1.0, section 3.3) and the CoorRe evidence hash.
-
 use serde_json::{Map, Value};
 
 use crate::datetime::validate_rfc3339;
@@ -18,7 +15,6 @@ const CONTEXT: &str = "@context";
 const PROOF: &str = "proof";
 const PROOF_VALUE: &str = "proofValue";
 
-/// Proof options supplied by the signer. `type` and `cryptosuite` are fixed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProofOptions {
     pub created: String,
@@ -27,7 +23,6 @@ pub struct ProofOptions {
 }
 
 impl ProofOptions {
-    /// Options for an `assertionMethod` proof.
     pub fn assertion(created: impl Into<String>, verification_method: impl Into<String>) -> Self {
         Self {
             created: created.into(),
@@ -36,7 +31,6 @@ impl ProofOptions {
         }
     }
 
-    /// JSON form of the options, in the member order used by the W3C examples.
     pub fn to_value(&self) -> Value {
         let mut options = Map::new();
         options.insert("type".to_owned(), Value::from(PROOF_TYPE));
@@ -54,25 +48,20 @@ impl ProofOptions {
     }
 }
 
-/// Result of a successful proof verification.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifiedProof {
-    /// The `did:key` that issued the proof (verification method without fragment).
     pub did: String,
-    /// Raw Ed25519 public key that produced the signature.
     pub public_key: [u8; 32],
     pub verification_method: String,
     pub proof_purpose: String,
     pub created: Option<String>,
 }
 
-/// Section 3.3.3: canonical (JCS) form of the unsecured document.
 pub fn transform(unsecured_document: &Value) -> Result<Vec<u8>> {
     as_object(unsecured_document)?;
     jcs::canonicalize(unsecured_document)
 }
 
-/// Section 3.3.5: validates the proof options and returns their canonical form.
 pub fn proof_configuration(proof_options: &Value) -> Result<Vec<u8>> {
     let options = as_object(proof_options)?;
     let proof_type = string_field(options, "type")?;
@@ -92,7 +81,6 @@ pub fn proof_configuration(proof_options: &Value) -> Result<Vec<u8>> {
     jcs::canonicalize(proof_options)
 }
 
-/// Section 3.3.4: `SHA-256(proof configuration) || SHA-256(transformed document)`.
 pub fn hash_data(transformed_document: &[u8], canonical_proof_config: &[u8]) -> [u8; 64] {
     let mut data = [0u8; 64];
     data[..32].copy_from_slice(&sha256(canonical_proof_config));
@@ -100,7 +88,6 @@ pub fn hash_data(transformed_document: &[u8], canonical_proof_config: &[u8]) -> 
     data
 }
 
-/// Section 3.3.1: creates the proof object for `unsecured_document`.
 pub fn create_proof(
     unsecured_document: &Value,
     options: &ProofOptions,
@@ -133,7 +120,6 @@ pub fn create_proof(
     Ok(proof)
 }
 
-/// Returns a copy of `unsecured_document` with an `eddsa-jcs-2022` proof attached.
 pub fn sign_document(
     unsecured_document: &Value,
     options: &ProofOptions,
@@ -145,8 +131,6 @@ pub fn sign_document(
     Ok(Value::Object(secured))
 }
 
-/// Section 3.3.2: verifies the single `eddsa-jcs-2022` proof of a secured
-/// document. Only `did:key` verification methods are resolved.
 pub fn verify_proof(secured_document: &Value) -> Result<VerifiedProof> {
     let document = as_object(secured_document)?;
     let proof = document
@@ -197,14 +181,12 @@ pub fn verify_proof(secured_document: &Value) -> Result<VerifiedProof> {
     })
 }
 
-/// CoorRe evidence hash: `SHA-256(JCS(document without "proof"))`.
 pub fn evidence_hash(document: &Value) -> Result<[u8; 32]> {
     let mut unsecured = as_object(document)?.clone();
     unsecured.remove(PROOF);
     jcs::hash(&Value::Object(unsecured))
 }
 
-/// Multibase base58btc encoding of a 64-byte signature.
 pub fn encode_proof_value(signature: &[u8; 64]) -> String {
     format!(
         "{}{}",
@@ -213,7 +195,6 @@ pub fn encode_proof_value(signature: &[u8; 64]) -> String {
     )
 }
 
-/// Decodes a multibase base58btc `proofValue` into a 64-byte signature.
 pub fn decode_proof_value(text: &str) -> Result<[u8; 64]> {
     let encoded = text
         .strip_prefix(did_key::MULTIBASE_BASE58BTC)

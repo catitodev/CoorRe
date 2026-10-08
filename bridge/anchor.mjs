@@ -1,10 +1,4 @@
 #!/usr/bin/env node
-// CoorRe bridge: the only component that sends Solana transactions.
-//
-//   node bridge/anchor.mjs <open-case|anchor-transition|fetch-account> --input <file.json>
-//
-// Prints exactly one JSON object to stdout. On failure it prints
-// {"error": {...}} (with the program error name when available) and exits 1.
 
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
@@ -36,7 +30,6 @@ function loadConfig(env) {
   };
 }
 
-/** Connects to the first reachable RPC and refuses anything that is not devnet. */
 async function connect(config) {
   let lastError;
   for (const url of config.rpcUrls) {
@@ -94,7 +87,6 @@ async function failureFrom(err, connection) {
   });
 }
 
-/** Sends with preflight; on blockhash expiry retries once with a fresh blockhash. */
 async function send(connection, instruction, signers) {
   for (let attempt = 0; attempt < 2; attempt++) {
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");

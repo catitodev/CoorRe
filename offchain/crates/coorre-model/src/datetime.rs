@@ -1,20 +1,14 @@
-//! Timestamp validation.
-
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 
 use crate::error::{ModelError, Result};
 
-/// Accepts any RFC 3339 date-time with an explicit offset (the profile of
-/// XML Schema `dateTime` used by Verifiable Credentials).
 pub fn validate_rfc3339(text: &str) -> Result<()> {
     OffsetDateTime::parse(text, &Rfc3339)
         .map(|_| ())
         .map_err(|_| ModelError::InvalidDatetime(text.to_owned()))
 }
 
-/// Accepts only the CoorRe timestamp form: UTC, second precision,
-/// `YYYY-MM-DDTHH:MM:SSZ`.
 pub fn validate_utc_seconds(text: &str) -> Result<()> {
     let shape_ok = text.len() == 20
         && text.bytes().enumerate().all(|(i, b)| match i {

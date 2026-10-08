@@ -97,7 +97,7 @@ Static page: drop bundle + artifact files; computes everything locally with the 
 - E2E on devnet: SUP-001 → AUTO_APPROVED + released; SUP-002 → MandateExceeded attempt rejected → ESCALATED → APPROVED + released; verify 6/6 PASS for both in CLI and browser; 1-byte artifact change → check 1 FAILS.
 
 ## 11. Repository layout
-README.md · LICENSE · docs/spec/ · docs/SECURITY.md · docs/evidence/ · docs/decisions/ (ADR-NNN-*.md) · onchain/programs/coorre_anchor/src/lib.rs · onchain/tests/ · onchain/idl/ · onchain/DEPLOYMENTS.md · bridge/ · offchain/crates/{coorre-model,coorre-engine,coorre-verify,coorre-anchor,coorre-cli} · web/verifier/ · demo/fixtures/ · .github/workflows/ · .local/ (gitignored) · out/ (gitignored)
+README.md · LICENSE · docs/spec/ · docs/SECURITY.md · docs/evidence/ · docs/decisions/ (ADR-NNN-*.md) · onchain/programs/coorre_anchor/src/lib.rs · onchain/tests/ · onchain/idl/ · onchain/DEPLOYMENTS.md · bridge/ · offchain/crates/{coorre-model,coorre-engine,coorre-verify,coorre-anchor,coorre-cli} · web/verifier/ · demo/fixtures/ · tools/playground-preflight/ (Playground preflight, run with scripts/playground-preflight) · scripts/ · .github/workflows/ · .local/ (gitignored) · out/ (gitignored)
 
 ## 12. Schedule (BRT)
 - Thu 10-08: docs + environment + CI; Playground spike (human, browser); coorre-model with the W3C vector tests.

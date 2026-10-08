@@ -1,7 +1,5 @@
 use thiserror::Error;
 
-/// Engine errors. The transition errors carry the same names as the
-/// on-chain program errors (ADR-001) so both sides report identically.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum EngineError {
     #[error("transition not allowed from the current state")]
@@ -29,7 +27,6 @@ pub enum EngineError {
 }
 
 impl EngineError {
-    /// Name of the matching on-chain error, when there is one.
     pub fn program_error_name(&self) -> Option<&'static str> {
         Some(match self {
             EngineError::InvalidTransition => "InvalidTransition",

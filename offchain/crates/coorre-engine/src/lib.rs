@@ -1,6 +1,3 @@
-//! CoorRe engine: the case state machine (a replica of the on-chain checks)
-//! and the deterministic "supplier-docs" rule. Pure functions, no I/O.
-
 pub mod error;
 pub mod machine;
 pub mod rule;

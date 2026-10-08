@@ -18,7 +18,6 @@ let devnetUrl;
 let mainnetUrl;
 const servers = [];
 
-// Minimal JSON-RPC stand-in that only answers getGenesisHash.
 function fakeRpc(genesis) {
   return new Promise((resolve) => {
     const server = createServer((req, res) => {
@@ -125,7 +124,6 @@ test("falls back to the second RPC when the first is unreachable", async () => {
     COORRE_RPC_FALLBACK_URL: devnetUrl,
     COORRE_KEYS_DIR: path.join(dir, "no-keys"),
   });
-  // Reached devnet through the fallback, then stopped at the missing key.
   assert.equal(output.error.name, "MissingKey");
 });
 
