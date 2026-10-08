@@ -28,6 +28,27 @@ refund account, two creators with the same case_id). The program account shows 3
 successful transactions after the run, none failed (rejected attempts fail in
 simulation and are never sent).
 
+### Bridge smoke test on devnet (2026-10-08)
+
+First case sent through `bridge/anchor.mjs` with the demo keys in `.local/keys`
+(creator `HX4cZ2jyJxJ4iFV2CjjzdLVzNM1wQ1KvBm2MiXYdowGr`). Evidence hashes are
+`SHA-256("bridge-smoke:<case_ref>:<step>")`: this checks the transport, not real
+evidence.
+
+| Step | Account | Transaction |
+|---|---|---|
+| open_case `urn:coorre:case:BRIDGE-SMOKE-20261008`, 1,000,000 lamports, limit 2,000,000 | CaseRecord `A3GQ8hYbUfmnsbk4zsZUtgCi3XpUMeEkcFtXKBiZJZWU` | `5tr8X9MG2QfdyQoKLrfZD5aj8KXZcEw4CCqCkqNcDGkKT7skeWooJnrR8b923Ey2w9Lo5XAkmecHQ42mb9KSsbab` |
+| SUBMITTED (submitter) | `3WMyjabKbxNVjKRx93d8E4ugsxGBgspqNssmCtexkM9i` | `21GD5yD1zSyjVA6BixqcN28x19h23NPQCewgF29HATuL1NXKV6N3bcp16CzcaqETdURhqPgca8oJCvR7qZTqYHtV` |
+| AGENT_REVIEWED (agent) | `AzAuDcj5jxR1da6f5ExawnK934BTzib2rcz3jNUGaT6D` | `4iLkMxSSUBMTHhVP3H4FhLWA7Ta8f4xojKYFa9PQFQ6MG7kPybr6qhDG7AcbQpa76LzWkzWYgbZGeM8ZQ6R4JR5i` |
+| AUTO_APPROVED signed by the agent key | rejected in simulation: `UnauthorizedActor` (6002), reported by name | none |
+| AUTO_APPROVED (rule_engine) | `68XTGwxSBcy9ZzFieHebbXQzC348NYHu9A6N44eyGTD3` | `56empsZMHiy4psYU5xTUohbkP4ryr7xcAmzQvj4QTquj5QtRYZwSnDDahth9z7ubMWNZd9YBEbsuPEDUjL3MqUVi` |
+
+Verified independently of the bridge code (raw `getAccountInfo`/`getProgramAccounts`
+decoded separately): CaseRecord state 3, 3 transitions, last hash = AUTO_APPROVED
+evidence, lamports back to its rent-exempt minimum (1,940,560); submitter balance
+exactly 1,000,000; each EvidenceAnchor holds the expected hash, case record,
+prev_hash, from/to states, actor kind (1, 2, 3) and rule hash.
+
 ## Spike: `playground_spike` (2026-10-08)
 
 Throwaway program used to validate the escrow pattern before writing

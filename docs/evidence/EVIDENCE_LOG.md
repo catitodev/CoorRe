@@ -107,3 +107,10 @@ Entry template:
 - Gaps closed: SPEC section 11 now lists tools/ and scripts/; DEPLOYMENTS notes that post-deploy source changes are declare_id and comment removal only.
 - Correction to the 14:05 entry: it said the Playground suite had 16 tests. The file at commit dd057f8 had 14 `it()` call sites, of which 13 registered in Playground (ES5 transpile issue, fixed in 0f82355; 17 tests since then).
 - Commit(s): chore: remove code comments and record the full audit
+
+### 2026-10-08 16:35 BRT — Bridge smoke test against coorre_anchor on devnet
+- Author: Clarkson Luiz Buriche Bartalini
+- Commands run: `node bridge/anchor.mjs open-case|anchor-transition|fetch-account --input <file>` with COORRE_PROGRAM_ID=9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv and the demo keys in .local/keys (inputs kept in out/, gitignored).
+- Result: case `urn:coorre:case:BRIDGE-SMOKE-20261008` opened and taken through SUBMITTED, AGENT_REVIEWED and AUTO_APPROVED; an AUTO_APPROVED attempt signed by the agent key was rejected in simulation with UnauthorizedActor (6002) and reported by name with exit code 1. On-chain state verified with an independent decoder: final state 3, payout exactly 1,000,000 lamports to the submitter, escrow back to its rent-exempt minimum, three EvidenceAnchors with the expected fields. Accounts and transactions listed in onchain/DEPLOYMENTS.md.
+- Limitations / deviations: evidence hashes in this smoke test are labelled placeholders (`bridge-smoke:<case_ref>:<step>`); signed credentials come with the CLI demo.
+- Commit(s): docs: record the bridge smoke test on devnet
