@@ -47,3 +47,11 @@ Entry template:
 - Result: 55 tests passed (47 unit, 8 W3C B.3 integration), 0 failed. Reproduced canonical document hash 59b7cb62…abc92f19, proof config hash 66ab154f…be539a1db, the published signature and proofValue byte for byte, and verified the published signed credential with the published key. Key order/whitespace changes give an identical hash. Mutation check: swapping the hash order in hash_data makes the suite fail. Peak build memory about 360 MB.
 - Limitations / deviations: evidence document types and state codes will land in coorre-model in a follow-up commit (planned before coorre-engine). Only did:key verification methods are resolved, by design.
 - Commit(s): feat: add coorre-model with JCS, did:key and eddsa-jcs-2022
+
+### 2026-10-08 13:15 BRT — Playground spike executed on devnet
+- Author: Clarkson Luiz Buriche Bartalini
+- Environment: Solana Playground (beta.solpg.io) in the browser, default `legacy` template (anchor-lang 0.29.0); Playground wallet funded with 10 devnet SOL from faucet.solana.com (the automatic Playground airdrop was rate-limited).
+- Commands run: Playground `build`, `deploy`, `test`; on-chain checks via devnet JSON-RPC (getAccountInfo, getTransaction, getMinimumBalanceForRentExemption).
+- Result: program `FARGzwRUNjGXKMfq5FRwNGr5rZJngJg3nDhvh1rTiFss` deployed (tx 5P4dr8UAHhY9jz3GLweCekpgkdWs1cQG22naYkqG3Mr72KvxsgvHU2f3jDF2YyGbaT3GScpPf3SSwdAo7jkYyTKv, upgrade authority 7yAwBDhFs8TdMurdwJsq4AB41tX2H9PULpxeAnf87zyZ). Tests: 6 passing. Balance movements confirmed on chain to the lamport (details and links in onchain/DEPLOYMENTS.md). IDL exported (pre-0.30 format, consistent with Anchor 0.29). Wallet and program keypairs backed up in .local/ (gitignored, mode 600).
+- Limitations / deviations: the first test runs failed because two test titles contained words the Playground runtime blocks ("document", "top"); titles renamed in commit 1747b25. A second run failed because the program had not been deployed yet; after `deploy` the suite passed. Devnet rent is 5,080 lamports per byte (including overhead) on this date, lower than the commonly quoted mainnet figure, so rent is always read at runtime.
+- Commit(s): docs: record the Playground spike deployment and results
