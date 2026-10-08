@@ -11,6 +11,8 @@ use coorre_model::evidence::{case_id, genesis_previous_evidence, is_safe_artifac
 use coorre_model::hash::{sha256, to_hex, to_prefixed};
 use coorre_model::{CaseState, EvidenceDocument, did_key, jcs};
 
+use serde_json::Value;
+
 use crate::bundle::AuditBundle;
 use crate::report::{CaseSummary, CheckResult, Report, Status, TimelineEntry};
 
@@ -315,16 +317,18 @@ fn check_signers(record: &Result<CaseRecordAccount, String>, entries: &[Entry]) 
         };
         if roles.key(role) != issuer {
             failures.push(format!(
-                "evidence {n}: signed by {} but the on-chain {role:?} key is {}",
+                "evidence {n}: signed by {} but the on-chain {} key is {}",
                 pubkey_to_base58(&issuer),
+                role.name(),
                 pubkey_to_base58(&roles.key(role))
             ));
             ok = false;
         }
         if subject.actor.kind != role.actor_kind() {
             failures.push(format!(
-                "evidence {n}: actor kind {:?} does not match role {role:?}",
-                subject.actor.kind
+                "evidence {n}: actor kind {} does not match role {}",
+                subject.actor.kind.name(),
+                role.name()
             ));
             ok = false;
         }
@@ -344,7 +348,8 @@ fn check_signers(record: &Result<CaseRecordAccount, String>, entries: &[Entry]) 
         }
         if ok {
             passed.push(format!(
-                "evidence {n}: {role:?} key {} signed and anchored it",
+                "evidence {n}: {} key {} signed and anchored it",
+                role.name(),
                 pubkey_to_base58(&issuer)
             ));
         }
@@ -585,6 +590,7 @@ fn timeline(bundle: &AuditBundle, entries: &[Entry]) -> Vec<TimelineEntry> {
                 anchor_slot: entry.anchor.as_ref().map(|a| a.slot),
                 anchor_unix_ts: entry.anchor.as_ref().map(|a| a.unix_ts),
                 tx_signature: evidence.receipt.as_ref().map(|r| r.tx_signature.clone()),
+                payload: Value::Object(s.payload.clone()),
             })
         })
         .collect()

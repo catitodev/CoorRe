@@ -1,0 +1,11 @@
+{
+  "name": "coorre-verifier",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Browser verifier for CoorRe audit bundles (static page, Rust compiled to WebAssembly)",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
+}

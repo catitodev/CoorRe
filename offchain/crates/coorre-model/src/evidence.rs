@@ -135,6 +135,15 @@ pub enum Role {
 }
 
 impl Role {
+    pub fn name(self) -> &'static str {
+        match self {
+            Role::Submitter => "submitter",
+            Role::Agent => "agent",
+            Role::RuleEngine => "rule_engine",
+            Role::Approver => "approver",
+        }
+    }
+
     pub fn actor_kind(self) -> ActorKind {
         match self {
             Role::Submitter | Role::Approver => ActorKind::Human,
@@ -445,6 +454,14 @@ mod tests {
             serde_json::to_value(Role::RuleEngine).unwrap(),
             json!("rule_engine")
         );
+        for role in [
+            Role::Submitter,
+            Role::Agent,
+            Role::RuleEngine,
+            Role::Approver,
+        ] {
+            assert_eq!(serde_json::to_value(role).unwrap(), json!(role.name()));
+        }
         assert_eq!(
             serde_json::to_value(Autonomy::ExecuteWithApproval).unwrap(),
             json!("execute_with_approval")

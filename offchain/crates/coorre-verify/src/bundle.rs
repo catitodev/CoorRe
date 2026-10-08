@@ -49,6 +49,36 @@ impl AuditBundle {
         Ok(bundle)
     }
 
+    pub fn required_accounts(&self) -> Vec<String> {
+        let mut addresses = vec![self.case_record.clone()];
+        for evidence in &self.evidence {
+            if !addresses.contains(&evidence.anchor_account) {
+                addresses.push(evidence.anchor_account.clone());
+            }
+        }
+        addresses
+    }
+
+    pub fn declared_artifact_names(&self) -> Vec<String> {
+        let in_documents = self.evidence.iter().flat_map(|e| {
+            e.document
+                .pointer("/credentialSubject/artifacts")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(|a| a.get("name").and_then(Value::as_str).map(str::to_owned))
+        });
+        let mut names: Vec<String> = self
+            .artifacts
+            .iter()
+            .map(|a| a.name.clone())
+            .chain(in_documents)
+            .collect();
+        names.sort();
+        names.dedup();
+        names
+    }
+
     pub fn to_json_pretty(&self) -> Result<String, ModelError> {
         serde_json::to_string_pretty(self).map_err(|e| ModelError::InvalidEvidence(e.to_string()))
     }

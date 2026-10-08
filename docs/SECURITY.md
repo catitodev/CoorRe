@@ -24,6 +24,8 @@ Creator/operator (opens and funds cases), submitter/payee, agent, rule_engine, a
 - Wrong network: the bridge refuses to send unless the RPC reports the devnet genesis hash; mainnet is never reachable by accident.
 - Key files: the bridge and the CLI refuse key files readable by group or others and keypairs whose public half does not match the seed; key material never appears in output or errors. The CLI spawns the bridge without a shell, with a cleared environment that carries only PATH and the COORRE_* settings.
 - Bridge input: strict JSON members, canonical hex/u64/base58 parsing, validated before any network call; the bridge is spawned without a shell.
+- Browser verifier: bundle content is rendered as text only (no innerHTML or eval, enforced by a test), Explorer links only after base58 validation, Content-Security-Policy `default-src 'none'` with scripts from the page itself and `wasm-unsafe-eval` for WebAssembly; the only data sent out is the list of public account addresses in one `getMultipleAccounts` call.
+- Build supply chain of the verifier: wasm-bindgen pinned to `=0.2.128` in the crate; CI downloads the official CLI release and checks its pinned SHA-256 before use.
 
 ## Bridge dependencies (checked 2026-10-08)
 - Single direct dependency, pinned: @solana/web3.js 1.99.0 (published 2026-09-08). Lockfile committed; installs use `npm ci` with install scripts disabled (bridge/.npmrc).

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+expected="$(grep -E '^wasm-bindgen = ' "$root/offchain/crates/coorre-verify/Cargo.toml" | sed -E 's/.*"=([0-9.]+)".*/\1/')"
+bindgen="${WASM_BINDGEN:-wasm-bindgen}"
+
+if ! command -v cargo >/dev/null 2>&1 && [ -s "$HOME/.cargo/env" ]; then
+  . "$HOME/.cargo/env"
+fi
+if ! command -v "$bindgen" >/dev/null 2>&1; then
+  echo "wasm-bindgen $expected not found; set WASM_BINDGEN to its path" >&2
+  exit 1
+fi
+actual="$("$bindgen" --version | awk '{print $2}')"
+if [ "$actual" != "$expected" ]; then
+  echo "wasm-bindgen CLI is $actual but the crate pins $expected" >&2
+  exit 1
+fi
+
+cd "$root/offchain"
+cargo rustc -p coorre-verify --lib --release --locked --target wasm32-unknown-unknown --features wasm --crate-type cdylib
+"$bindgen" --target web --no-typescript --out-dir "$root/web/verifier/pkg" target/wasm32-unknown-unknown/release/coorre_verify.wasm
+echo "built $root/web/verifier/pkg"

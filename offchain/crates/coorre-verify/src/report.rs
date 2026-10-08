@@ -1,4 +1,5 @@
 use serde::Serialize;
+use serde_json::Value;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
@@ -28,6 +29,7 @@ pub struct TimelineEntry {
     pub anchor_slot: Option<u64>,
     pub anchor_unix_ts: Option<i64>,
     pub tx_signature: Option<String>,
+    pub payload: Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

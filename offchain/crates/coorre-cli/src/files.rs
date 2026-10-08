@@ -5,7 +5,6 @@ use anyhow::{Context, anyhow};
 use coorre_anchor::Anchorer;
 use coorre_model::evidence::is_safe_artifact_name;
 use coorre_verify::{AccountSnapshot, AuditBundle, Inputs, Report, verify};
-use serde_json::Value;
 
 pub fn load_bundle(path: &Path) -> anyhow::Result<AuditBundle> {
     let text =
@@ -18,40 +17,15 @@ pub fn fetch_accounts(
     bundle: &AuditBundle,
 ) -> anyhow::Result<BTreeMap<String, AccountSnapshot>> {
     let mut accounts = BTreeMap::new();
-    let addresses = std::iter::once(&bundle.case_record)
-        .chain(bundle.evidence.iter().map(|e| &e.anchor_account));
-    for address in addresses {
-        if accounts.contains_key(address) {
-            continue;
-        }
+    for address in bundle.required_accounts() {
         if let Some(snapshot) = anchorer
-            .fetch_account(address)
+            .fetch_account(&address)
             .map_err(|e| anyhow!("fetching {address}: {e}"))?
         {
-            accounts.insert(address.clone(), snapshot);
+            accounts.insert(address, snapshot);
         }
     }
     Ok(accounts)
-}
-
-fn declared_names(bundle: &AuditBundle) -> Vec<String> {
-    let in_documents = bundle.evidence.iter().flat_map(|e| {
-        e.document
-            .pointer("/credentialSubject/artifacts")
-            .and_then(Value::as_array)
-            .into_iter()
-            .flatten()
-            .filter_map(|a| a.get("name").and_then(Value::as_str).map(str::to_owned))
-    });
-    let mut names: Vec<String> = bundle
-        .artifacts
-        .iter()
-        .map(|a| a.name.clone())
-        .chain(in_documents)
-        .collect();
-    names.sort();
-    names.dedup();
-    names
 }
 
 pub fn read_artifacts(
@@ -59,7 +33,7 @@ pub fn read_artifacts(
     bundle: &AuditBundle,
 ) -> anyhow::Result<BTreeMap<String, Vec<u8>>> {
     let mut files = BTreeMap::new();
-    for name in declared_names(bundle) {
+    for name in bundle.declared_artifact_names() {
         if !is_safe_artifact_name(&name) {
             continue;
         }

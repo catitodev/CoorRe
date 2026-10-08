@@ -3,3 +3,4 @@ target/
 out/
 node_modules/
 *.log
+web/verifier/pkg/

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; connect-src 'self' https:; img-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>CoorRe Verifier</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header>
+    <h1>CoorRe Verifier</h1>
+    <p class="lead">Check an audit trail without trusting whoever produced it. The evidence, signatures and hashes are checked in this browser with the same Rust code as the command line; only public account addresses are sent to a Solana RPC to read what the chain recorded.</p>
+  </header>
+
+  <main>
+    <section aria-labelledby="samples-title">
+      <h2 id="samples-title">Try a recorded case</h2>
+      <p>Cases from the devnet demo of 2026-10-08 (synthetic data).</p>
+      <div class="row">
+        <button type="button" id="sample-sup-001">SUP-001 · within the mandate, auto-approved</button>
+        <button type="button" id="sample-sup-002">SUP-002 · blocked above the mandate, approved by a person</button>
+      </div>
+      <label class="check"><input type="checkbox" id="tamper"> Change one byte of the first document before checking</label>
+    </section>
+
+    <section aria-labelledby="files-title">
+      <h2 id="files-title">Or check your own bundle</h2>
+      <div id="dropzone" class="dropzone" tabindex="0">
+        <p>Drop <code>bundle.json</code> and the artifact files here, or choose them:</p>
+        <input type="file" id="file-input" multiple>
+        <ul id="file-list" class="file-list"></ul>
+      </div>
+      <details>
+        <summary>Settings</summary>
+        <label>Solana RPC <input type="url" id="rpc-url" value="https://api.devnet.solana.com" spellcheck="false"></label>
+        <label>Expected program <input type="text" id="program-id" spellcheck="false"></label>
+        <label>Expected network <input type="text" id="network-id" spellcheck="false"></label>
+        <p class="note">The expected program never comes from the bundle: a bundle could name a program written by anyone.</p>
+      </details>
+      <button type="button" id="verify-files" class="primary">Verify</button>
+    </section>
+
+    <section id="result" aria-live="polite" hidden>
+      <div id="verdict" class="verdict"></div>
+      <h2>Case</h2>
+      <dl id="summary" class="summary"></dl>
+      <h2>Timeline</h2>
+      <div class="table-wrap"><table id="timeline"><thead><tr><th>Step</th><th>Actor</th><th>Decision</th><th>Signed at</th><th>On-chain</th></tr></thead><tbody></tbody></table></div>
+      <h2>Checks</h2>
+      <ol id="checks" class="checks"></ol>
+    </section>
+    <p id="status" class="status" role="status"></p>
+  </main>
+
+  <footer>
+    <p>Program <code id="footer-program"></code> on Solana devnet. Source: <a href="https://github.com/catitodev/CoorRe" rel="noopener">github.com/catitodev/CoorRe</a>.</p>
+  </footer>
+</body>
+</html>

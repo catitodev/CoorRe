@@ -1,6 +1,8 @@
 pub mod bundle;
 pub mod report;
 pub mod verify;
+#[cfg(feature = "wasm")]
+pub mod wasm;
 
 pub use bundle::{AuditBundle, BUNDLE_FORMAT, BundleEvidence, Receipt};
 pub use report::{CaseSummary, CheckResult, Report, Status, TimelineEntry};

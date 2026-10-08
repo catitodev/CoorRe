@@ -1,0 +1,250 @@
+{
+  "format": "coorre-audit-bundle/1",
+  "case_ref": "urn:coorre:case:SUP-001-20261008T193251Z",
+  "network_id": "solana:devnet",
+  "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+  "case_record": "AKfwr5fcW6zCy2TN7LDYcwe8Cqa2TPYRNdogQBv1GkHA",
+  "open_receipt": {
+    "network_id": "solana:devnet",
+    "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+    "account": "AKfwr5fcW6zCy2TN7LDYcwe8Cqa2TPYRNdogQBv1GkHA",
+    "tx_signature": "2G4u72fT6QU4eAQth6N2cXHE9mvsvmcmP9cgxF1hTAE2MKR5gvEZJA5PpfMRYwM7J1mbVtq49cuD7S6xRfAMPBya"
+  },
+  "evidence": [
+    {
+      "anchor_account": "9oen5aj5nywTHGi66os3ArLeUYqvW8x97z2ujfyJfX2j",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "execute_with_approval",
+            "id": "did:key:z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9",
+            "kind": "human"
+          },
+          "artifacts": [
+            {
+              "digestSHA256": "e60aabc14cec0961f8a7a7552ed253c2c0677b4f519145e3e66f9a3afe52b39a",
+              "mediaType": "application/json",
+              "name": "tax-certificate.json"
+            },
+            {
+              "digestSHA256": "0eab0e432f789d888382e09bc51f2e1f4149e4aa8969bd490681f2a8ebd1aa42",
+              "mediaType": "application/json",
+              "name": "environmental-license.json"
+            }
+          ],
+          "case": "urn:coorre:case:SUP-001-20261008T193251Z",
+          "fromState": "OPEN",
+          "mandate": {
+            "amountLamports": "50000000",
+            "autonomyLimitLamports": "100000000"
+          },
+          "payload": {
+            "documents": [
+              {
+                "artifact": "tax-certificate.json",
+                "kind": "tax_certificate",
+                "number": "TC-2026-0001",
+                "valid_from": "2026-01-01",
+                "valid_until": "2026-12-31"
+              },
+              {
+                "artifact": "environmental-license.json",
+                "kind": "environmental_license",
+                "number": "EL-2025-0107",
+                "valid_from": "2025-06-01",
+                "valid_until": "2027-05-31"
+              }
+            ],
+            "supplier": "Fornecedor Demo A Ltda"
+          },
+          "previousEvidence": "sha256:91d7df171ebd7f19e4996c8041dc9759b3701eb2bf074741cc2fbcd6092dcf2e",
+          "rule": {
+            "hash": "sha256:7320d1d698663198cb21f5f5cce3e6d0064b8300a1042ebf13fc8934fbdabd2f",
+            "id": "supplier-docs",
+            "version": "1"
+          },
+          "toState": "SUBMITTED"
+        },
+        "id": "urn:uuid:70e8c019-79e6-4d1b-b790-20d2b3b80049",
+        "issuer": "did:key:z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-08T19:32:55Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "z3NoVtUiExrLmuj7LSWTzbuo5gZV2HFJ1jo9piBy4c7YfkfRvWggWgKU8gsvtCMxXYNw4vnBuYxTCXBBXYVSYLuax",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9#z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-08T19:32:55Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "9oen5aj5nywTHGi66os3ArLeUYqvW8x97z2ujfyJfX2j",
+        "tx_signature": "aArpmRa31yEhipKgNeT332NyduktZvmx1j4StYw8vgbF5tGYo9NqXPrtwMrQkUBaQfoPonLHKNgZ2GbhwSbmprn"
+      }
+    },
+    {
+      "anchor_account": "G35R7tEc1aJiVoE72rF8T5vA6sUCGSqFZ56WeaU4ktsd",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "recommend",
+            "id": "did:key:z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N",
+            "kind": "agent"
+          },
+          "artifacts": [],
+          "case": "urn:coorre:case:SUP-001-20261008T193251Z",
+          "fromState": "SUBMITTED",
+          "mandate": {
+            "amountLamports": "50000000",
+            "autonomyLimitLamports": "100000000"
+          },
+          "payload": {
+            "agent": "simulated pre-analysis agent (deterministic, no model call)",
+            "evaluation_date": "2026-10-08",
+            "findings": [],
+            "recommendation": "auto_approve"
+          },
+          "previousEvidence": "sha256:f3ec57cc67dc9684a4169e173f183dde270e4eaae8632e1fddf613e45bcc1941",
+          "rule": {
+            "hash": "sha256:7320d1d698663198cb21f5f5cce3e6d0064b8300a1042ebf13fc8934fbdabd2f",
+            "id": "supplier-docs",
+            "version": "1"
+          },
+          "toState": "AGENT_REVIEWED"
+        },
+        "id": "urn:uuid:8a1feb88-3910-424e-ab67-76f83f8a55d8",
+        "issuer": "did:key:z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-08T19:32:59Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "z4DYtpJ6GsMZE598c6RjKr1CxoihK7TWBqufTzFA3AGor7ZPEXsdHGZahpXe9n5M3rvr8CcQ3RrefVxfRZD6kBe2w",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N#z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-08T19:32:59Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "G35R7tEc1aJiVoE72rF8T5vA6sUCGSqFZ56WeaU4ktsd",
+        "tx_signature": "2P2BfG1RxruVZidhRHvm9o8x8gp2gfsJJwvECgLKpmrWwkAGaX79UEBcBs51piN2P318s4x1ufsVrtn1DotuJdjd"
+      }
+    },
+    {
+      "anchor_account": "6vBeTt161ectBh9q9ngmNKtwQofNPBbPqD92TfP1gRKT",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "autonomous",
+            "id": "did:key:z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z",
+            "kind": "system"
+          },
+          "artifacts": [],
+          "case": "urn:coorre:case:SUP-001-20261008T193251Z",
+          "fromState": "AGENT_REVIEWED",
+          "mandate": {
+            "amountLamports": "50000000",
+            "autonomyLimitLamports": "100000000"
+          },
+          "payload": {
+            "decision": "AUTO_APPROVED",
+            "evaluation_date": "2026-10-08",
+            "reasons": []
+          },
+          "previousEvidence": "sha256:f5e532c133131bbfd578036239099dea1dc1632e8490d5bcf1fcd8a5350ffd8a",
+          "rule": {
+            "hash": "sha256:7320d1d698663198cb21f5f5cce3e6d0064b8300a1042ebf13fc8934fbdabd2f",
+            "id": "supplier-docs",
+            "version": "1"
+          },
+          "toState": "AUTO_APPROVED"
+        },
+        "id": "urn:uuid:3b427b4c-dc19-4d30-be8d-d8595783f151",
+        "issuer": "did:key:z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-08T19:33:03Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "z4sCftbreK7pUCieLCU1KaVfk1fCML9sEHRxSEy3M6MADTjfez8iE5Q6KfbgcoGyMFtS1Gqm65rijL6LCMpWS7jk3",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z#z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-08T19:33:03Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "6vBeTt161ectBh9q9ngmNKtwQofNPBbPqD92TfP1gRKT",
+        "tx_signature": "4rtRyvcu4nUrBWRnPRUMmDNdidDVGCnkY7QwUtUJ9sn9R65RBHQrVRHG1523NMj6HGVLHQ8fhVU7KyDMyM7jo2QR"
+      }
+    }
+  ],
+  "rules": [
+    {
+      "description": "Auto-approve a supplier payment only when every required document is present and valid on the evaluation date and the amount is within the automated actor's autonomy limit; otherwise escalate to the human approver with explicit reasons.",
+      "id": "supplier-docs",
+      "mandate": "amount_lamports <= autonomy_limit_lamports",
+      "outcomes": {
+        "fail": "ESCALATED",
+        "pass": "AUTO_APPROVED"
+      },
+      "requiredDocuments": [
+        "tax_certificate",
+        "environmental_license"
+      ],
+      "validity": "valid_from <= evaluation_date <= valid_until, calendar dates, inclusive",
+      "version": "1"
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "tax-certificate.json",
+      "mediaType": "application/json",
+      "digestSHA256": "e60aabc14cec0961f8a7a7552ed253c2c0677b4f519145e3e66f9a3afe52b39a"
+    },
+    {
+      "name": "environmental-license.json",
+      "mediaType": "application/json",
+      "digestSHA256": "0eab0e432f789d888382e09bc51f2e1f4149e4aa8969bd490681f2a8ebd1aa42"
+    }
+  ]
+}

@@ -1,0 +1,315 @@
+{
+  "format": "coorre-audit-bundle/1",
+  "case_ref": "urn:coorre:case:SUP-002-20261008T193251Z",
+  "network_id": "solana:devnet",
+  "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+  "case_record": "6DTcj3BDKpyacSBVWeQW6AaUtF7Z9T8XinXCi9ukZcaX",
+  "open_receipt": {
+    "network_id": "solana:devnet",
+    "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+    "account": "6DTcj3BDKpyacSBVWeQW6AaUtF7Z9T8XinXCi9ukZcaX",
+    "tx_signature": "rBt7urt2sexKvv4kYWKfXCam54wxJsq46Zjs8hiV1HL2rWt8VJMMQKW8BB4HGxiMbirGzofe4CzHLbLh5GhascB"
+  },
+  "evidence": [
+    {
+      "anchor_account": "ArPAEC1n2unBSa47jata9z6DgEFj9Nb2jYuLBcieAmJb",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "execute_with_approval",
+            "id": "did:key:z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9",
+            "kind": "human"
+          },
+          "artifacts": [
+            {
+              "digestSHA256": "8de57259004480dd6801b48e20909dd1e6e19b1a3510da03acafa28f49fdf508",
+              "mediaType": "application/json",
+              "name": "tax-certificate.json"
+            },
+            {
+              "digestSHA256": "c154afdbe763b46be67f2f874cb98ce2b17ad1d2092fdbe9f565f7c5095e8e30",
+              "mediaType": "application/json",
+              "name": "environmental-license.json"
+            }
+          ],
+          "case": "urn:coorre:case:SUP-002-20261008T193251Z",
+          "fromState": "OPEN",
+          "mandate": {
+            "amountLamports": "200000000",
+            "autonomyLimitLamports": "100000000"
+          },
+          "payload": {
+            "documents": [
+              {
+                "artifact": "tax-certificate.json",
+                "kind": "tax_certificate",
+                "number": "TC-2026-0002",
+                "valid_from": "2026-01-01",
+                "valid_until": "2026-12-31"
+              },
+              {
+                "artifact": "environmental-license.json",
+                "kind": "environmental_license",
+                "number": "EL-2024-0042",
+                "valid_from": "2024-01-01",
+                "valid_until": "2026-09-30"
+              }
+            ],
+            "supplier": "Fornecedor Demo B Ltda"
+          },
+          "previousEvidence": "sha256:b5acb4ac0ab259ca440536b6a2905c6cd757b9af64cf25bf66db16c05e2fa0da",
+          "rule": {
+            "hash": "sha256:7320d1d698663198cb21f5f5cce3e6d0064b8300a1042ebf13fc8934fbdabd2f",
+            "id": "supplier-docs",
+            "version": "1"
+          },
+          "toState": "SUBMITTED"
+        },
+        "id": "urn:uuid:215b9345-81da-4088-9bbd-afd9bc7c4243",
+        "issuer": "did:key:z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-08T19:33:16Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "z4m5TnSMy2EHfXeiFpRwYruwzHoNXgq56A88YXnkE4JsjpUTyygnVk3ZLaCMQQBLGUzWFN2V9NrqiNCLqVKfvEedK",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9#z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-08T19:33:16Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "ArPAEC1n2unBSa47jata9z6DgEFj9Nb2jYuLBcieAmJb",
+        "tx_signature": "3eduiGPv3z2KbVNicNovUKYcvJn5UYMEhhhRcwsNB7g9D8bDNpWgT8JPy2sbqmZwK4ujEaGuX4WmkM577JUEy8LN"
+      }
+    },
+    {
+      "anchor_account": "Hegnp96CZC7H3ufTweq57oRTpakZvKnrGpAxE4V9iRud",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "recommend",
+            "id": "did:key:z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N",
+            "kind": "agent"
+          },
+          "artifacts": [],
+          "case": "urn:coorre:case:SUP-002-20261008T193251Z",
+          "fromState": "SUBMITTED",
+          "mandate": {
+            "amountLamports": "200000000",
+            "autonomyLimitLamports": "100000000"
+          },
+          "payload": {
+            "agent": "simulated pre-analysis agent (deterministic, no model call)",
+            "evaluation_date": "2026-10-08",
+            "findings": [
+              "environmental license expired",
+              "amount exceeds autonomy limit"
+            ],
+            "recommendation": "escalate"
+          },
+          "previousEvidence": "sha256:83945870bd5de8ee3f618bacf7b97766f122b7d12b894bfb85cbc33329a33048",
+          "rule": {
+            "hash": "sha256:7320d1d698663198cb21f5f5cce3e6d0064b8300a1042ebf13fc8934fbdabd2f",
+            "id": "supplier-docs",
+            "version": "1"
+          },
+          "toState": "AGENT_REVIEWED"
+        },
+        "id": "urn:uuid:51774e59-bfb7-4150-a07d-e1c723c1baea",
+        "issuer": "did:key:z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-08T19:33:20Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "z5dLGSVhVvhZkG3Z5da1UnPqtYdw6Ct72UV7zS1B3EQiG3nyKEGjLTTvWSMxGNHD5NZVBgwViBMhDZNxgVM9RpKCn",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N#z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-08T19:33:20Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "Hegnp96CZC7H3ufTweq57oRTpakZvKnrGpAxE4V9iRud",
+        "tx_signature": "4tb5Us6gM4dMkyHrFSVLBXWDme5ATisEW5QADx5NRibGeZb4fMg5HG6exgX4cyCpNADV6JAUVrPzZLUo4YwzpxZi"
+      }
+    },
+    {
+      "anchor_account": "EZ8RatYSFF1s9hkGSxpVSHceu4CnVQRHoNdeSzdDgQHk",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "autonomous",
+            "id": "did:key:z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z",
+            "kind": "system"
+          },
+          "artifacts": [],
+          "case": "urn:coorre:case:SUP-002-20261008T193251Z",
+          "fromState": "AGENT_REVIEWED",
+          "mandate": {
+            "amountLamports": "200000000",
+            "autonomyLimitLamports": "100000000"
+          },
+          "payload": {
+            "decision": "ESCALATED",
+            "evaluation_date": "2026-10-08",
+            "reasons": [
+              "environmental license expired",
+              "amount exceeds autonomy limit"
+            ]
+          },
+          "previousEvidence": "sha256:b31dcbc8738851db32049d916ddde888b0c2b5224ed217fab96d6d1a84ab0e31",
+          "rule": {
+            "hash": "sha256:7320d1d698663198cb21f5f5cce3e6d0064b8300a1042ebf13fc8934fbdabd2f",
+            "id": "supplier-docs",
+            "version": "1"
+          },
+          "toState": "ESCALATED"
+        },
+        "id": "urn:uuid:c5a34146-85d2-4b18-b696-d19e1a5aaef8",
+        "issuer": "did:key:z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-08T19:33:26Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "z26xYWK9Phs51NvgKpWPa7d51RG9J8it1mJ7VhwPXZ1itwTnMsnsAx9jbKKNUKZK5zCRPtkvm2xG9CcoTvLL7Liph",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z#z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-08T19:33:26Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "EZ8RatYSFF1s9hkGSxpVSHceu4CnVQRHoNdeSzdDgQHk",
+        "tx_signature": "3zQBE5sYP5GyqazDYLh445kPeCWmWDBewRHFYsNjJKWye8Q28nFDeMnL4whmmWzmDTPwfZqXxgbZAdg3ZySmNQd2"
+      }
+    },
+    {
+      "anchor_account": "9EVE4QSBp1gP6sdegoSUJKk1Dd61PjoE7oaPDisUZ5h6",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "autonomous",
+            "id": "did:key:z6Mktp3CLpiBF8LXavUfHwho8WQ2Ft155WcHS34Ww7X9vwRQ",
+            "kind": "human"
+          },
+          "artifacts": [],
+          "case": "urn:coorre:case:SUP-002-20261008T193251Z",
+          "fromState": "ESCALATED",
+          "mandate": {
+            "amountLamports": "200000000",
+            "autonomyLimitLamports": "100000000"
+          },
+          "payload": {
+            "decision": "APPROVED",
+            "justification": "Environmental license renewal is under way and the purchase is time-critical; the procurement manager approves this payment above the automation limit."
+          },
+          "previousEvidence": "sha256:515cbbf3598c407816c7ae6c6679ea577cece78c65357197ad2212bbf8e3c37a",
+          "rule": {
+            "hash": "sha256:7320d1d698663198cb21f5f5cce3e6d0064b8300a1042ebf13fc8934fbdabd2f",
+            "id": "supplier-docs",
+            "version": "1"
+          },
+          "toState": "APPROVED"
+        },
+        "id": "urn:uuid:b837a228-f915-472c-b3e5-a467d5fba30c",
+        "issuer": "did:key:z6Mktp3CLpiBF8LXavUfHwho8WQ2Ft155WcHS34Ww7X9vwRQ",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-08T19:33:30Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "z4hNckF7E4Y2XpmGtkfC3NxoxFe7yaV6a8xcJ5zLq6m8Ecmd9hwjwTMr4gQzKd4EHnm25jXuLgTTywEdo6kCA8iLq",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6Mktp3CLpiBF8LXavUfHwho8WQ2Ft155WcHS34Ww7X9vwRQ#z6Mktp3CLpiBF8LXavUfHwho8WQ2Ft155WcHS34Ww7X9vwRQ"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-08T19:33:30Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "9EVE4QSBp1gP6sdegoSUJKk1Dd61PjoE7oaPDisUZ5h6",
+        "tx_signature": "2nQ2pHJ7ACi6LQeNSzDAhM2N2ji9kkAZEmgsfTghSNNToQizXVXwkZiR3Ejiz2jwmiz8FUZMR3hG6RUDW1aapfYc"
+      }
+    }
+  ],
+  "rules": [
+    {
+      "description": "Auto-approve a supplier payment only when every required document is present and valid on the evaluation date and the amount is within the automated actor's autonomy limit; otherwise escalate to the human approver with explicit reasons.",
+      "id": "supplier-docs",
+      "mandate": "amount_lamports <= autonomy_limit_lamports",
+      "outcomes": {
+        "fail": "ESCALATED",
+        "pass": "AUTO_APPROVED"
+      },
+      "requiredDocuments": [
+        "tax_certificate",
+        "environmental_license"
+      ],
+      "validity": "valid_from <= evaluation_date <= valid_until, calendar dates, inclusive",
+      "version": "1"
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "tax-certificate.json",
+      "mediaType": "application/json",
+      "digestSHA256": "8de57259004480dd6801b48e20909dd1e6e19b1a3510da03acafa28f49fdf508"
+    },
+    {
+      "name": "environmental-license.json",
+      "mediaType": "application/json",
+      "digestSHA256": "c154afdbe763b46be67f2f874cb98ce2b17ad1d2092fdbe9f565f7c5095e8e30"
+    }
+  ]
+}
