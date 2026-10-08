@@ -62,3 +62,14 @@ Entry template:
 - Decision: move a first wasm32-unknown-unknown compile check of coorre-model to Friday 2026-10-09 (target only; the rest of the wasm toolchain stays on Sunday), to catch problems with the new ed25519-dalek 3 / curve25519-dalek 5 versions early.
 - Files: docs/spec/SPEC.md (sections 5, 10, 12), docs/SECURITY.md.
 - Commit(s): docs: require a rent-safe minimum amount when opening a case
+
+### 2026-10-08 14:05 BRT — Friday scope started early: program, model types, wasm check, engine
+- Author: Clarkson Luiz Buriche Bartalini
+- Program `coorre_anchor` (onchain/programs/coorre_anchor/src/lib.rs) and its Playground suite (onchain/tests/coorre_anchor.test.ts, 16 tests). Compiled locally with the exact Playground `legacy` toolchain: Rust 1.68.0 and the template's Cargo.lock (anchor-lang 0.29.0, solana-program 1.16.24), `cargo +1.68.0 check`, 0 errors, 0 warnings. TS tests syntax-checked with Node 24 `module.stripTypeScriptTypes` and screened for Playground-blocked words. Devnet deploy pending (human, Playground).
+- Anchor 0.29 encodings verified against the deployed spike: account (`account:Vault`), event (`event:VaultDeposited`, `event:VaultWithdrawn`) and instruction (`global:open_vault`, `global:withdraw`) discriminators equal sha256(prefix:name)[0..8]; u64 args little-endian. Recorded in docs/decisions/ADR-001-shared-codes-and-encodings.md.
+- coorre-model: transition credential types (spec section 3 member names), strict parsing (unknown members rejected), field validation, case_id/genesis helpers, shared state/actor-kind/role codes. case_id cross-checked against Python hashlib.
+- WebAssembly check (moved from Sunday): `rustup target add wasm32-unknown-unknown`; coorre-model and coorre-engine build for wasm32 in release. A throwaway cdylib running W3C B.3 verify, re-sign and tamper checks inside WebAssembly under Node 24 returned all three checks passing; the module needs no host imports (354,790 bytes).
+- coorre-engine: state machine mirroring the program's check order (CaseClosed, InvalidState, InvalidTransition, UnauthorizedActor, PrevHashMismatch, MandateExceeded, Overflow) with a CaseTracker replica of CaseRecord, and rule supplier-docs v1 (rules/supplier-docs-v1.json; rule hash 7320d1d6…fbdabd2f cross-checked with Python). SUP-002 inputs yield exactly the spec reasons ["environmental license expired", "amount exceeds autonomy limit"].
+- Result: cargo fmt/clippy -D warnings clean; 84 tests passed (coorre-engine 18, coorre-model 58, W3C B.3 8), 0 failed.
+- Limitations / deviations: Rust 1.68.0 toolchain installed only to mirror Playground for local checks; stable remains the default. An initial attempt with cargo 1.68 started cloning the full git registry index; it was stopped, the partial cache removed, and the check re-run with the sparse protocol.
+- Commit(s): feat(engine): add the case state machine and the supplier-docs rule

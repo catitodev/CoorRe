@@ -1,0 +1,9 @@
+{
+  "id": "supplier-docs",
+  "version": "1",
+  "description": "Auto-approve a supplier payment only when every required document is present and valid on the evaluation date and the amount is within the automated actor's autonomy limit; otherwise escalate to the human approver with explicit reasons.",
+  "requiredDocuments": ["tax_certificate", "environmental_license"],
+  "validity": "valid_from <= evaluation_date <= valid_until, calendar dates, inclusive",
+  "mandate": "amount_lamports <= autonomy_limit_lamports",
+  "outcomes": { "pass": "AUTO_APPROVED", "fail": "ESCALATED" }
+}

@@ -1,0 +1,363 @@
+//! Rule "supplier-docs" v1 (deterministic, off-chain).
+//!
+//! AUTO_APPROVED iff every required document is present exactly once and valid
+//! on the evaluation date, and the amount is within the autonomy limit;
+//! otherwise ESCALATED with explicit reasons.
+
+use coorre_model::{CaseState, hash, jcs};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use time::{Date, Month};
+
+use crate::error::{EngineError, Result};
+
+pub const RULE_ID: &str = "supplier-docs";
+pub const RULE_VERSION: &str = "1";
+
+const RULE_DOCUMENT: &str = include_str!("../rules/supplier-docs-v1.json");
+
+/// The rule definition as published in audit bundles.
+pub fn rule_document() -> Result<Value> {
+    let value =
+        jcs::parse(RULE_DOCUMENT).map_err(|e| EngineError::RuleDefinition(e.to_string()))?;
+    let matches_constants = value["id"] == RULE_ID && value["version"] == RULE_VERSION;
+    if !matches_constants {
+        return Err(EngineError::RuleDefinition(
+            "id/version mismatch".to_owned(),
+        ));
+    }
+    Ok(value)
+}
+
+/// `rule.hash` value: `SHA-256(JCS(rule document))`.
+pub fn rule_hash() -> Result<[u8; 32]> {
+    jcs::hash(&rule_document()?).map_err(|e| EngineError::RuleDefinition(e.to_string()))
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DocumentKind {
+    TaxCertificate,
+    EnvironmentalLicense,
+}
+
+impl DocumentKind {
+    pub const REQUIRED: [DocumentKind; 2] = [
+        DocumentKind::TaxCertificate,
+        DocumentKind::EnvironmentalLicense,
+    ];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            DocumentKind::TaxCertificate => "tax certificate",
+            DocumentKind::EnvironmentalLicense => "environmental license",
+        }
+    }
+}
+
+/// A document submitted by the supplier. Dates are `YYYY-MM-DD`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SubmittedDocument {
+    pub kind: DocumentKind,
+    pub valid_from: String,
+    pub valid_until: String,
+    pub digest_sha256: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SupplierDocsInput {
+    pub evaluation_date: String,
+    pub amount_lamports: u64,
+    pub autonomy_limit_lamports: u64,
+    pub documents: Vec<SubmittedDocument>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Decision {
+    AutoApproved,
+    Escalated { reasons: Vec<String> },
+}
+
+impl Decision {
+    /// State the rule engine anchors for this decision.
+    pub fn to_state(&self) -> CaseState {
+        match self {
+            Decision::AutoApproved => CaseState::AutoApproved,
+            Decision::Escalated { .. } => CaseState::Escalated,
+        }
+    }
+
+    pub fn reasons(&self) -> &[String] {
+        match self {
+            Decision::AutoApproved => &[],
+            Decision::Escalated { reasons } => reasons,
+        }
+    }
+}
+
+/// Evaluates the rule. Malformed input is an error, never a silent escalation.
+pub fn evaluate(input: &SupplierDocsInput) -> Result<Decision> {
+    let today = parse_date(&input.evaluation_date)?;
+    let mut validated = Vec::with_capacity(input.documents.len());
+    for document in &input.documents {
+        let from = parse_date(&document.valid_from)?;
+        let until = parse_date(&document.valid_until)?;
+        if from > until {
+            return Err(EngineError::InvalidRuleInput(format!(
+                "{} valid_from is after valid_until",
+                document.kind.label()
+            )));
+        }
+        hash::from_hex(&document.digest_sha256)
+            .map_err(|e| EngineError::InvalidRuleInput(e.to_string()))?;
+        validated.push((document.kind, from, until));
+    }
+
+    let mut reasons = Vec::new();
+    for kind in DocumentKind::REQUIRED {
+        let matching: Vec<_> = validated.iter().filter(|(k, _, _)| *k == kind).collect();
+        let label = kind.label();
+        match matching.as_slice() {
+            [] => reasons.push(format!("{label} missing")),
+            [(_, from, until)] => {
+                if today < *from {
+                    reasons.push(format!("{label} not yet valid"));
+                } else if today > *until {
+                    reasons.push(format!("{label} expired"));
+                }
+            }
+            _ => reasons.push(format!("{label} submitted more than once")),
+        }
+    }
+    if input.amount_lamports > input.autonomy_limit_lamports {
+        reasons.push("amount exceeds autonomy limit".to_owned());
+    }
+
+    Ok(if reasons.is_empty() {
+        Decision::AutoApproved
+    } else {
+        Decision::Escalated { reasons }
+    })
+}
+
+/// Parses a calendar date written strictly as `YYYY-MM-DD`.
+pub fn parse_date(text: &str) -> Result<Date> {
+    let invalid = || EngineError::InvalidRuleInput(format!("invalid date `{text}`"));
+    let bytes = text.as_bytes();
+    let shape_ok = bytes.len() == 10
+        && bytes.iter().enumerate().all(|(i, b)| match i {
+            4 | 7 => *b == b'-',
+            _ => b.is_ascii_digit(),
+        });
+    if !shape_ok {
+        return Err(invalid());
+    }
+    let year: i32 = text[0..4].parse().map_err(|_| invalid())?;
+    let month: u8 = text[5..7].parse().map_err(|_| invalid())?;
+    let day: u8 = text[8..10].parse().map_err(|_| invalid())?;
+    let month = Month::try_from(month).map_err(|_| invalid())?;
+    Date::from_calendar_date(year, month, day).map_err(|_| invalid())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const DIGEST: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+
+    fn doc(kind: DocumentKind, from: &str, until: &str) -> SubmittedDocument {
+        SubmittedDocument {
+            kind,
+            valid_from: from.to_owned(),
+            valid_until: until.to_owned(),
+            digest_sha256: DIGEST.to_owned(),
+        }
+    }
+
+    fn input(amount: u64, limit: u64, documents: Vec<SubmittedDocument>) -> SupplierDocsInput {
+        SupplierDocsInput {
+            evaluation_date: "2026-10-09".to_owned(),
+            amount_lamports: amount,
+            autonomy_limit_lamports: limit,
+            documents,
+        }
+    }
+
+    fn valid_docs() -> Vec<SubmittedDocument> {
+        vec![
+            doc(DocumentKind::TaxCertificate, "2026-01-01", "2026-12-31"),
+            doc(
+                DocumentKind::EnvironmentalLicense,
+                "2025-06-01",
+                "2027-05-31",
+            ),
+        ]
+    }
+
+    #[test]
+    fn rule_document_hash_matches_an_independent_computation() {
+        // SHA-256 of the canonical JSON, computed with Python's json.dumps
+        // (sort_keys, compact separators) over the same file.
+        assert_eq!(
+            hash::to_hex(&rule_hash().unwrap()),
+            "7320d1d698663198cb21f5f5cce3e6d0064b8300a1042ebf13fc8934fbdabd2f"
+        );
+        let doc = rule_document().unwrap();
+        assert_eq!(doc["id"], RULE_ID);
+        assert_eq!(doc["version"], RULE_VERSION);
+    }
+
+    #[test]
+    fn sup_001_valid_documents_within_limit_auto_approves() {
+        let decision = evaluate(&input(50_000_000, 100_000_000, valid_docs())).unwrap();
+        assert_eq!(decision, Decision::AutoApproved);
+        assert_eq!(decision.to_state(), CaseState::AutoApproved);
+        assert!(decision.reasons().is_empty());
+    }
+
+    #[test]
+    fn sup_002_expired_license_above_limit_escalates_with_spec_reasons() {
+        let documents = vec![
+            doc(DocumentKind::TaxCertificate, "2026-01-01", "2026-12-31"),
+            doc(
+                DocumentKind::EnvironmentalLicense,
+                "2024-01-01",
+                "2026-09-30",
+            ),
+        ];
+        let decision = evaluate(&input(200_000_000, 100_000_000, documents)).unwrap();
+        assert_eq!(decision.to_state(), CaseState::Escalated);
+        assert_eq!(
+            decision.reasons(),
+            [
+                "environmental license expired",
+                "amount exceeds autonomy limit"
+            ]
+        );
+    }
+
+    #[test]
+    fn limit_and_validity_boundaries_are_inclusive() {
+        let on_the_edge = vec![
+            doc(DocumentKind::TaxCertificate, "2026-10-09", "2026-10-09"),
+            doc(
+                DocumentKind::EnvironmentalLicense,
+                "2026-10-09",
+                "2026-10-09",
+            ),
+        ];
+        assert_eq!(
+            evaluate(&input(100, 100, on_the_edge)).unwrap(),
+            Decision::AutoApproved
+        );
+        assert_eq!(
+            evaluate(&input(101, 100, valid_docs())).unwrap().reasons(),
+            ["amount exceeds autonomy limit"]
+        );
+    }
+
+    #[test]
+    fn missing_future_and_duplicate_documents_escalate() {
+        let reasons =
+            |docs: Vec<SubmittedDocument>| evaluate(&input(1, 1, docs)).unwrap().reasons().to_vec();
+        assert_eq!(
+            reasons(vec![]),
+            ["tax certificate missing", "environmental license missing"]
+        );
+        assert_eq!(
+            reasons(vec![
+                doc(DocumentKind::TaxCertificate, "2026-10-10", "2027-10-10"),
+                doc(
+                    DocumentKind::EnvironmentalLicense,
+                    "2025-01-01",
+                    "2027-01-01"
+                ),
+            ]),
+            ["tax certificate not yet valid"]
+        );
+        let mut duplicated = valid_docs();
+        duplicated.push(doc(
+            DocumentKind::TaxCertificate,
+            "2026-01-01",
+            "2026-12-31",
+        ));
+        assert_eq!(
+            reasons(duplicated),
+            ["tax certificate submitted more than once"]
+        );
+    }
+
+    #[test]
+    fn malformed_input_is_an_error() {
+        let bad_inputs = [
+            SupplierDocsInput {
+                evaluation_date: "2026-02-30".to_owned(),
+                ..input(1, 1, valid_docs())
+            },
+            SupplierDocsInput {
+                evaluation_date: "09/10/2026".to_owned(),
+                ..input(1, 1, valid_docs())
+            },
+            input(
+                1,
+                1,
+                vec![doc(
+                    DocumentKind::TaxCertificate,
+                    "2026-12-31",
+                    "2026-01-01",
+                )],
+            ),
+            input(
+                1,
+                1,
+                vec![SubmittedDocument {
+                    digest_sha256: "XYZ".to_owned(),
+                    ..valid_docs()[0].clone()
+                }],
+            ),
+        ];
+        for bad in bad_inputs {
+            assert!(
+                matches!(evaluate(&bad), Err(EngineError::InvalidRuleInput(_))),
+                "{bad:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn parse_date_is_strict() {
+        assert_eq!(parse_date("2028-02-29").unwrap().to_string(), "2028-02-29");
+        for bad in [
+            "2026-2-01",
+            "2026-13-01",
+            "2026-00-10",
+            "2027-02-29",
+            "20261009",
+            "2026-10-09T00:00:00Z",
+            "",
+        ] {
+            assert!(parse_date(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn input_json_uses_snake_case_kinds_and_rejects_unknown_fields() {
+        let json = r#"{"evaluation_date":"2026-10-09","amount_lamports":5,"autonomy_limit_lamports":10,
+            "documents":[{"kind":"tax_certificate","valid_from":"2026-01-01","valid_until":"2026-12-31",
+            "digest_sha256":"0000000000000000000000000000000000000000000000000000000000000000"}]}"#;
+        let parsed: SupplierDocsInput = serde_json::from_str(json).unwrap();
+        assert_eq!(parsed.documents[0].kind, DocumentKind::TaxCertificate);
+        assert!(
+            serde_json::from_str::<SupplierDocsInput>(
+                &json.replace("\"documents\"", "\"extra\":1,\"documents\"")
+            )
+            .is_err()
+        );
+        assert_eq!(
+            DocumentKind::EnvironmentalLicense.label(),
+            "environmental license"
+        );
+    }
+}
