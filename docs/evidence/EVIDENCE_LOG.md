@@ -55,3 +55,10 @@ Entry template:
 - Result: program `FARGzwRUNjGXKMfq5FRwNGr5rZJngJg3nDhvh1rTiFss` deployed (tx 5P4dr8UAHhY9jz3GLweCekpgkdWs1cQG22naYkqG3Mr72KvxsgvHU2f3jDF2YyGbaT3GScpPf3SSwdAo7jkYyTKv, upgrade authority 7yAwBDhFs8TdMurdwJsq4AB41tX2H9PULpxeAnf87zyZ). Tests: 6 passing. Balance movements confirmed on chain to the lamport (details and links in onchain/DEPLOYMENTS.md). IDL exported (pre-0.30 format, consistent with Anchor 0.29). Wallet and program keypairs backed up in .local/ (gitignored, mode 600).
 - Limitations / deviations: the first test runs failed because two test titles contained words the Playground runtime blocks ("document", "top"); titles renamed in commit 1747b25. A second run failed because the program had not been deployed yet; after `deploy` the suite passed. Devnet rent is 5,080 lamports per byte (including overhead) on this date, lower than the commonly quoted mainnet figure, so rent is always read at runtime.
 - Commit(s): docs: record the Playground spike deployment and results
+
+### 2026-10-08 13:30 BRT — Spec update: minimum case amount and early wasm check
+- Author: Clarkson Luiz Buriche Bartalini
+- Decision: open_case must reject any `amount` below the rent-exempt minimum of a zero-data account, read from the Rent sysvar at execution time (new error AmountBelowRentExempt). Reason: the spike showed that a payout leaving a new account below that minimum makes the whole transaction fail, which would block a case at its final step. Devnet minimum on this date: 650,240 lamports.
+- Decision: move a first wasm32-unknown-unknown compile check of coorre-model to Friday 2026-10-09 (target only; the rest of the wasm toolchain stays on Sunday), to catch problems with the new ed25519-dalek 3 / curve25519-dalek 5 versions early.
+- Files: docs/spec/SPEC.md (sections 5, 10, 12), docs/SECURITY.md.
+- Commit(s): docs: require a rent-safe minimum amount when opening a case

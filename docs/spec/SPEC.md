@@ -56,11 +56,11 @@ Accounts:
 - CaseRecord, PDA seeds ["case", creator, case_id]: case_id [u8;32], creator, submitter, agent, rule_engine, approver (Pubkey), amount u64, autonomy_limit u64, state u8, last_evidence_hash [u8;32], transition_count u32, bump u8. Holds the escrowed lamports on top of its rent-exempt minimum.
 - EvidenceAnchor, PDA seeds ["evidence", case_record, evidence_hash]: evidence_hash [u8;32], case_record Pubkey, prev_hash [u8;32], from_state u8, to_state u8, actor Pubkey, actor_kind u8 (derived from role, never an argument), rule_hash [u8;32], slot u64, unix_ts i64, bump u8.
 Instructions:
-- open_case(case_id, submitter, agent, rule_engine, approver, amount, autonomy_limit): signer creator. Requires the four role keys pairwise distinct (RolesNotDistinct). Transfers `amount` lamports from creator into CaseRecord.
+- open_case(case_id, submitter, agent, rule_engine, approver, amount, autonomy_limit): signer creator. Requires the four role keys pairwise distinct (RolesNotDistinct). Requires `amount` >= the rent-exempt minimum of a zero-data account, read from the Rent sysvar at execution time and never hard-coded (AmountBelowRentExempt); this guarantees the final release or refund cannot be rejected by the runtime rent rule. Transfers `amount` lamports from creator into CaseRecord.
 - anchor_transition(evidence_hash, prev_hash, to_state, rule_hash): signers actor + payer. Checks: case not terminal (CaseClosed); to_state valid (InvalidState); transition allowed (InvalidTransition); actor equals the role key for that transition (UnauthorizedActor); prev_hash == last_evidence_hash, or == case_id when transition_count == 0 (PrevHashMismatch); AUTO_APPROVED only if amount <= autonomy_limit (MandateExceeded); checked arithmetic (Overflow). Creates EvidenceAnchor, updates CaseRecord, then releases or refunds escrow on terminal states by moving exactly `amount` lamports from CaseRecord (never below rent-exempt minimum: InsufficientEscrow). Payee account must equal submitter; refund account must equal creator.
 - slot and unix_ts come from the Clock sysvar.
 Events: CaseOpened {case_id, creator, amount, autonomy_limit}; TransitionAnchored {case_record, evidence_hash, prev_hash, from_state, to_state, actor, actor_kind, rule_hash, slot, unix_ts}; FundsReleased {case_record, to, amount}; FundsRefunded {case_record, to, amount}.
-Errors: InvalidTransition, InvalidState, UnauthorizedActor, PrevHashMismatch, CaseClosed, RolesNotDistinct, MandateExceeded, InsufficientEscrow, Overflow.
+Errors: InvalidTransition, InvalidState, UnauthorizedActor, PrevHashMismatch, CaseClosed, RolesNotDistinct, MandateExceeded, InsufficientEscrow, Overflow, AmountBelowRentExempt.
 Workflow: source of truth is onchain/programs/coorre_anchor/src/lib.rs (single file), pasted into Playground to build, test (onchain/tests/*.ts) and deploy. After each deploy, commit the IDL to onchain/idl/coorre_anchor.json and record program id, upgrade authority and deploy tx in onchain/DEPLOYMENTS.md. Back up the Playground wallet keypair to .local/ (gitignored).
 
 ## 6. Bridge (bridge/, Node)
@@ -92,7 +92,7 @@ Static page: drop bundle + artifact files; computes everything locally with the 
 ## 10. Mandatory acceptance tests
 - coorre-model reproduces W3C vc-di-eddsa test vector B.3 (eddsa-jcs-2022): canonical document hash 59b7cb6251b8991add1ce0bc83107e3db9dbbab5bd2c28f687db1a03abc92f19, proof config hash 66ab154f5c2890a140cb8388a22a160454f80575f6eae09e5a097cabe539a1db, and verifies the published proofValue with the published key (https://www.w3.org/TR/vc-di-eddsa/, Appendix B.3).
 - Different key order/whitespace → identical hash.
-- On-chain TS tests (Playground): every forbidden transition → its specific error; wrong role signer → UnauthorizedActor; wrong prev_hash → PrevHashMismatch; repeated role keys → RolesNotDistinct; AUTO_APPROVED above limit → MandateExceeded; release and refund move exactly `amount` (balance assertions); two creators using the same case_id get different CaseRecords (no squatting).
+- On-chain TS tests (Playground): every forbidden transition → its specific error; wrong role signer → UnauthorizedActor; wrong prev_hash → PrevHashMismatch; repeated role keys → RolesNotDistinct; amount below the rent-exempt minimum → AmountBelowRentExempt; AUTO_APPROVED above limit → MandateExceeded; release and refund move exactly `amount` (balance assertions); two creators using the same case_id get different CaseRecords (no squatting).
 - coorre-verify: valid signature from a non-role key → check 4 FAILS; account with wrong owner → check 6 FAILS.
 - E2E on devnet: SUP-001 → AUTO_APPROVED + released; SUP-002 → MandateExceeded attempt rejected → ESCALATED → APPROVED + released; verify 6/6 PASS for both in CLI and browser; 1-byte artifact change → check 1 FAILS.
 
@@ -101,7 +101,7 @@ README.md · LICENSE · docs/spec/ · docs/SECURITY.md · docs/evidence/ · docs
 
 ## 12. Schedule (BRT)
 - Thu 10-08: docs + environment + CI; Playground spike (human, browser); coorre-model with the W3C vector tests.
-- Fri 10-09: program + TS tests + devnet deploy via Playground; bridge; coorre-engine.
+- Fri 10-09: program + TS tests + devnet deploy via Playground; bridge; coorre-engine; early wasm check (install only the wasm32-unknown-unknown target and confirm coorre-model and its signature dependencies compile for it).
 - Sat 10-10: coorre-verify + coorre-anchor + coorre-cli (demo run, verify); E2E on devnet.
 - Sun 10-11: wasm build + browser verifier + GitHub Pages; SECURITY.md final; README (setup, demo, limitations, prior-work disclosure "no code before 2026-10-07"); demo recording; freeze.
 - Mon 10-12: submission by 18:00.

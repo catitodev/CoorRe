@@ -15,6 +15,7 @@ Creator/operator (opens and funds cases), submitter/payee, agent, rule_engine, a
 - Signature malleability and weak keys: Ed25519 verification uses strict mode (non-canonical signatures and small-order keys rejected); multibase keys and proof values must be canonically encoded.
 - Key confusion: a proof is only created when its verification method resolves to the signing key; verification resolves did:key only, so no network lookup can substitute a key.
 - Escrow draining or rent violation: exact `amount` movements, rent-exempt minimum preserved, checked arithmetic, payee/refund accounts constrained to stored keys.
+- Payout stuck at the end of a case (payee left below the rent-exempt minimum): open_case rejects any `amount` below the rent-exempt minimum of a zero-data account, read from the Rent sysvar at runtime (AmountBelowRentExempt).
 - Supply chain: pinned versions, committed lockfiles, CI on every push.
 - Secrets: keys only in .local/ (gitignored); never logged.
 
