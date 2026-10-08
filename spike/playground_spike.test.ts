@@ -51,7 +51,7 @@ describe("playground_spike", () => {
       .accounts({ vault, authority, recipient })
       .rpc(confirmed);
 
-  it("opens (or tops up) the vault through a system transfer", async () => {
+  it("funds the vault through a system transfer (open or deposit)", async () => {
     const existing = await pg.connection.getAccountInfo(vault, "confirmed");
     const accounts = {
       vault,
@@ -120,7 +120,7 @@ describe("playground_spike", () => {
     assert.equal(await balanceOf(vault), info.lamports, "vault unchanged");
   });
 
-  it("documents the runtime rule: a new recipient must end rent-exempt", async () => {
+  it("runtime rule: a new recipient must end rent-exempt", async () => {
     const before = await balanceOf(vault);
     const error = await errorOf(() =>
       withdraw(1_000, web3.Keypair.generate().publicKey)
