@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 320" width="980" height="320"><rect width="980" height="320" fill="#10161A"/><g transform="translate(56,24) scale(0.535)">
+  <path d="M 401.49 172.00 A 168 168 0 1 0 401.49 340.00" fill="none" stroke="#E9EEF0" stroke-width="44" stroke-linecap="round"/>
+  <line x1="176" y1="256" x2="388" y2="256" stroke="#3FB39B" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="176" cy="256" r="18" fill="#3FB39B"/>
+  <circle cx="246" cy="256" r="18" fill="#3FB39B"/>
+  <circle cx="316" cy="256" r="18" fill="#3FB39B"/>
+  <circle cx="424" cy="256" r="31" fill="#E8531F"/></g><g transform="translate(386,206) scale(0.9)"><path d="M 97.62 -93.47 A 56 56 0 1 0 97.62 -18.53 M 124 -40 A 40 40 0 1 0 204 -40 A 40 40 0 1 0 124 -40 M 230 -40 A 40 40 0 1 0 310 -40 A 40 40 0 1 0 230 -40 M 336 0 V -80 M 336 -46 C 336 -70 350 -80 376 -80" fill="none" stroke="#E9EEF0" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/><path d="M 400 0 V -112 H 438 A 30 30 0 0 1 438 -52 H 400 M 430 -52 L 468 0 M 496 -40 H 576 A 40 40 0 1 0 564.28 -11.72" fill="none" stroke="#E9EEF0" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/></g>
+</svg>

@@ -6,12 +6,20 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; connect-src 'self' https:; img-src 'self'; base-uri 'none'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
   <title>CoorRe Verifier</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
   <link rel="stylesheet" href="style.css">
   <script type="module" src="app.js"></script>
 </head>
 <body>
   <header>
-    <h1>CoorRe Verifier</h1>
+    <h1>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="brand/coorre_lockup_A_dark.svg">
+        <img class="brand" src="brand/coorre_lockup_A_light.svg" alt="CoorRe" width="220" height="72">
+      </picture>
+      <span>Verifier</span>
+    </h1>
     <p class="lead">Check an audit trail without trusting whoever produced it. The evidence, signatures and hashes are checked in this browser with the same Rust code as the command line; only public account addresses are sent to a Solana RPC to read what the chain recorded.</p>
   </header>
 
@@ -52,6 +60,7 @@
       <h2>Checks</h2>
       <ol id="checks" class="checks"></ol>
     </section>
+    <div id="trail" class="trail" aria-hidden="true" hidden><span class="trail-dot"></span><span class="trail-dot"></span><span class="trail-dot"></span><span class="trail-line"></span></div>
     <p id="status" class="status" role="status"></p>
   </main>
 

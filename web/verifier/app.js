@@ -45,6 +45,7 @@ function setStatus(text, isError = false) {
 
 function setBusy(busy) {
   for (const id of buttons) $(id).disabled = busy;
+  $("trail").hidden = !busy;
 }
 
 function decisionText(payload) {
@@ -56,7 +57,7 @@ function decisionText(payload) {
   if (Array.isArray(payload.reasons) && payload.reasons.length) parts.push(payload.reasons.join("; "));
   if (Array.isArray(payload.findings) && payload.findings.length) parts.push(payload.findings.join("; "));
   if (typeof payload.justification === "string") parts.push(`“${payload.justification}”`);
-  return parts.join(" — ");
+  return parts.join(" · ");
 }
 
 function render(result, expected) {

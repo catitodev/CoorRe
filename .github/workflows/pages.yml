@@ -53,8 +53,8 @@ jobs:
       - name: Assemble the site
         run: |
           mkdir -p _site
-          cp web/verifier/index.html web/verifier/app.js web/verifier/verify-core.js web/verifier/style.css _site/
-          cp -r web/verifier/pkg web/verifier/samples _site/
+          cp web/verifier/index.html web/verifier/app.js web/verifier/verify-core.js web/verifier/style.css web/verifier/favicon.svg web/verifier/favicon-32.png _site/
+          cp -r web/verifier/pkg web/verifier/samples web/verifier/brand _site/
 
       - name: Setup Pages (actions/configure-pages v6.0.0)
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d
