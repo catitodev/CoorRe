@@ -1,0 +1,157 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 640" width="980" height="640" role="img" aria-labelledby="t d">
+<title id="t">SUP-002: the program blocks an automation above its mandate; a human signature releases the payment</title>
+<desc id="d">A 0.20 SOL payment is escrowed and the supplier submits two documents. The AI agent recommends escalation. The rule-engine key then tries to approve the payment, but its limit is 0.10 SOL, so the program rejects it with MandateExceeded: no transaction lands and no funds move. The case is escalated with two reasons, a human approver signs, and the escrow is released to the supplier.</desc>
+<style>
+@media (prefers-reduced-motion: no-preference) {
+@keyframes row1 {
+0% { opacity: 0; transform: translateY(8px); }
+2% { opacity: 0; transform: translateY(8px); }
+4.333% { opacity: 1; transform: translateY(0); }
+90% { opacity: 1; transform: translateY(0); }
+98% { opacity: 0; transform: translateY(0); }
+100% { opacity: 0; transform: translateY(0); }
+}
+@keyframes row2 {
+0% { opacity: 0; transform: translateY(8px); }
+10% { opacity: 0; transform: translateY(8px); }
+12.333% { opacity: 1; transform: translateY(0); }
+90% { opacity: 1; transform: translateY(0); }
+98% { opacity: 0; transform: translateY(0); }
+100% { opacity: 0; transform: translateY(0); }
+}
+@keyframes row3 {
+0% { opacity: 0; transform: translateY(8px); }
+18% { opacity: 0; transform: translateY(8px); }
+20.333% { opacity: 1; transform: translateY(0); }
+90% { opacity: 1; transform: translateY(0); }
+98% { opacity: 0; transform: translateY(0); }
+100% { opacity: 0; transform: translateY(0); }
+}
+@keyframes row4 {
+0% { opacity: 0; transform: translateY(8px); }
+26% { opacity: 0; transform: translateY(8px); }
+28.333% { opacity: 1; transform: translateY(0); }
+90% { opacity: 1; transform: translateY(0); }
+98% { opacity: 0; transform: translateY(0); }
+100% { opacity: 0; transform: translateY(0); }
+}
+@keyframes row5 {
+0% { opacity: 0; transform: translateY(8px); }
+41.667% { opacity: 0; transform: translateY(8px); }
+44% { opacity: 1; transform: translateY(0); }
+90% { opacity: 1; transform: translateY(0); }
+98% { opacity: 0; transform: translateY(0); }
+100% { opacity: 0; transform: translateY(0); }
+}
+@keyframes row6 {
+0% { opacity: 0; transform: translateY(8px); }
+50% { opacity: 0; transform: translateY(8px); }
+52.333% { opacity: 1; transform: translateY(0); }
+90% { opacity: 1; transform: translateY(0); }
+98% { opacity: 0; transform: translateY(0); }
+100% { opacity: 0; transform: translateY(0); }
+}
+@keyframes row7 {
+0% { opacity: 0; transform: translateY(8px); }
+65% { opacity: 0; transform: translateY(8px); }
+67.333% { opacity: 1; transform: translateY(0); }
+90% { opacity: 1; transform: translateY(0); }
+98% { opacity: 0; transform: translateY(0); }
+100% { opacity: 0; transform: translateY(0); }
+}
+@keyframes label4 {
+0% { opacity: 0; transform: translateY(6px); }
+32% { opacity: 0; transform: translateY(6px); }
+34.333% { opacity: 1; transform: translateY(0); }
+90% { opacity: 1; transform: translateY(0); }
+98% { opacity: 0; transform: translateY(0); }
+100% { opacity: 0; transform: translateY(0); }
+}
+@keyframes sig6 {
+0% { opacity: 0; transform: translateY(0px); }
+54% { opacity: 0; transform: translateY(0px); }
+56.333% { opacity: 1; transform: translateY(0); }
+90% { opacity: 1; transform: translateY(0); }
+98% { opacity: 0; transform: translateY(0); }
+100% { opacity: 0; transform: translateY(0); }
+}
+@keyframes trail {
+0% { opacity: 1; transform: scaleY(0); }
+2% { opacity: 1; transform: scaleY(0); }
+10% { opacity: 1; transform: scaleY(0.1535); }
+18% { opacity: 1; transform: scaleY(0.3070); }
+41.667% { opacity: 1; transform: scaleY(0.6930); }
+50% { opacity: 1; transform: scaleY(0.8465); }
+65% { opacity: 1; transform: scaleY(1); }
+90% { opacity: 1; transform: scaleY(1); }
+98% { opacity: 0; transform: scaleY(1); }
+100% { opacity: 0; transform: scaleY(0); }
+}
+.row1 { animation: row1 30.0s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; }
+.row2 { animation: row2 30.0s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; }
+.row3 { animation: row3 30.0s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; }
+.row4 { animation: row4 30.0s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; }
+.row5 { animation: row5 30.0s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; }
+.row6 { animation: row6 30.0s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; }
+.row7 { animation: row7 30.0s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; }
+.label4 { animation: label4 30.0s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; }
+.sig6 { transform-box: fill-box; transform-origin: 50% 50%; animation: sig6 30.0s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; }
+.trail { transform-box: fill-box; transform-origin: 50% 0%; animation: trail 30.0s linear infinite; }
+}
+</style>
+<rect width="980" height="640" fill="#10161A"/>
+<text x="56" y="54" fill="#E9EEF0" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="23" font-weight="700">SUP-002: a 0.20 SOL payment under a 0.10 SOL automation limit</text>
+<line class="trail" x1="64" y1="108" x2="64" y2="564" stroke="#3FB39B" stroke-width="6" stroke-linecap="round"/>
+<g class="row1">
+<circle cx="64" cy="108" r="10" fill="#3FB39B"/>
+<text x="190" y="114" fill="#E9EEF0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="16" font-weight="700">OPEN</text>
+<text x="190" y="138" fill="#B4C0C6" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="15">The buyer opens the case and escrows 0.20 SOL inside the program.</text>
+</g>
+<g class="row2">
+<circle cx="64" cy="178" r="10" fill="#3FB39B"/>
+<text x="190" y="184" fill="#E9EEF0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="16" font-weight="700">SUBMITTED</text>
+<text x="190" y="208" fill="#B4C0C6" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="15">The supplier signs and submits two documents. Every step is signed evidence.</text>
+</g>
+<g class="row3">
+<circle cx="64" cy="248" r="10" fill="#3FB39B"/>
+<text x="190" y="254" fill="#E9EEF0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="16" font-weight="700">AGENT_REVIEWED</text>
+<text x="190" y="278" fill="#B4C0C6" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="15">The AI agent recommends escalation. It can advise; it cannot release funds.</text>
+</g>
+<g class="row4">
+<circle cx="64" cy="318" r="9" fill="#10161A" stroke="#E9EEF0" stroke-width="3"/>
+<g transform="translate(72.80,266.80) scale(0.2)">
+<path d="M 401.49 172.00 A 168 168 0 1 0 401.49 340.00" fill="none" stroke="#E9EEF0" stroke-width="44" stroke-linecap="round"/>
+<line x1="176" y1="256" x2="388" y2="256" stroke="#3FB39B" stroke-width="12" stroke-linecap="round"/>
+<circle cx="176" cy="256" r="18" fill="#3FB39B"/>
+<circle cx="246" cy="256" r="18" fill="#3FB39B"/>
+<circle cx="316" cy="256" r="18" fill="#3FB39B"/>
+</g>
+<text x="190" y="324" fill="#E9EEF0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="16" font-weight="700">AUTO_APPROVED, attempted</text>
+<text x="190" y="348" fill="#B4C0C6" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="15">The rule-engine key tries to approve 0.20 SOL. Its limit is 0.10 SOL.</text>
+<text x="190" y="370" fill="#B4C0C6" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="15">Rejected by the program: no transaction lands, no funds move.</text>
+</g>
+<text class="label4" x="462" y="325" fill="#E8531F" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="20" font-weight="700">MandateExceeded</text>
+<g class="row5">
+<circle cx="64" cy="424" r="10" fill="#3FB39B"/>
+<text x="190" y="430" fill="#E9EEF0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="16" font-weight="700">ESCALATED</text>
+<text x="190" y="454" fill="#B4C0C6" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="15">Reasons on record: environmental license expired; amount above the automation limit.</text>
+</g>
+<g class="row6">
+<circle cx="64" cy="494" r="12" fill="#E8531F"/>
+<g transform="translate(72.80,442.80) scale(0.2)">
+<path d="M 401.49 172.00 A 168 168 0 1 0 401.49 340.00" fill="none" stroke="#E9EEF0" stroke-width="44" stroke-linecap="round"/>
+<line x1="176" y1="256" x2="388" y2="256" stroke="#3FB39B" stroke-width="12" stroke-linecap="round"/>
+<circle cx="176" cy="256" r="18" fill="#3FB39B"/>
+<circle cx="246" cy="256" r="18" fill="#3FB39B"/>
+<circle cx="316" cy="256" r="18" fill="#3FB39B"/>
+<circle class="sig6" cx="424" cy="256" r="31" fill="#E8531F"/>
+</g>
+<text x="190" y="500" fill="#E9EEF0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="16" font-weight="700">APPROVED</text>
+<text x="190" y="524" fill="#B4C0C6" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="15">The approver signs with a human key. Only this signature passes the limit.</text>
+</g>
+<g class="row7">
+<circle cx="64" cy="564" r="10" fill="#3FB39B"/>
+<text x="190" y="570" fill="#E9EEF0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="16" font-weight="700">ESCROW RELEASED</text>
+<text x="190" y="594" fill="#B4C0C6" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="15">0.20 SOL goes from the program to the supplier. Anyone can verify the whole trail.</text>
+</g>
+</svg>
