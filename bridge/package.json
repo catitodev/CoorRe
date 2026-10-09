@@ -4,6 +4,15 @@
   "private": true,
   "description": "Sends CoorRe transactions to the coorre_anchor program on Solana devnet",
   "license": "Apache-2.0",
+  "contributors": [
+    {
+      "name": "Clarkson Bartalini",
+      "url": "https://github.com/catitodev"
+    },
+    {
+      "name": "Ramon Porto"
+    }
+  ],
   "type": "module",
   "engines": {
     "node": ">=20"

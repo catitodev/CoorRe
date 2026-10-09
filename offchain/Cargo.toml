@@ -8,6 +8,7 @@ edition = "2024"
 rust-version = "1.88"
 license = "Apache-2.0"
 repository = "https://github.com/catitodev/CoorRe"
+authors = ["Clarkson Bartalini", "Ramon Porto"]
 
 [workspace.dependencies]
 bs58 = "0.5.1"

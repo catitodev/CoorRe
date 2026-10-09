@@ -2,8 +2,8 @@
 
 ## 1. Product and insight
 As work is distributed across people, systems and AI agents, organizations must later prove how processes happened, and must bound what automated actors may do. CoorRe makes three things true at once:
-1. Mandates are enforced on-chain: an automated actor cannot move value above its autonomy limit; only a designated human authority can approve beyond it.
-2. Proof releases payment: escrowed funds move only when an evidence-backed decision is anchored.
+1. Mandates are enforced on-chain: an automated actor cannot approve or release a payment above its autonomy limit; only a designated human authority can approve beyond it.
+2. Proof releases payment: escrowed payments are released only when an evidence-backed decision is anchored.
 3. Anyone can verify the whole trail without trusting the operator: evidence is portable (W3C Verifiable Credentials), data stays off-chain (only hashes go on-chain), and the verifier runs in any browser.
 Core flow: EVENT/DELIVERY → EVIDENCE → RULE/VALIDATION → DECISION → STATE → AUDITABLE TRAIL.
 Network neutrality: the anchoring interface is network-agnostic; Solana is the first implementation; Hedera/Regen are out of scope but must not be prevented.

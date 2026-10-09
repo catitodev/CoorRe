@@ -43,7 +43,7 @@ declares.
 - Tampering with a document now fails check 1 and, because the decision can no longer
   be reproduced from it, check 7.
 - A real LLM agent can later replace the simulated one: its advice is compared with the
-  rule but cannot move funds, and a rule-engine decision that disagrees with the rule is
+  rule but cannot release funds, and a rule-engine decision that disagrees with the rule is
   caught by any verifier.
 - Artifacts for supplier-docs v1 must be JSON documents in the engine's format
   (`kind`, `valid_from`, `valid_until`, plus descriptive fields).

@@ -323,7 +323,7 @@ pub fn run_case(ctx: &mut DemoContext, spec: &CaseSpec) -> anyhow::Result<CaseOu
                     "agent": "simulated pre-analysis agent (deterministic, no model call)"
                 }),
             },
-            "AI agent recommended a decision (it cannot move funds)",
+            "AI agent recommended a decision (it cannot release funds)",
         )?;
 
         match &decision {

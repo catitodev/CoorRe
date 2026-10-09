@@ -18,7 +18,7 @@ use coorre_verify::{COORRE_DEVNET_PROGRAM_ID, SOLANA_DEVNET_NETWORK_ID};
 #[command(
     name = "coorre",
     version,
-    about = "Verifiable mandates for automated actors that move money"
+    about = "Verifiable mandates for AI agents that approve and release payments"
 )]
 struct Cli {
     #[command(subcommand)]
