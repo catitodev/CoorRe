@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 164 28" width="164" height="28" role="img" aria-labelledby="t">
+<title id="t">verifier: 7 checks</title>
+<rect x="0.5" y="0.5" width="163" height="27" rx="4" fill="#10161A" stroke="#3FB39B"/>
+<rect x="82" y="0.5" width="81.5" height="27" rx="4" fill="#3FB39B"/>
+<rect x="82" y="0.5" width="6" height="27" fill="#3FB39B"/>
+<text x="11" y="18.5" fill="#E9EEF0" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="600">verifier</text>
+<text x="93" y="18.5" fill="#10161A" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="700">7 checks</text>
+</svg>

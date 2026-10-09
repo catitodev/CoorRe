@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 195 28" width="195" height="28" role="img" aria-labelledby="t">
+<title id="t">network: Solana devnet</title>
+<rect x="0.5" y="0.5" width="194" height="27" rx="4" fill="#10161A" stroke="#3FB39B"/>
+<rect x="75" y="0.5" width="119.5" height="27" rx="4" fill="#3FB39B"/>
+<rect x="75" y="0.5" width="6" height="27" fill="#3FB39B"/>
+<text x="11" y="18.5" fill="#E9EEF0" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="600">network</text>
+<text x="86" y="18.5" fill="#10161A" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="13" font-weight="700">Solana devnet</text>
+</svg>
