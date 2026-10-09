@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img" aria-labelledby="t d">
 <title id="t">CoorRe</title>
-<desc id="d">Verifiable mandates for AI agents that approve and release payments. Escrow on Solana. A human signature above the limit. Proof anyone can check.</desc>
+<desc id="d">Provable decisions for AI agents. Escrow on Solana. A human signature above the limit. Proof anyone can check.</desc>
 <rect width="1280" height="640" fill="#10161A"/>
 <g transform="translate(56,52) scale(1.15)">
 <g transform="translate(56,24) scale(0.535)">
@@ -16,7 +16,7 @@
 <path d="M 400 0 V -112 H 438 A 30 30 0 0 1 438 -52 H 400 M 430 -52 L 468 0 M 496 -40 H 576 A 40 40 0 1 0 564.28 -11.72" fill="none" stroke="#E9EEF0" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 </g>
-<text x="640" y="452" text-anchor="middle" fill="#E9EEF0" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="32" font-weight="600">Verifiable mandates for AI agents that approve and release payments.</text>
+<text x="640" y="452" text-anchor="middle" fill="#E9EEF0" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="32" font-weight="600">Provable decisions for AI agents.</text>
 <text x="640" y="508" text-anchor="middle" fill="#3FB39B" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="27">Escrow on Solana. A human signature above the limit. Proof anyone can check.</text>
 <text x="640" y="584" text-anchor="middle" fill="#B4C0C6" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="24">Colosseum Crypto World's Fair, Solana track</text>
 </svg>
