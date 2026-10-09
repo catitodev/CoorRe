@@ -221,7 +221,7 @@ Yes, with the browser verifier in [web/verifier](web/verifier), once it is publi
 
 ## Team and name
 
-CoorRe is built and owned by its two co-founders: Clarkson Bartalini ([@catitodev](https://github.com/catitodev)), technical lead, and Ramon Porto, co-founder. The hackathon team is watafluxhackteam.
+CoorRe is built and owned by its two co-founders: Clarkson Bartalini ([@catitodev](https://github.com/catitodev)), technical lead, and Ramon Porto ([@ramonzitus](https://github.com/ramonzitus)), co-founder. The hackathon team is watafluxhackteam.
 
 The name is Coor(dination) + Re. Re stands for record and, for regenerative-economy partners, regenerative.
 
