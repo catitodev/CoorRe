@@ -15,11 +15,7 @@ use coorre_cli::print::print_report;
 use coorre_verify::{COORRE_DEVNET_PROGRAM_ID, SOLANA_DEVNET_NETWORK_ID};
 
 #[derive(Parser)]
-#[command(
-    name = "coorre",
-    version,
-    about = "Verifiable mandates for AI agents that approve and release payments"
-)]
+#[command(name = "coorre", version, about = "Provable decisions for AI agents.")]
 struct Cli {
     #[command(subcommand)]
     command: Command,
