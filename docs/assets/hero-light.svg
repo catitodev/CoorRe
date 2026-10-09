@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 380" width="980" height="380" role="img" aria-labelledby="t d">
+<title id="t">CoorRe: evidence chained to an open C, released by one human signature</title>
+<desc id="d">The CoorRe mark builds itself: three verdigris dots, each one a piece of evidence, chain along a line toward the opening of a C that stands for an automation limit. A single orange dot, the human signature, appears at the opening. The tagline reads: Verifiable mandates for AI agents that approve and release payments.</desc>
+<style>
+@media (prefers-reduced-motion: no-preference) {
+@keyframes line {
+0% { opacity: 0; transform: scaleX(0); }
+4.375% { opacity: 0; transform: scaleX(0); }
+5% { opacity: 1; transform: scaleX(0); }
+14.375% { opacity: 1; transform: scaleX(0.66); }
+21.25% { opacity: 1; transform: scaleX(0.66); }
+26.25% { opacity: 1; transform: scaleX(1); }
+90% { opacity: 1; }
+98.75% { opacity: 0; }
+100% { opacity: 0; transform: scaleX(1); }
+}
+@keyframes dot3 {
+0% { opacity: 0; transform: translateX(-140px); }
+5% { opacity: 0; transform: translateX(-140px); }
+6.25% { opacity: 1; transform: translateX(-140px); }
+14.375% { opacity: 1; transform: translateX(0); }
+90% { opacity: 1; }
+98.75% { opacity: 0; }
+100% { opacity: 0; transform: translateX(0); }
+}
+@keyframes dot2 {
+0% { opacity: 0; transform: translateX(-70px); }
+11.875% { opacity: 0; transform: translateX(-70px); }
+13.125% { opacity: 1; transform: translateX(-70px); }
+19.375% { opacity: 1; transform: translateX(0); }
+90% { opacity: 1; }
+98.75% { opacity: 0; }
+100% { opacity: 0; transform: translateX(0); }
+}
+@keyframes dot1 {
+0% { opacity: 0; transform: scale(0.5); }
+18.125% { opacity: 0; transform: scale(0.5); }
+21.875% { opacity: 1; transform: scale(1); }
+90% { opacity: 1; }
+98.75% { opacity: 0; }
+100% { opacity: 0; transform: scale(1); }
+}
+@keyframes signature {
+0% { opacity: 0; transform: scale(0.4); }
+33.75% { opacity: 0; transform: scale(0.4); }
+37.5% { opacity: 1; transform: scale(1); }
+90% { opacity: 1; }
+98.75% { opacity: 0; }
+100% { opacity: 0; transform: scale(1); }
+}
+@keyframes tagline {
+0% { opacity: 0; transform: translateY(6px); }
+41.25% { opacity: 0; transform: translateY(6px); }
+48.75% { opacity: 1; transform: translateY(0); }
+90% { opacity: 1; }
+98.75% { opacity: 0; }
+100% { opacity: 0; transform: translateY(0); }
+}
+.line { transform-box: fill-box; transform-origin: 0% 50%; animation: line 16.0s linear infinite; }
+.dot { transform-box: fill-box; transform-origin: 50% 50%; }
+.dot1 { animation: dot1 16.0s cubic-bezier(0.45, 0.05, 0.25, 1) infinite; }
+.dot2 { animation: dot2 16.0s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; }
+.dot3 { animation: dot3 16.0s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; }
+.signature { transform-box: fill-box; transform-origin: 50% 50%; animation: signature 16.0s cubic-bezier(0.45, 0.05, 0.25, 1) infinite; }
+.tagline { animation: tagline 16.0s cubic-bezier(0.45, 0.05, 0.25, 1) infinite; }
+}
+</style>
+<rect width="980" height="380" fill="#E9EEF0"/>
+<g transform="translate(56,24) scale(0.535)">
+<path d="M 401.49 172.00 A 168 168 0 1 0 401.49 340.00" fill="none" stroke="#10161A" stroke-width="44" stroke-linecap="round"/>
+<line class="line" x1="176" y1="256" x2="388" y2="256" stroke="#1F7A68" stroke-width="12" stroke-linecap="round"/>
+<circle class="dot dot1" cx="176" cy="256" r="18" fill="#1F7A68"/>
+<circle class="dot dot2" cx="246" cy="256" r="18" fill="#1F7A68"/>
+<circle class="dot dot3" cx="316" cy="256" r="18" fill="#1F7A68"/>
+<circle class="signature" cx="424" cy="256" r="31" fill="#E8531F"/>
+</g>
+<g transform="translate(386,206) scale(0.9)">
+<path d="M 97.62 -93.47 A 56 56 0 1 0 97.62 -18.53 M 124 -40 A 40 40 0 1 0 204 -40 A 40 40 0 1 0 124 -40 M 230 -40 A 40 40 0 1 0 310 -40 A 40 40 0 1 0 230 -40 M 336 0 V -80 M 336 -46 C 336 -70 350 -80 376 -80" fill="none" stroke="#10161A" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 400 0 V -112 H 438 A 30 30 0 0 1 438 -52 H 400 M 430 -52 L 468 0 M 496 -40 H 576 A 40 40 0 1 0 564.28 -11.72" fill="none" stroke="#10161A" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text class="tagline" x="92" y="346" fill="#10161A" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="24" font-weight="500">Verifiable mandates for AI agents that approve and release payments.</text>
+</svg>
