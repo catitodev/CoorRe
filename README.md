@@ -101,7 +101,7 @@ The program, the roles, the state machine and the evidence model stay the same i
 | Service contracts delivered by consultancies | Consultancy, review agent, rule engine | Service contract, acceptance record, invoice | service-delivery v1 | Contract manager | [Law 4.320/1964, Arts. 62 and 63](https://www.planalto.gov.br/ccivil_03/leis/l4320.htm), when the client is a public body | runs on devnet |
 | Purchases prepared by AI agents | Supplier, purchasing agent, rule engine | Purchase request, supplier quote, supplier registration | agent-purchase v1 | Purchasing manager | [AP2](https://cloud.google.com/blog/products/ai-machine-learning/announcing-agents-to-payments-ap2-protocol/?hl=en), [IMDA](https://www.imda.gov.sg/resources/press-releases-factsheets-and-speeches/factsheets/2026/updated-model-ai-governance-framework-for-agentic-ai), [StartSe Consulting](https://mundorh.com.br/ia-nas-empresas-84-dos-projetos-analisados-apresentam-resultados-e-revelam-novos-desafios-para-o-rh/) | runs on devnet |
 
-**Payments for ecosystem services.** This is where the Re of CoorRe stands for regenerative; it grows out of the founders' earlier W.A.T.A project.
+**Payments for ecosystem services.** This is where the Re of CoorRe stands for regenerative; it grows out of W.A.T.A, the earlier payments-for-ecosystem-services project co-founded by Ramon Porto.
 
 ## Under the hood
 
@@ -331,7 +331,7 @@ CoorRe is built and owned by its two co-founders, Clarkson Bartalini ([@catitode
 
 Environmental and governance specialists who build their own technology: proving what happened is part of their daily work in monitoring and accountability.
 
-W.A.T.A, an earlier payments-for-ecosystem-services project by the same founding team, was one of the five winners of the DLT for Operations track of the [2025 Hedera Africa Hackathon](https://africa.com/2025-hedera-africa-hackathon-announces-winners-officially-becomes-the-largest-web3-hackathon-globally/). The CoorRe proposal was selected among 200 of 1,053 ideas in Phase 1 of [Centelha RJ III](https://www.faperj.br/?id=1100.7.8) (preliminary list, September 2026).
+Ramon Porto co-founded W.A.T.A, an earlier payments-for-ecosystem-services project that was one of the five winners of the DLT for Operations track of the [2025 Hedera Africa Hackathon](https://africa.com/2025-hedera-africa-hackathon-announces-winners-officially-becomes-the-largest-web3-hackathon-globally/). Clarkson Bartalini joined him to build the CoorRe MVP and lead the development of the solution. The CoorRe proposal was selected among 200 of 1,053 ideas in Phase 1 of [Centelha RJ III](https://www.faperj.br/?id=1100.7.8) (preliminary list, September 2026).
 
 The name is Coor(dination) + Re. Re stands for record and, for regenerative-economy partners, regenerative.
 
