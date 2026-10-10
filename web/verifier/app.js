@@ -4,7 +4,7 @@ import { verifyBundle, explorerUrl } from "./verify-core.js";
 const $ = (id) => document.getElementById(id);
 const BUNDLE_FORMAT = "coorre-audit-bundle/1";
 const selected = new Map();
-const buttons = ["sample-sup-001", "sample-sup-002", "verify-files"];
+const buttons = ["sample-sup-001", "sample-sup-002", "sample-agt-002", "sample-pes-002", "verify-files"];
 
 function el(tag, className, ...children) {
   const node = document.createElement(tag);
@@ -212,6 +212,8 @@ async function main() {
   $("footer-program").textContent = wasm.defaultProgramId();
   $("sample-sup-001").addEventListener("click", () => runSample("SUP-001"));
   $("sample-sup-002").addEventListener("click", () => runSample("SUP-002"));
+  $("sample-agt-002").addEventListener("click", () => runSample("AGT-002"));
+  $("sample-pes-002").addEventListener("click", () => runSample("PES-002"));
   $("verify-files").addEventListener("click", verifySelected);
   $("file-input").addEventListener("change", (event) => addFiles(event.target.files));
   const zone = $("dropzone");

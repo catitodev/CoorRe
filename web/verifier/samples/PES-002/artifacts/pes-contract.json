@@ -1,0 +1,10 @@
+{
+  "synthetic": true,
+  "kind": "pes_contract",
+  "issuer": "Programa Demo de PSA (demo data)",
+  "contract_number": "PSA-2026-0008",
+  "registry_reference": "SYN-REG-PSA-0008",
+  "committed_area_m2": "150000",
+  "valid_from": "2026-01-01",
+  "valid_until": "2027-12-31"
+}

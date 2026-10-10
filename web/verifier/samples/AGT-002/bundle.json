@@ -1,0 +1,371 @@
+{
+  "format": "coorre-audit-bundle/1",
+  "case_ref": "urn:coorre:case:AGT-002-20261010T021202Z",
+  "network_id": "solana:devnet",
+  "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+  "case_record": "4tkhyE96rDPd3hCZvxge8i5sYNGmkH4SAsdK5SgJFeQz",
+  "open_receipt": {
+    "network_id": "solana:devnet",
+    "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+    "account": "4tkhyE96rDPd3hCZvxge8i5sYNGmkH4SAsdK5SgJFeQz",
+    "tx_signature": "3i4aQHJcVa6wEw8GLEQfaWtitFiTjUx8C7J93HwjQqpUGuV96SpZfK1bqNQckma4QmEHBRwFcBYpCK4FM2ZjSSMm"
+  },
+  "evidence": [
+    {
+      "anchor_account": "FyuKc1eYcLLfjeZ1upWB9Q17o4vieayqPVcVKS2toCaf",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "execute_with_approval",
+            "id": "did:key:z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9",
+            "kind": "human"
+          },
+          "artifacts": [
+            {
+              "digestSHA256": "eb4da1a887ad48626a88b2611951f4b1d0a2183eacedc7df7cf30113c48035a9",
+              "mediaType": "application/json",
+              "name": "purchase-request.json"
+            },
+            {
+              "digestSHA256": "1e70df4300f203b283130bc96a7be6c3890b70b8ab16724d3809f46d2a4acb2d",
+              "mediaType": "application/json",
+              "name": "supplier-quote.json"
+            },
+            {
+              "digestSHA256": "bef6255a10036d01cb587622e08fbbc97f01cd1de05cab007bf72a93bc4ae6ce",
+              "mediaType": "application/json",
+              "name": "supplier-registration.json"
+            }
+          ],
+          "case": "urn:coorre:case:AGT-002-20261010T021202Z",
+          "fromState": "OPEN",
+          "mandate": {
+            "amountLamports": "40000000",
+            "autonomyLimitLamports": "30000000"
+          },
+          "payload": {
+            "documents": [
+              {
+                "artifact": "purchase-request.json",
+                "kind": "purchase_request"
+              },
+              {
+                "artifact": "supplier-quote.json",
+                "kind": "supplier_quote"
+              },
+              {
+                "artifact": "supplier-registration.json",
+                "kind": "supplier_registration"
+              }
+            ],
+            "payee": "Fornecedor Demo E Ltda"
+          },
+          "previousEvidence": "sha256:ce23696734915b487d6c0834693fe4e7dbc68e8bf81c9c220d1377b81442fd7c",
+          "rule": {
+            "hash": "sha256:3d77e718e5ee0b6a66448c960024fe1dadff3950364eed67e2401d23eecc91b2",
+            "id": "agent-purchase",
+            "version": "1"
+          },
+          "toState": "SUBMITTED"
+        },
+        "id": "urn:uuid:c275f1c2-1523-4a27-a462-1f5327860431",
+        "issuer": "did:key:z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-10T02:12:25Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "z2CPgd8uXipt4pdE6fQB2qKzgaxxxM3ThjAcSykbfE5L9nTvAZnmfRhwGECs46weokz2vWtE9CFA5sCgyY6Xf1tm3",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9#z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-10T02:12:25Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "FyuKc1eYcLLfjeZ1upWB9Q17o4vieayqPVcVKS2toCaf",
+        "tx_signature": "4FmPEnsFzdeZb9TS3EjTsfXFLtMRkM4JpW46X3vWXxsopLwVTzmehbwr2GqcF3Zoc7CNL4uYwsUAbiNfPFbxtJGN"
+      }
+    },
+    {
+      "anchor_account": "2F21HbYaC9syeKwamczWtFxQGVP3MqcTtjaFxWH9WN6L",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "recommend",
+            "id": "did:key:z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N",
+            "kind": "agent"
+          },
+          "artifacts": [],
+          "case": "urn:coorre:case:AGT-002-20261010T021202Z",
+          "fromState": "SUBMITTED",
+          "mandate": {
+            "amountLamports": "40000000",
+            "autonomyLimitLamports": "30000000"
+          },
+          "payload": {
+            "agent": "simulated pre-analysis agent (deterministic, no model call)",
+            "evaluation_date": "2026-10-10",
+            "findings": [
+              "supplier registration expired",
+              "amount exceeds autonomy limit"
+            ],
+            "recommendation": "escalate"
+          },
+          "previousEvidence": "sha256:90816b9a874d666b599728f046a9fcf78cab312d4f70fab69f8b76ab27962bb6",
+          "rule": {
+            "hash": "sha256:3d77e718e5ee0b6a66448c960024fe1dadff3950364eed67e2401d23eecc91b2",
+            "id": "agent-purchase",
+            "version": "1"
+          },
+          "toState": "AGENT_REVIEWED"
+        },
+        "id": "urn:uuid:5cbcd3d0-3f22-4427-ae62-726c902f0414",
+        "issuer": "did:key:z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-10T02:12:28Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "z2You9Bm69mTManD5ypT7S7NzvZa7FtTrbMMV3TWmih8prQGDmhnFos22PqgdJYM5jXePwnznPUeTki4GTVrTwoJA",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N#z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-10T02:12:28Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "2F21HbYaC9syeKwamczWtFxQGVP3MqcTtjaFxWH9WN6L",
+        "tx_signature": "54KpR4AG9PoR1qHVEijafpiunJ7t3j1qF3pxiS8tPznsNt8ZroidF2wArjYt9REH1yrNF4Q4oQRCJJwWQGaXgPw"
+      }
+    },
+    {
+      "anchor_account": "AGrpriSiZCHSjuRC5KJ8W85pkiVi4miSBToiLpKQXpQi",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "autonomous",
+            "id": "did:key:z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z",
+            "kind": "system"
+          },
+          "artifacts": [],
+          "case": "urn:coorre:case:AGT-002-20261010T021202Z",
+          "fromState": "AGENT_REVIEWED",
+          "mandate": {
+            "amountLamports": "40000000",
+            "autonomyLimitLamports": "30000000"
+          },
+          "payload": {
+            "decision": "ESCALATED",
+            "evaluation_date": "2026-10-10",
+            "reasons": [
+              "supplier registration expired",
+              "amount exceeds autonomy limit"
+            ]
+          },
+          "previousEvidence": "sha256:16fc254b174b7b9cb2b484ae8c2d45c41bb22c82f4c0c543a071b0f56fd3b23a",
+          "rule": {
+            "hash": "sha256:3d77e718e5ee0b6a66448c960024fe1dadff3950364eed67e2401d23eecc91b2",
+            "id": "agent-purchase",
+            "version": "1"
+          },
+          "toState": "ESCALATED"
+        },
+        "id": "urn:uuid:b3efc372-1c9a-4d04-aa8c-959c4618200e",
+        "issuer": "did:key:z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-10T02:12:38Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "z3pYic4xkMUdaAdxKNG6JNPZiinRgoY17jvmG86MkgdviXX2pMVjbFDMGcWDVwGuHg6qzKdsSNpt5WAcfdWYpRzfQ",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z#z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-10T02:12:38Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "AGrpriSiZCHSjuRC5KJ8W85pkiVi4miSBToiLpKQXpQi",
+        "tx_signature": "3RLknXh5PGkcCFh8Vah97pevU3gBBKCoSvwFozCaAMKxrdopr9CUJgi266KkunVJV2kjbxn1B24YQ5bsQNR4qzxY"
+      }
+    },
+    {
+      "anchor_account": "J6WBQ7pP1ooR6g6QbGxu7owYDBEdYLjbtSgjiUaon4iJ",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "autonomous",
+            "id": "did:key:z6Mktp3CLpiBF8LXavUfHwho8WQ2Ft155WcHS34Ww7X9vwRQ",
+            "kind": "human"
+          },
+          "artifacts": [],
+          "case": "urn:coorre:case:AGT-002-20261010T021202Z",
+          "fromState": "ESCALATED",
+          "mandate": {
+            "amountLamports": "40000000",
+            "autonomyLimitLamports": "30000000"
+          },
+          "payload": {
+            "decision": "APPROVED",
+            "justification": "The supplier filed its registration renewal before expiry and the probe is needed for the next monitoring campaign; the purchasing manager approves this payment above the automation limit."
+          },
+          "previousEvidence": "sha256:9b875ab5d091b10fa554cf012717301ee158241acfdabff6badaa832e8c1e154",
+          "rule": {
+            "hash": "sha256:3d77e718e5ee0b6a66448c960024fe1dadff3950364eed67e2401d23eecc91b2",
+            "id": "agent-purchase",
+            "version": "1"
+          },
+          "toState": "APPROVED"
+        },
+        "id": "urn:uuid:b407718d-2efc-4edd-a208-d4d82eb3734a",
+        "issuer": "did:key:z6Mktp3CLpiBF8LXavUfHwho8WQ2Ft155WcHS34Ww7X9vwRQ",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-10T02:12:41Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "z56PAAhGfuLqqYywL44Mzwow7F1h5SZLxrrw7ZeV6w2VHza9gdocNLMzLqqrX8dFS6CN5pvKKdy5A35thhmaqZDju",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6Mktp3CLpiBF8LXavUfHwho8WQ2Ft155WcHS34Ww7X9vwRQ#z6Mktp3CLpiBF8LXavUfHwho8WQ2Ft155WcHS34Ww7X9vwRQ"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-10T02:12:41Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "J6WBQ7pP1ooR6g6QbGxu7owYDBEdYLjbtSgjiUaon4iJ",
+        "tx_signature": "NmdtA5YRW1nBTmiBqEQJSpitnMQyQLpUZXSGNUTFJ6fSQR9WTXtkrEM54drMT3tavcFvxV221SFpPN9icqGvBmn"
+      }
+    }
+  ],
+  "rules": [
+    {
+      "conditions": [
+        {
+          "check": "each required document kind is submitted exactly once",
+          "reason": "<label> missing | <label> submitted more than once"
+        },
+        {
+          "check": "purchase_request.request_number == supplier_quote.request_number",
+          "reason": "request number differs between request and quote"
+        },
+        {
+          "check": "purchase_request.item == supplier_quote.item",
+          "reason": "item differs between request and quote"
+        },
+        {
+          "check": "supplier_quote.supplier == supplier_registration.supplier",
+          "reason": "supplier differs between quote and registration"
+        },
+        {
+          "check": "supplier_registration.status == \"approved\"",
+          "reason": "supplier registration not approved"
+        },
+        {
+          "check": "supplier_registration.valid_until >= evaluation_date",
+          "reason": "supplier registration expired"
+        },
+        {
+          "check": "supplier_quote.valid_until >= evaluation_date",
+          "reason": "supplier quote expired"
+        },
+        {
+          "check": "amount_lamports == supplier_quote.amount_lamports",
+          "reason": "amount differs from the quote"
+        },
+        {
+          "check": "amount_lamports <= purchase_request.budget_cap_lamports",
+          "reason": "amount exceeds the budget cap"
+        }
+      ],
+      "dates": "calendar dates YYYY-MM-DD; comparisons are inclusive",
+      "description": "Auto-approve the payment of a purchase prepared by an AI agent only when the purchase request, the supplier's quote and the supplier's registration agree, the registration is approved and current, the quote is current, the amount equals the quote and fits the budget cap, and the amount is within the automated actor's autonomy limit; otherwise escalate to the human approver with one reason per failed condition, in the order listed.",
+      "documentLabels": {
+        "purchase_request": "purchase request",
+        "supplier_quote": "supplier quote",
+        "supplier_registration": "supplier registration"
+      },
+      "id": "agent-purchase",
+      "mandate": {
+        "check": "amount_lamports <= autonomy_limit_lamports",
+        "reason": "amount exceeds autonomy limit"
+      },
+      "notEvaluated": "a condition that reads a missing or duplicated document is not evaluated",
+      "outcomes": {
+        "fail": "ESCALATED",
+        "pass": "AUTO_APPROVED"
+      },
+      "requiredDocuments": [
+        "purchase_request",
+        "supplier_quote",
+        "supplier_registration"
+      ],
+      "version": "1"
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "purchase-request.json",
+      "mediaType": "application/json",
+      "digestSHA256": "eb4da1a887ad48626a88b2611951f4b1d0a2183eacedc7df7cf30113c48035a9"
+    },
+    {
+      "name": "supplier-quote.json",
+      "mediaType": "application/json",
+      "digestSHA256": "1e70df4300f203b283130bc96a7be6c3890b70b8ab16724d3809f46d2a4acb2d"
+    },
+    {
+      "name": "supplier-registration.json",
+      "mediaType": "application/json",
+      "digestSHA256": "bef6255a10036d01cb587622e08fbbc97f01cd1de05cab007bf72a93bc4ae6ce"
+    }
+  ]
+}

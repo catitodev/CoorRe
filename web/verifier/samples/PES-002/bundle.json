@@ -1,0 +1,340 @@
+{
+  "format": "coorre-audit-bundle/1",
+  "case_ref": "urn:coorre:case:PES-002-20261010T021202Z",
+  "network_id": "solana:devnet",
+  "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+  "case_record": "Fg7PbduC8r5KWM8WkRxqsDXfyHoqkBjM9HCaCe8csAF1",
+  "open_receipt": {
+    "network_id": "solana:devnet",
+    "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+    "account": "Fg7PbduC8r5KWM8WkRxqsDXfyHoqkBjM9HCaCe8csAF1",
+    "tx_signature": "2GEFbzGL95UNPYE3gs7zMFZ5uRGghmHh8EsTDrXqte1scNHMj3BDXvSxWzhTuJMtr8pDYNwbnBLeKjTP9ccgHgE7"
+  },
+  "evidence": [
+    {
+      "anchor_account": "567ie4hKrXzcqVoP3RwR4uAoqcct4KSA7drkDTmAMrWH",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "execute_with_approval",
+            "id": "did:key:z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9",
+            "kind": "human"
+          },
+          "artifacts": [
+            {
+              "digestSHA256": "944650bc5031be032d6d843097fa1fef4b8887c2e85844f5041e3b4eada59a8d",
+              "mediaType": "application/json",
+              "name": "pes-contract.json"
+            },
+            {
+              "digestSHA256": "fac7793144474144ee7e3d25eacc7af02bb2908c900d4692aa901fb660a8368f",
+              "mediaType": "application/json",
+              "name": "monitoring-report.json"
+            }
+          ],
+          "case": "urn:coorre:case:PES-002-20261010T021202Z",
+          "fromState": "OPEN",
+          "mandate": {
+            "amountLamports": "40000000",
+            "autonomyLimitLamports": "30000000"
+          },
+          "payload": {
+            "documents": [
+              {
+                "artifact": "pes-contract.json",
+                "kind": "pes_contract"
+              },
+              {
+                "artifact": "monitoring-report.json",
+                "kind": "monitoring_report"
+              }
+            ],
+            "payee": "Cooperativa Demo Serra Verde"
+          },
+          "previousEvidence": "sha256:e3444c573fcf5db6197d68aeaed4a2ae86c9fa909cda87e17c017197eb941411",
+          "rule": {
+            "hash": "sha256:eb9e053a54cf94256949e7bb134390e68efb86fa4be4434f1b0c24d34d4307c9",
+            "id": "ecosystem-services-payment",
+            "version": "1"
+          },
+          "toState": "SUBMITTED"
+        },
+        "id": "urn:uuid:845583a8-d3de-465d-abdc-91dc0e15e5ba",
+        "issuer": "did:key:z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-10T02:13:19Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "z614oawqNv2shjAbMKo86QVo1P56vdbDswnQSGiR5qCgBSNYzM7yN7Rm2TfNePPXLLyfFcKfmJrmoaNsCPv3M4RLa",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9#z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-10T02:13:19Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "567ie4hKrXzcqVoP3RwR4uAoqcct4KSA7drkDTmAMrWH",
+        "tx_signature": "2kCWRni2YVAFYiaHAc2sGtk3DNi298PUXD22irSmEorSiM5JByjLWvJC6nRgfBpQCKomLH7Mf75osa8cnYWdGvab"
+      }
+    },
+    {
+      "anchor_account": "8Vmg4cvD59nM6c1Cw4KRRWtNpG6RHrhc6SfohCDGaA5L",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "recommend",
+            "id": "did:key:z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N",
+            "kind": "agent"
+          },
+          "artifacts": [],
+          "case": "urn:coorre:case:PES-002-20261010T021202Z",
+          "fromState": "SUBMITTED",
+          "mandate": {
+            "amountLamports": "40000000",
+            "autonomyLimitLamports": "30000000"
+          },
+          "payload": {
+            "agent": "simulated pre-analysis agent (deterministic, no model call)",
+            "evaluation_date": "2026-10-10",
+            "findings": [
+              "verified area below committed area",
+              "amount exceeds autonomy limit"
+            ],
+            "recommendation": "escalate"
+          },
+          "previousEvidence": "sha256:5f042dd27f9e6f4ac439e2eb8771a7691442665181366e4d1deffc5caa479859",
+          "rule": {
+            "hash": "sha256:eb9e053a54cf94256949e7bb134390e68efb86fa4be4434f1b0c24d34d4307c9",
+            "id": "ecosystem-services-payment",
+            "version": "1"
+          },
+          "toState": "AGENT_REVIEWED"
+        },
+        "id": "urn:uuid:a76d5e7c-d8be-4ff1-9f15-c9c079d9a56f",
+        "issuer": "did:key:z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-10T02:13:23Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "z4TkdSJR7cyHXHDq6UseaRNvCN7maXCRroEgWiSaUWq2V8jSpxA4NEpp5gYfPbTbjxS3gAKa1MxbuCoWVKUpFiZ5s",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N#z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-10T02:13:23Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "8Vmg4cvD59nM6c1Cw4KRRWtNpG6RHrhc6SfohCDGaA5L",
+        "tx_signature": "br3TKct7Bs2qpW3M225xZf7N7FpJijqjMhEnvfE6ojf2uj2nvEKtMCG78nBrNm2wt8irKH1cd9UySCiXpYViZAo"
+      }
+    },
+    {
+      "anchor_account": "63AFqEcto8hZtjSxwqUTsSaaxxUVo4xK1oYVBgAECgK5",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "autonomous",
+            "id": "did:key:z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z",
+            "kind": "system"
+          },
+          "artifacts": [],
+          "case": "urn:coorre:case:PES-002-20261010T021202Z",
+          "fromState": "AGENT_REVIEWED",
+          "mandate": {
+            "amountLamports": "40000000",
+            "autonomyLimitLamports": "30000000"
+          },
+          "payload": {
+            "decision": "ESCALATED",
+            "evaluation_date": "2026-10-10",
+            "reasons": [
+              "verified area below committed area",
+              "amount exceeds autonomy limit"
+            ]
+          },
+          "previousEvidence": "sha256:d5088f9a3cc49bb82c2bf7fec6a4426d65fd1f9ef901abae600470e1bb2bc0a2",
+          "rule": {
+            "hash": "sha256:eb9e053a54cf94256949e7bb134390e68efb86fa4be4434f1b0c24d34d4307c9",
+            "id": "ecosystem-services-payment",
+            "version": "1"
+          },
+          "toState": "ESCALATED"
+        },
+        "id": "urn:uuid:0bdf811b-8359-496e-8e95-a516c962f38a",
+        "issuer": "did:key:z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-10T02:13:29Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "zmgBzJ89ysCVwQWGMsrWs9otaznrttw3kmoQME7iw8f1yjPpVzHKo5ycWmEZuHnyV3nmH574wek3VYXT6BnSCPej",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z#z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-10T02:13:29Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "63AFqEcto8hZtjSxwqUTsSaaxxUVo4xK1oYVBgAECgK5",
+        "tx_signature": "3ZgrVx7zs7NcvyaxFFPpFEBccjg7BYmZK7QtbJmCsPXM93JZo9fmE3ro1bg639MNMDkfDjNoX5YRcNLGVHhznbov"
+      }
+    },
+    {
+      "anchor_account": "AQMJZ6U7mgExGUv5vDJFfRjP4XkYWVz431Gg7Xyg7fZz",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "autonomous",
+            "id": "did:key:z6Mktp3CLpiBF8LXavUfHwho8WQ2Ft155WcHS34Ww7X9vwRQ",
+            "kind": "human"
+          },
+          "artifacts": [],
+          "case": "urn:coorre:case:PES-002-20261010T021202Z",
+          "fromState": "ESCALATED",
+          "mandate": {
+            "amountLamports": "40000000",
+            "autonomyLimitLamports": "30000000"
+          },
+          "payload": {
+            "decision": "APPROVED",
+            "justification": "The shortfall comes from a documented fire in the dry season and the burned section is under recovery; the program committee approves this payment above the automation limit and schedules a new verification."
+          },
+          "previousEvidence": "sha256:8697ca8f934c143ea71dbf12143696bb4e06cecf99458bd24355d4940b5ef0a4",
+          "rule": {
+            "hash": "sha256:eb9e053a54cf94256949e7bb134390e68efb86fa4be4434f1b0c24d34d4307c9",
+            "id": "ecosystem-services-payment",
+            "version": "1"
+          },
+          "toState": "APPROVED"
+        },
+        "id": "urn:uuid:f8e45f6a-1e16-4943-ba7d-9ad308bd142d",
+        "issuer": "did:key:z6Mktp3CLpiBF8LXavUfHwho8WQ2Ft155WcHS34Ww7X9vwRQ",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-10T02:13:33Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "z2irmZ4GqSmv83YQmgK9xz9g4VGDgWFWWAEQhhK3VvqnEYQgkwVw4VW83dDQVzDb4LiXfoU3moqqqA5b2ejGrr8JX",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6Mktp3CLpiBF8LXavUfHwho8WQ2Ft155WcHS34Ww7X9vwRQ#z6Mktp3CLpiBF8LXavUfHwho8WQ2Ft155WcHS34Ww7X9vwRQ"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-10T02:13:33Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "AQMJZ6U7mgExGUv5vDJFfRjP4XkYWVz431Gg7Xyg7fZz",
+        "tx_signature": "5WrgY3n5ViURcBRiwV1jQvBkj2NPDevy4p6SVWyr8kVUQwMmi819yxQXAUYFxaw1jcemKRPTJrQwLPvdGLsurPLx"
+      }
+    }
+  ],
+  "rules": [
+    {
+      "areas": "square metres as canonical decimal strings",
+      "conditions": [
+        {
+          "check": "each required document kind is submitted exactly once",
+          "reason": "<label> missing | <label> submitted more than once"
+        },
+        {
+          "check": "pes_contract.contract_number == monitoring_report.contract_number",
+          "reason": "contract number differs between contract and monitoring report"
+        },
+        {
+          "check": "pes_contract.valid_from <= evaluation_date <= pes_contract.valid_until",
+          "reason": "ecosystem services contract not yet valid | ecosystem services contract expired"
+        },
+        {
+          "check": "pes_contract.valid_from <= monitoring_report.observed_on <= pes_contract.valid_until and monitoring_report.observed_on <= evaluation_date",
+          "reason": "monitoring observed outside the contract validity | monitoring observed after the evaluation date"
+        },
+        {
+          "check": "monitoring_report.verified_area_m2 >= pes_contract.committed_area_m2",
+          "reason": "verified area below committed area"
+        }
+      ],
+      "dates": "calendar dates YYYY-MM-DD; comparisons are inclusive",
+      "description": "Auto-approve a payment for ecosystem services only when the contract and the monitoring report refer to the same contract, the contract is valid on the evaluation date, the monitoring was observed within the contract validity and not after the evaluation date, the verified area is at least the committed area, and the amount is within the automated actor's autonomy limit; otherwise escalate to the human approver with one reason per failed condition, in the order listed.",
+      "documentLabels": {
+        "monitoring_report": "monitoring report",
+        "pes_contract": "ecosystem services contract"
+      },
+      "id": "ecosystem-services-payment",
+      "mandate": {
+        "check": "amount_lamports <= autonomy_limit_lamports",
+        "reason": "amount exceeds autonomy limit"
+      },
+      "notEvaluated": "a condition that reads a missing or duplicated document is not evaluated",
+      "outcomes": {
+        "fail": "ESCALATED",
+        "pass": "AUTO_APPROVED"
+      },
+      "requiredDocuments": [
+        "pes_contract",
+        "monitoring_report"
+      ],
+      "version": "1"
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "pes-contract.json",
+      "mediaType": "application/json",
+      "digestSHA256": "944650bc5031be032d6d843097fa1fef4b8887c2e85844f5041e3b4eada59a8d"
+    },
+    {
+      "name": "monitoring-report.json",
+      "mediaType": "application/json",
+      "digestSHA256": "fac7793144474144ee7e3d25eacc7af02bb2908c900d4692aa901fb660a8368f"
+    }
+  ]
+}

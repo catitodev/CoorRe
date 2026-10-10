@@ -60,6 +60,23 @@ test("SUP-002 sample verifies 7/7 and carries the approver's justification", asy
   assert.equal(typeof report.timeline[3].payload.justification, "string");
 });
 
+for (const [id, rule, reasons] of [
+  ["AGT-002", "agent-purchase", ["supplier registration expired", "amount exceeds autonomy limit"]],
+  ["PES-002", "ecosystem-services-payment", ["verified area below committed area", "amount exceeds autonomy limit"]],
+]) {
+  test(`${id} sample verifies 7/7 under ${rule} and fails checks 1 and 7 when a byte changes`, async () => {
+    const { report } = await check(id);
+    assert.deepEqual(failing(report), []);
+    assert.equal(report.summary.final_state, "APPROVED");
+    assert.deepEqual(report.timeline.map((t) => t.to_state), ["SUBMITTED", "AGENT_REVIEWED", "ESCALATED", "APPROVED"]);
+    assert.deepEqual(report.timeline[2].payload.reasons, reasons);
+    assert.equal(JSON.parse(read(`../samples/${id}/bundle.json`).toString("utf8")).rules[0].id, rule);
+    const tampered = await check(id, { tamper: true });
+    assert.ok(tampered.tamperedName);
+    assert.deepEqual(failing(tampered.report), [1, 7]);
+  });
+}
+
 test("one changed byte fails check 1 and the decision is no longer reproducible", async () => {
   const { report, tamperedName } = await check("SUP-002", { tamper: true });
   assert.ok(tamperedName);

@@ -14,7 +14,9 @@ A static page that verifies a CoorRe audit bundle with the same Rust code as
   scripts from the page itself only.
 
 `samples/` holds the SUP-001 and SUP-002 bundles and artifacts from the devnet demo of
-2026-10-08 (synthetic data), so the page can be tried without any files.
+2026-10-08 and the AGT-002 (agent-purchase v1) and PES-002 (ecosystem-services-payment
+v1) bundles from the devnet run of 2026-10-10 (synthetic data), so the page can be tried
+without any files.
 
 ## Build
 
@@ -33,7 +35,7 @@ cd web/verifier && npm test
 ```
 
 Runs the real WebAssembly build against recorded devnet RPC answers
-(`test/fixtures`): both samples pass 7/7, one changed byte fails checks 1 and 7, another
+(`test/fixtures`): all four samples pass 7/7, one changed byte fails checks 1 and 7, another
 expected program fails check 6, missing files are reported, only public addresses are
 sent, and the page never builds HTML from data.
 

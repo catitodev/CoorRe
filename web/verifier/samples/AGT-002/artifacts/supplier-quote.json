@@ -1,0 +1,10 @@
+{
+  "synthetic": true,
+  "kind": "supplier_quote",
+  "issuer": "Fornecedor Demo E Ltda",
+  "request_number": "PR-2026-0102",
+  "supplier": "Fornecedor Demo E Ltda",
+  "item": "Water quality probe, model DEMO-200",
+  "amount_lamports": "40000000",
+  "valid_until": "2026-12-31"
+}
