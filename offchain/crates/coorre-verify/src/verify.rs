@@ -1,11 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use coorre_engine::rule::{
-    RULE_ID, RULE_VERSION, evaluation_date_is_credible, rule_hash, submitted_document,
-};
-use coorre_engine::{
-    CaseTracker, Decision, RoleKeys, SubmittedDocument, SupplierDocsInput, evaluate, required_role,
-};
+use coorre_engine::rule::evaluation_date_is_credible;
+use coorre_engine::{CaseTracker, Decision, RoleKeys, RuleId, required_role};
 use coorre_model::accounts::{
     CaseRecordAccount, EvidenceAnchorAccount, pubkey_from_base58, pubkey_to_base58,
 };
@@ -557,10 +553,10 @@ fn check_onchain(
     )
 }
 
-fn submitted_documents(
-    inputs: &Inputs,
+fn submitted_documents<'a>(
+    inputs: &'a Inputs,
     entries: &[Entry],
-) -> Result<Vec<SubmittedDocument>, String> {
+) -> Result<Vec<(&'a str, &'a [u8])>, String> {
     let submission = entries
         .iter()
         .filter_map(|e| e.document.as_ref())
@@ -572,31 +568,33 @@ fn submitted_documents(
     }
     refs.iter()
         .map(|artifact| {
-            let bytes = inputs
+            inputs
                 .artifacts
-                .get(&artifact.name)
-                .ok_or_else(|| format!("{}: file not provided", artifact.name))?;
-            submitted_document(bytes).map_err(|e| format!("{}: {e}", artifact.name))
+                .get_key_value(&artifact.name)
+                .map(|(name, bytes)| (name.as_str(), bytes.as_slice()))
+                .ok_or_else(|| format!("{}: file not provided", artifact.name))
         })
         .collect()
 }
 
 fn reproduce(
     document: &EvidenceDocument,
-    documents: &Result<Vec<SubmittedDocument>, String>,
+    documents: &Result<Vec<(&str, &[u8])>, String>,
 ) -> Result<(Decision, String), String> {
     let subject = &document.credential_subject;
-    if subject.rule.id != RULE_ID || subject.rule.version != RULE_VERSION {
-        return Err(format!(
+    let rule = RuleId::find(&subject.rule.id, &subject.rule.version).ok_or_else(|| {
+        format!(
             "rule {} v{} is not one this verifier can run",
             subject.rule.id, subject.rule.version
-        ));
-    }
-    let known_hash = rule_hash().map_err(|e| e.to_string())?;
+        )
+    })?;
+    let known_hash = rule.hash().map_err(|e| e.to_string())?;
     if subject.rule.hash != to_prefixed(&known_hash) {
-        return Err(
-            "the rule hash differs from the supplier-docs v1 this verifier runs".to_owned(),
-        );
+        return Err(format!(
+            "the rule hash differs from the {} v{} this verifier runs",
+            rule.id(),
+            rule.version()
+        ));
     }
     let evaluation_date = subject
         .payload
@@ -612,15 +610,21 @@ fn reproduce(
         ));
     }
     let documents = documents.clone()?;
-    let input = SupplierDocsInput {
-        evaluation_date: evaluation_date.to_owned(),
-        amount_lamports: document.amount_lamports().map_err(|e| e.to_string())?,
-        autonomy_limit_lamports: document
-            .autonomy_limit_lamports()
-            .map_err(|e| e.to_string())?,
-        documents,
-    };
-    let decision = evaluate(&input).map_err(|e| e.to_string())?;
+    for (name, bytes) in &documents {
+        rule.parse_artifact(bytes)
+            .map_err(|e| format!("{name}: {e}"))?;
+    }
+    let bytes: Vec<&[u8]> = documents.iter().map(|(_, bytes)| *bytes).collect();
+    let decision = rule
+        .evaluate(
+            evaluation_date,
+            document.amount_lamports().map_err(|e| e.to_string())?,
+            document
+                .autonomy_limit_lamports()
+                .map_err(|e| e.to_string())?,
+            &bytes,
+        )
+        .map_err(|e| e.to_string())?;
     Ok((decision, evaluation_date.to_owned()))
 }
 

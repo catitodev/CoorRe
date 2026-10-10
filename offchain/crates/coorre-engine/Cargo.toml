@@ -1,6 +1,6 @@
 [package]
 name = "coorre-engine"
-description = "CoorRe case state machine and the supplier-docs rule; pure, no I/O"
+description = "CoorRe case state machine and the rule registry; pure, no I/O"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

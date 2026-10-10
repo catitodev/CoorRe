@@ -3,8 +3,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, anyhow, bail};
 use coorre_anchor::{AnchorError, AnchorTransitionRequest, Anchorer, OpenCaseRequest};
-use coorre_engine::rule::{RULE_ID, RULE_VERSION, rule_document, rule_hash};
-use coorre_engine::{CaseTracker, Decision, EngineError, SupplierDocsInput, evaluate};
+use coorre_engine::{CaseTracker, Decision, EngineError};
 use coorre_model::eddsa_jcs_2022::{ProofOptions, evidence_hash, sign_document};
 use coorre_model::evidence::{COORRE_CONTEXT, TRANSITION_TYPE, VC_CONTEXT_V2, VC_TYPE, case_id};
 use coorre_model::hash::to_prefixed;
@@ -57,6 +56,7 @@ struct Run<'a> {
     mandate: Mandate,
     rule: RuleRef,
     rule_hash: [u8; 32],
+    payee_label: &'static str,
     evidence: Vec<BundleEvidence>,
 }
 
@@ -145,7 +145,10 @@ impl Run<'_> {
             self.out,
             "  {:<15} {} ({}, {}) — {what}\n                  evidence {} anchored: {}",
             d.to.name(),
-            crate::anchor_role_label(d.role),
+            match d.role {
+                Role::Submitter => self.payee_label,
+                role => crate::anchor_role_label(role),
+            },
             d.role.actor_kind().name(),
             d.autonomy.name(),
             &to_prefixed(&hash)[..19],
@@ -216,6 +219,9 @@ pub struct DemoContext<'a> {
 
 pub fn run_case(ctx: &mut DemoContext, spec: &CaseSpec) -> anyhow::Result<CaseOutcome> {
     let artifacts = load_artifacts(ctx.fixtures_dir, spec)?;
+    let rule = spec.rule_id()?;
+    let payee_label = spec.payee_label();
+    let payee_name = spec.payee_name()?;
     let amount = spec.amount()?;
     let limit = spec.autonomy_limit()?;
     let case_ref = format!("urn:coorre:case:{}-{}", spec.id, ctx.env.run_suffix());
@@ -224,7 +230,7 @@ pub fn run_case(ctx: &mut DemoContext, spec: &CaseSpec) -> anyhow::Result<CaseOu
         ctx.out,
         "\n== {} — {} — {} with an automation limit of {} ==\n  case {case_ref}",
         spec.id,
-        spec.supplier,
+        payee_name,
         sol(amount),
         sol(limit)
     )?;
@@ -251,15 +257,11 @@ pub fn run_case(ctx: &mut DemoContext, spec: &CaseSpec) -> anyhow::Result<CaseOu
         link(&*ctx.anchorer, &open.tx_signature)
     )?;
 
-    let rule_hash_bytes = rule_hash()?;
+    let rule_hash_bytes = rule.hash()?;
     let refs: Vec<ArtifactRef> = artifacts.iter().map(|a| a.reference()).collect();
-    let input = SupplierDocsInput {
-        evaluation_date: ctx.env.today(),
-        amount_lamports: amount,
-        autonomy_limit_lamports: limit,
-        documents: artifacts.iter().map(|a| a.submitted()).collect(),
-    };
-    let decision = evaluate(&input)?;
+    let evaluation_date = ctx.env.today();
+    let document_bytes: Vec<&[u8]> = artifacts.iter().map(|a| a.bytes.as_slice()).collect();
+    let decision = rule.evaluate(&evaluation_date, amount, limit, &document_bytes)?;
 
     let mut rogue = None;
     let (evidence, final_state) = {
@@ -276,35 +278,35 @@ pub fn run_case(ctx: &mut DemoContext, spec: &CaseSpec) -> anyhow::Result<CaseOu
                 autonomy_limit_lamports: limit.to_string(),
             },
             rule: RuleRef {
-                id: RULE_ID.to_owned(),
-                version: RULE_VERSION.to_owned(),
+                id: rule.id().to_owned(),
+                version: rule.version().to_owned(),
                 hash: to_prefixed(&rule_hash_bytes),
             },
             rule_hash: rule_hash_bytes,
+            payee_label,
             evidence: Vec::new(),
         };
 
         let documents: Vec<Value> = artifacts
             .iter()
             .map(|a| {
-                json!({
-                    "kind": a.fixture.kind,
-                    "number": a.fixture.number,
-                    "valid_from": a.fixture.valid_from,
-                    "valid_until": a.fixture.valid_until,
-                    "artifact": a.name,
-                })
+                let mut summary = a.parsed.summary.clone();
+                summary.insert("artifact".to_owned(), Value::String(a.name.clone()));
+                Value::Object(summary)
             })
             .collect();
+        let mut submission = serde_json::Map::new();
+        submission.insert(payee_label.to_owned(), Value::String(payee_name.to_owned()));
+        submission.insert("documents".to_owned(), Value::Array(documents));
         run.anchor(
             Draft {
                 to: CaseState::Submitted,
                 role: Role::Submitter,
                 autonomy: Autonomy::ExecuteWithApproval,
                 artifacts: refs.clone(),
-                payload: json!({ "supplier": spec.supplier, "documents": documents }),
+                payload: Value::Object(submission),
             },
-            "supplier submitted its documents",
+            &format!("{payee_label} submitted its documents"),
         )?;
         let recommendation = match decision {
             Decision::AutoApproved => "auto_approve",
@@ -319,7 +321,7 @@ pub fn run_case(ctx: &mut DemoContext, spec: &CaseSpec) -> anyhow::Result<CaseOu
                 payload: json!({
                     "recommendation": recommendation,
                     "findings": decision.reasons(),
-                    "evaluation_date": input.evaluation_date,
+                    "evaluation_date": evaluation_date,
                     "agent": "simulated pre-analysis agent (deterministic, no model call)"
                 }),
             },
@@ -336,14 +338,14 @@ pub fn run_case(ctx: &mut DemoContext, spec: &CaseSpec) -> anyhow::Result<CaseOu
                     payload: json!({
                         "decision": "AUTO_APPROVED",
                         "reasons": [],
-                        "evaluation_date": input.evaluation_date
+                        "evaluation_date": evaluation_date
                     }),
                 },
-                "within the mandate: escrow released to the supplier",
+                &format!("within the mandate: escrow released to the {payee_label}"),
             )?,
             Decision::Escalated { reasons } => {
                 if amount > limit {
-                    rogue = Some(run.rogue_attempt(&input.evaluation_date)?);
+                    rogue = Some(run.rogue_attempt(&evaluation_date)?);
                 }
                 run.anchor(
                     Draft {
@@ -354,7 +356,7 @@ pub fn run_case(ctx: &mut DemoContext, spec: &CaseSpec) -> anyhow::Result<CaseOu
                         payload: json!({
                             "decision": "ESCALATED",
                             "reasons": reasons,
-                            "evaluation_date": input.evaluation_date
+                            "evaluation_date": evaluation_date
                         }),
                     },
                     &format!("escalated to the human approver: {}", reasons.join("; ")),
@@ -367,12 +369,12 @@ pub fn run_case(ctx: &mut DemoContext, spec: &CaseSpec) -> anyhow::Result<CaseOu
                     ApproverChoice::Approve => (
                         CaseState::Approved,
                         "APPROVED",
-                        "human approver signed: escrow released to the supplier",
+                        format!("human approver signed: escrow released to the {payee_label}"),
                     ),
                     ApproverChoice::Reject => (
                         CaseState::Rejected,
                         "REJECTED",
-                        "human approver signed: escrow refunded to the creator",
+                        "human approver signed: escrow refunded to the creator".to_owned(),
                     ),
                 };
                 run.anchor(
@@ -383,7 +385,7 @@ pub fn run_case(ctx: &mut DemoContext, spec: &CaseSpec) -> anyhow::Result<CaseOu
                         artifacts: vec![],
                         payload: json!({ "decision": name, "justification": approver.justification }),
                     },
-                    what,
+                    &what,
                 )?;
             }
         }
@@ -405,7 +407,7 @@ pub fn run_case(ctx: &mut DemoContext, spec: &CaseSpec) -> anyhow::Result<CaseOu
         case_record: open.account.clone(),
         open_receipt: Some(open),
         evidence,
-        rules: vec![rule_document()?],
+        rules: vec![rule.document()?],
         artifacts: refs,
     };
     let bundle_path = case_dir.join("bundle.json");

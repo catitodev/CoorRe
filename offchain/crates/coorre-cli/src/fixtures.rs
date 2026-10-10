@@ -1,8 +1,7 @@
 use std::path::Path;
 
 use anyhow::{Context, bail};
-use coorre_engine::SubmittedDocument;
-use coorre_engine::rule::DocumentArtifact;
+use coorre_engine::{ParsedArtifact, RuleId};
 use coorre_model::evidence::{is_safe_artifact_name, parse_lamports};
 use coorre_model::hash::{sha256, to_hex};
 use coorre_model::{ArtifactRef, jcs};
@@ -26,9 +25,18 @@ pub struct ApproverDecision {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct RuleSpec {
+    pub id: String,
+    pub version: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CaseSpec {
     pub id: String,
-    pub supplier: String,
+    pub rule: Option<RuleSpec>,
+    pub supplier: Option<String>,
+    pub payee: Option<String>,
     pub amount_lamports: String,
     pub autonomy_limit_lamports: String,
     pub documents: Vec<String>,
@@ -44,6 +52,36 @@ impl CaseSpec {
     pub fn autonomy_limit(&self) -> anyhow::Result<u64> {
         Ok(parse_lamports(&self.autonomy_limit_lamports)?)
     }
+
+    pub fn rule_id(&self) -> anyhow::Result<RuleId> {
+        match &self.rule {
+            None => Ok(RuleId::SupplierDocs),
+            Some(rule) => RuleId::find(&rule.id, &rule.version).with_context(|| {
+                format!(
+                    "case {}: rule {} v{} is not in the registry",
+                    self.id, rule.id, rule.version
+                )
+            }),
+        }
+    }
+
+    pub fn payee_name(&self) -> anyhow::Result<&str> {
+        match (&self.supplier, &self.payee) {
+            (Some(name), None) | (None, Some(name)) => Ok(name),
+            _ => bail!(
+                "case {}: give exactly one of \"supplier\" or \"payee\"",
+                self.id
+            ),
+        }
+    }
+
+    pub fn payee_label(&self) -> &'static str {
+        if self.supplier.is_some() {
+            "supplier"
+        } else {
+            "payee"
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -56,7 +94,7 @@ struct CasesFile {
 pub struct Artifact {
     pub name: String,
     pub bytes: Vec<u8>,
-    pub fixture: DocumentArtifact,
+    pub parsed: ParsedArtifact,
 }
 
 impl Artifact {
@@ -66,10 +104,6 @@ impl Artifact {
             media_type: ARTIFACT_MEDIA_TYPE.to_owned(),
             digest_sha256: to_hex(&sha256(&self.bytes)),
         }
-    }
-
-    pub fn submitted(&self) -> SubmittedDocument {
-        self.fixture.submitted(&self.bytes)
     }
 }
 
@@ -83,11 +117,14 @@ pub fn load_cases(dir: &Path) -> anyhow::Result<Vec<CaseSpec>> {
     for case in &file.cases {
         case.amount()?;
         case.autonomy_limit()?;
+        case.rule_id()?;
+        case.payee_name()?;
     }
     Ok(file.cases)
 }
 
 pub fn load_artifacts(dir: &Path, case: &CaseSpec) -> anyhow::Result<Vec<Artifact>> {
+    let rule = case.rule_id()?;
     let mut artifacts = Vec::new();
     for relative in &case.documents {
         let path = dir.join(relative);
@@ -101,15 +138,16 @@ pub fn load_artifacts(dir: &Path, case: &CaseSpec) -> anyhow::Result<Vec<Artifac
         }
         let bytes =
             std::fs::read(&path).with_context(|| format!("cannot read {}", path.display()))?;
-        let fixture = DocumentArtifact::parse(&bytes)
+        let parsed = rule
+            .parse_artifact(&bytes)
             .with_context(|| format!("invalid document fixture {name}"))?;
-        if !fixture.synthetic {
+        if !parsed.synthetic {
             bail!("{name}: only synthetic documents are allowed in the demo");
         }
         artifacts.push(Artifact {
             name,
             bytes,
-            fixture,
+            parsed,
         });
     }
     Ok(artifacts)

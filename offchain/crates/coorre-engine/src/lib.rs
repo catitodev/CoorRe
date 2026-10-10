@@ -1,9 +1,11 @@
 pub mod error;
 pub mod machine;
+pub mod registry;
 pub mod rule;
 
 pub use error::{EngineError, Result};
 pub use machine::{
     AppliedTransition, CaseTracker, Payout, RoleKeys, check_transition, payout_for, required_role,
 };
+pub use registry::{ParsedArtifact, RuleId};
 pub use rule::{Decision, DocumentKind, SubmittedDocument, SupplierDocsInput, evaluate};
