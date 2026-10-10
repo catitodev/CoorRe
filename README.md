@@ -85,21 +85,21 @@ Every step is a signed credential whose hash is anchored on Solana. The verifier
 | 4. Signer binding | The key that signed is the role key stored on-chain for that step. |
 | 5. Hash chain | The steps form one unbroken chain from the case to its final state. |
 | 6. On-chain match | The accounts belong to the CoorRe program and hold exactly the recomputed values. |
-| 7. Decisions reproduced | The verifier re-runs the rule on the submitted documents and gets the recorded decision. |
+| 7. Decisions reproduced | The verifier re-runs the rule named in the evidence, from the registry it ships, on the submitted documents and gets the recorded decision. |
 
-Check 7 closes a gap the chain cannot: the program enforces the amount against the mandate, but it cannot read documents. If a compromised rule engine approved a case whose license had expired, checks 1 to 6 would still pass and check 7 would fail. See [ADR-004](docs/decisions/ADR-004-reproducible-automated-decisions.md).
+Check 7 closes a gap the chain cannot: the program enforces the amount against the mandate, but it cannot read documents. If a compromised rule engine approved a case whose license had expired, checks 1 to 6 would still pass and check 7 would fail. The verifier only runs rules it ships: a decision that names any other rule, version or hash fails check 7. See [ADR-004](docs/decisions/ADR-004-reproducible-automated-decisions.md) and [ADR-005](docs/decisions/ADR-005-rule-registry-and-application-domains.md).
 
 ## Where it applies
 
-The program, the roles, the state machine and the evidence model stay the same in every domain. What changes is the rule.
+The program, the roles, the state machine and the evidence model stay the same in every domain. What changes is the rule, and each rule ships in the verifier's registry with synthetic demo cases: one that passes and one that needs the approver.
 
 | Domain | Who acts | Evidence | Rule | Human authority | Anchor | Status |
 |---|---|---|---|---|---|---|
 | Supplier onboarding and payment | Supplier, procurement agent, rule engine | Tax certificate, environmental license | supplier-docs v1 | Procurement manager | [StartSe Consulting, 2026](https://mundorh.com.br/ia-nas-empresas-84-dos-projetos-analisados-apresentam-resultados-e-revelam-novos-desafios-para-o-rh/) | runs on devnet |
-| Milestone payments in funded projects, with accountability | Grantee organisation, review agent, rule engine | Funding agreement, milestone report, accountability report | milestone-payment v1 | Fund manager | [Law 13.019/2014, Art. 48](https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2014/lei/l13019compilado.htm) | planned |
-| Payments for ecosystem services with monitoring evidence | Provider on the land, monitoring agent, rule engine | Contract, monitoring report | ecosystem-services-payment v1 | Program manager | [Law 14.119/2021, Art. 6, § 6](https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/l14119.htm) | planned |
-| Service contracts delivered by consultancies | Consultancy, review agent, rule engine | Service contract, acceptance record, invoice | service-delivery v1 | Contract manager | [Law 4.320/1964, Arts. 62 and 63](https://www.planalto.gov.br/ccivil_03/leis/l4320.htm), when the client is a public body | planned |
-| Purchases prepared by AI agents | Supplier, purchasing agent, rule engine | Purchase request, supplier quote, supplier registration | agent-purchase v1 | Purchasing manager | [AP2](https://cloud.google.com/blog/products/ai-machine-learning/announcing-agents-to-payments-ap2-protocol/?hl=en), [IMDA](https://www.imda.gov.sg/resources/press-releases-factsheets-and-speeches/factsheets/2026/updated-model-ai-governance-framework-for-agentic-ai), [StartSe Consulting](https://mundorh.com.br/ia-nas-empresas-84-dos-projetos-analisados-apresentam-resultados-e-revelam-novos-desafios-para-o-rh/) | planned |
+| Milestone payments in funded projects, with accountability | Grantee organisation, review agent, rule engine | Funding agreement, milestone report, accountability report | milestone-payment v1 | Fund manager | [Law 13.019/2014, Art. 48](https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2014/lei/l13019compilado.htm) | runs offline and in tests |
+| Payments for ecosystem services with monitoring evidence | Provider on the land, monitoring agent, rule engine | Contract, monitoring report | ecosystem-services-payment v1 | Program manager | [Law 14.119/2021, Art. 6, § 6](https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/l14119.htm) | runs offline and in tests |
+| Service contracts delivered by consultancies | Consultancy, review agent, rule engine | Service contract, acceptance record, invoice | service-delivery v1 | Contract manager | [Law 4.320/1964, Arts. 62 and 63](https://www.planalto.gov.br/ccivil_03/leis/l4320.htm), when the client is a public body | runs offline and in tests |
+| Purchases prepared by AI agents | Supplier, purchasing agent, rule engine | Purchase request, supplier quote, supplier registration | agent-purchase v1 | Purchasing manager | [AP2](https://cloud.google.com/blog/products/ai-machine-learning/announcing-agents-to-payments-ap2-protocol/?hl=en), [IMDA](https://www.imda.gov.sg/resources/press-releases-factsheets-and-speeches/factsheets/2026/updated-model-ai-governance-framework-for-agentic-ai), [StartSe Consulting](https://mundorh.com.br/ia-nas-empresas-84-dos-projetos-analisados-apresentam-resultados-e-revelam-novos-desafios-para-o-rh/) | runs offline and in tests |
 
 **Payments for ecosystem services.** This is where the Re of CoorRe stands for regenerative; it grows out of the founders' earlier W.A.T.A project.
 
@@ -111,18 +111,35 @@ The program, the roles, the state machine and the evidence model stay the same i
 ```mermaid
 stateDiagram-v2
     [*] --> OPEN
-    OPEN --> SUBMITTED: supplier signs
+    OPEN --> SUBMITTED: payee signs
     SUBMITTED --> AGENT_REVIEWED: agent signs
     AGENT_REVIEWED --> AUTO_APPROVED: rule engine signs, amount within limit
     AGENT_REVIEWED --> ESCALATED: rule engine signs
     ESCALATED --> APPROVED: approver signs
     ESCALATED --> REJECTED: approver signs
-    AUTO_APPROVED --> [*]: escrow released to the supplier
-    APPROVED --> [*]: escrow released to the supplier
+    AUTO_APPROVED --> [*]: escrow released to the payee
+    APPROVED --> [*]: escrow released to the payee
     REJECTED --> [*]: escrow refunded to whoever opened the case
 ```
 
 Each transition must be signed by the key of the role that owns it. The four role keys of a case must be distinct.
+
+</details>
+
+<details>
+<summary>Rule registry</summary>
+
+Each rule is a JSON document in [offchain/crates/coorre-engine/rules](offchain/crates/coorre-engine/rules), compiled into the engine and the verifier and identified by the SHA-256 of its canonical form. A rule approves only when every condition holds; otherwise it escalates with one reason per failed condition, in the order the rule lists them, and the mandate check always comes last.
+
+| Rule | Documents | Demo cases |
+|---|---|---|
+| supplier-docs v1 | tax certificate, environmental license | SUP-001, SUP-002, SUP-003 |
+| agent-purchase v1 | purchase request, supplier quote, supplier registration | AGT-001, AGT-002 |
+| ecosystem-services-payment v1 | contract, monitoring report | PES-001, PES-002 |
+| milestone-payment v1 | funding agreement, milestone report, accountability report | MIL-001, MIL-002 |
+| service-delivery v1 | service contract, acceptance record, invoice | SRV-001, SRV-002 |
+
+The cases and their synthetic documents are described in [demo/fixtures](demo/fixtures/README.md).
 
 </details>
 
@@ -161,6 +178,12 @@ offchain/target/release/coorre verify \
 
 The command prints the seven checks and exits with status 1 if any fails. Change one byte of a file in the artifacts folder and run it again to see checks 1 and 7 fail.
 
+The four other domains run offline, with no keys and no network. This test takes the eight cases through the in-memory simulator, verifies each one 7/7 and checks that one changed byte in any document fails checks 1 and 7:
+
+```bash
+cargo test --manifest-path offchain/Cargo.toml -p coorre-cli --test domains_offline
+```
+
 <details>
 <summary>Run the tests and the demo</summary>
 
@@ -176,6 +199,12 @@ The narrated demo opens real cases on devnet. It needs five Solana key files in 
 
 ```bash
 offchain/target/release/coorre demo run
+```
+
+With the same key files, any case runs narrated and offline, with nothing sent to a network:
+
+```bash
+offchain/target/release/coorre demo run --offline --case AGT-002 --case MIL-002
 ```
 
 </details>
@@ -294,7 +323,7 @@ No code existed before 2026-10-07. The first commit is dated 2026-10-08 and the 
 
 - [Specification](docs/spec/SPEC.md)
 - [Security notes and threat model](docs/SECURITY.md)
-- Decisions: [ADR-001](docs/decisions/ADR-001-shared-codes-and-encodings.md), [ADR-002](docs/decisions/ADR-002-verifier-trust-anchors.md), [ADR-003](docs/decisions/ADR-003-demo-actors-and-case-references.md), [ADR-004](docs/decisions/ADR-004-reproducible-automated-decisions.md)
+- Decisions: [ADR-001](docs/decisions/ADR-001-shared-codes-and-encodings.md), [ADR-002](docs/decisions/ADR-002-verifier-trust-anchors.md), [ADR-003](docs/decisions/ADR-003-demo-actors-and-case-references.md), [ADR-004](docs/decisions/ADR-004-reproducible-automated-decisions.md), [ADR-005](docs/decisions/ADR-005-rule-registry-and-application-domains.md)
 - [Deployments and devnet results](onchain/DEPLOYMENTS.md)
 - [Brand assets](docs/assets/brand.md)
 
