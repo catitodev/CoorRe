@@ -1,0 +1,10 @@
+{
+  "synthetic": true,
+  "kind": "supplier_quote",
+  "issuer": "Fornecedor Demo D Ltda",
+  "request_number": "PR-2026-0101",
+  "supplier": "Fornecedor Demo D Ltda",
+  "item": "Field sensor kit, model DEMO-100",
+  "amount_lamports": "20000000",
+  "valid_until": "2026-12-31"
+}

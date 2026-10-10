@@ -1,0 +1,8 @@
+{
+  "synthetic": true,
+  "kind": "supplier_registration",
+  "issuer": "Synthetic Registry (demo data)",
+  "supplier": "Fornecedor Demo D Ltda",
+  "status": "approved",
+  "valid_until": "2027-06-30"
+}

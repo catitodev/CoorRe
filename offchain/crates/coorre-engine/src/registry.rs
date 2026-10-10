@@ -1,12 +1,24 @@
 use coorre_model::jcs;
 use serde_json::{Map, Value, json};
 
+use crate::agent_purchase;
 use crate::error::{EngineError, Result};
 use crate::rule::{self, Decision, DocumentArtifact, SupplierDocsInput};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RuleId {
     SupplierDocs,
+    AgentPurchase,
+}
+
+fn parse_rule_document(source: &str, id: &str, version: &str) -> Result<Value> {
+    let value = jcs::parse(source).map_err(|e| EngineError::RuleDefinition(e.to_string()))?;
+    if value["id"] != id || value["version"] != version {
+        return Err(EngineError::RuleDefinition(
+            "id/version mismatch".to_owned(),
+        ));
+    }
+    Ok(value)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -17,17 +29,19 @@ pub struct ParsedArtifact {
 }
 
 impl RuleId {
-    pub const ALL: [RuleId; 1] = [RuleId::SupplierDocs];
+    pub const ALL: [RuleId; 2] = [RuleId::SupplierDocs, RuleId::AgentPurchase];
 
     pub fn id(self) -> &'static str {
         match self {
             RuleId::SupplierDocs => rule::RULE_ID,
+            RuleId::AgentPurchase => agent_purchase::RULE_ID,
         }
     }
 
     pub fn version(self) -> &'static str {
         match self {
             RuleId::SupplierDocs => rule::RULE_VERSION,
+            RuleId::AgentPurchase => agent_purchase::RULE_VERSION,
         }
     }
 
@@ -40,6 +54,11 @@ impl RuleId {
     pub fn document(self) -> Result<Value> {
         match self {
             RuleId::SupplierDocs => rule::rule_document(),
+            RuleId::AgentPurchase => parse_rule_document(
+                agent_purchase::RULE_DOCUMENT,
+                agent_purchase::RULE_ID,
+                agent_purchase::RULE_VERSION,
+            ),
         }
     }
 
@@ -72,6 +91,7 @@ impl RuleId {
                     summary,
                 })
             }
+            RuleId::AgentPurchase => agent_purchase::parse_artifact(bytes),
         }
     }
 
@@ -92,6 +112,12 @@ impl RuleId {
                     .map(|bytes| rule::submitted_document(bytes))
                     .collect::<Result<_>>()?,
             }),
+            RuleId::AgentPurchase => agent_purchase::evaluate(
+                evaluation_date,
+                amount_lamports,
+                autonomy_limit_lamports,
+                documents,
+            ),
         }
     }
 }
@@ -132,6 +158,68 @@ mod tests {
         assert_eq!(
             RuleId::SupplierDocs.document().unwrap(),
             rule::rule_document().unwrap()
+        );
+    }
+
+    const PINNED_RULE_HASHES: [(RuleId, &str); 2] = [
+        (RuleId::SupplierDocs, SUPPLIER_DOCS_RULE_HASH),
+        (
+            RuleId::AgentPurchase,
+            "3d77e718e5ee0b6a66448c960024fe1dadff3950364eed67e2401d23eecc91b2",
+        ),
+    ];
+
+    #[test]
+    fn every_rule_hash_matches_an_independent_computation() {
+        assert_eq!(PINNED_RULE_HASHES.len(), RuleId::ALL.len());
+        for (rule, expected) in PINNED_RULE_HASHES {
+            assert_eq!(hash::to_hex(&rule.hash().unwrap()), expected, "{rule:?}");
+        }
+    }
+
+    fn evaluate_case(rule: RuleId, files: &[&str], amount: u64, limit: u64) -> Decision {
+        let bytes: Vec<Vec<u8>> = files.iter().map(|f| fixture(f)).collect();
+        let refs: Vec<&[u8]> = bytes.iter().map(Vec::as_slice).collect();
+        for (file, b) in files.iter().zip(&refs) {
+            let parsed = rule.parse_artifact(b).unwrap();
+            assert!(parsed.synthetic, "{file}");
+        }
+        rule.evaluate("2026-10-09", amount, limit, &refs).unwrap()
+    }
+
+    #[test]
+    fn agent_purchase_fixtures_give_the_documented_decisions() {
+        let files = |id: &str| {
+            [
+                format!("{id}/purchase-request.json"),
+                format!("{id}/supplier-quote.json"),
+                format!("{id}/supplier-registration.json"),
+            ]
+        };
+        let agt_001 = files("AGT-001");
+        let agt_001: Vec<&str> = agt_001.iter().map(String::as_str).collect();
+        assert_eq!(
+            evaluate_case(RuleId::AgentPurchase, &agt_001, 20_000_000, 30_000_000),
+            Decision::AutoApproved
+        );
+        let agt_002 = files("AGT-002");
+        let agt_002: Vec<&str> = agt_002.iter().map(String::as_str).collect();
+        assert_eq!(
+            evaluate_case(RuleId::AgentPurchase, &agt_002, 40_000_000, 30_000_000).reasons(),
+            [
+                "supplier registration expired",
+                "amount exceeds autonomy limit"
+            ]
+        );
+        assert!(
+            RuleId::SupplierDocs
+                .parse_artifact(&fixture("AGT-001/purchase-request.json"))
+                .is_err()
+        );
+        assert!(
+            RuleId::AgentPurchase
+                .parse_artifact(&fixture("SUP-001/tax-certificate.json"))
+                .is_err()
         );
     }
 

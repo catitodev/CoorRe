@@ -16,6 +16,8 @@ Scenario (devnet SOL, small amounts):
 - SUP-002: amount 0.20 SOL, limit 0.10 SOL, environmental license expired → a "rogue automation" attempt to AUTO_APPROVE (the rule-engine key approving above its limit; the AI agent's key would be rejected earlier with UnauthorizedActor, see ADR-001 and ADR-003) is sent on purpose and the program rejects it with MandateExceeded (shown in the demo) → rule engine anchors ESCALATED → approver anchors APPROVED with a justification → escrow released.
 - SUP-003 (tests only): ESCALATED → REJECTED → escrow refunded to the creator.
 - Tamper: changing 1 byte of an artifact makes verification fail.
+Further domains (off-chain rules in the registry, ADR-005; synthetic documents; `"demo": false`, run with `--case`; amounts 0.02 or 0.04 SOL against a 0.03 SOL limit):
+- agent-purchase v1 (purchase request, supplier quote, supplier registration): AGT-001 → AUTO_APPROVED; AGT-002, supplier registration expired and amount above the limit → MandateExceeded attempt rejected → ESCALATED with both reasons → APPROVED.
 
 ## 3. Evidence model
 - JSON compatible with W3C VC Data Model 2.0. Canonicalization RFC 8785 (JCS). evidence_hash = SHA-256(JCS(document without "proof")).

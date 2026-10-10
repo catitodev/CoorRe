@@ -36,6 +36,7 @@ build could show one process only.
 | Rule | Process | Documents |
 |---|---|---|
 | supplier-docs v1 | Supplier onboarding and payment | tax certificate, environmental license |
+| agent-purchase v1 | Purchases prepared by AI agents | purchase request, supplier quote, supplier registration |
 
 ## What this does not prove
 - That the documents are genuine. Every document in the demo is synthetic; a real

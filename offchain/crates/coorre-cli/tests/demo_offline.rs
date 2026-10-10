@@ -31,7 +31,11 @@ fn the_three_spec_cases_run_and_verify_offline() {
     let mut env = FixedEnvironment::new("2026-10-09", "20261009T120000Z");
     let mut out = Vec::new();
     let out_dir = scratch("demo-offline");
-    let cases = load_cases(&fixtures()).unwrap();
+    let cases: Vec<_> = load_cases(&fixtures())
+        .unwrap()
+        .into_iter()
+        .filter(|c| c.id.starts_with("SUP-"))
+        .collect();
     assert_eq!(
         cases.iter().map(|c| c.id.as_str()).collect::<Vec<_>>(),
         ["SUP-001", "SUP-002", "SUP-003"]

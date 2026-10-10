@@ -1,0 +1,9 @@
+{
+  "synthetic": true,
+  "kind": "purchase_request",
+  "issuer": "Comprador Demo S.A. (demo data)",
+  "request_number": "PR-2026-0101",
+  "item": "Field sensor kit, model DEMO-100",
+  "budget_cap_lamports": "25000000",
+  "needed_by": "2026-11-30"
+}

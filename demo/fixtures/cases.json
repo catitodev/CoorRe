@@ -41,6 +41,37 @@
         "justification": "Expired environmental license and no renewal on file; payment refused and escrow returned to the buyer."
       },
       "demo": false
+    },
+    {
+      "id": "AGT-001",
+      "rule": { "id": "agent-purchase", "version": "1" },
+      "payee": "Fornecedor Demo D Ltda",
+      "amount_lamports": "20000000",
+      "autonomy_limit_lamports": "30000000",
+      "documents": [
+        "AGT-001/purchase-request.json",
+        "AGT-001/supplier-quote.json",
+        "AGT-001/supplier-registration.json"
+      ],
+      "approver": null,
+      "demo": false
+    },
+    {
+      "id": "AGT-002",
+      "rule": { "id": "agent-purchase", "version": "1" },
+      "payee": "Fornecedor Demo E Ltda",
+      "amount_lamports": "40000000",
+      "autonomy_limit_lamports": "30000000",
+      "documents": [
+        "AGT-002/purchase-request.json",
+        "AGT-002/supplier-quote.json",
+        "AGT-002/supplier-registration.json"
+      ],
+      "approver": {
+        "decision": "approve",
+        "justification": "The supplier filed its registration renewal before expiry and the probe is needed for the next monitoring campaign; the purchasing manager approves this payment above the automation limit."
+      },
+      "demo": false
     }
   ]
 }

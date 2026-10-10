@@ -1,0 +1,26 @@
+{
+  "id": "agent-purchase",
+  "version": "1",
+  "description": "Auto-approve the payment of a purchase prepared by an AI agent only when the purchase request, the supplier's quote and the supplier's registration agree, the registration is approved and current, the quote is current, the amount equals the quote and fits the budget cap, and the amount is within the automated actor's autonomy limit; otherwise escalate to the human approver with one reason per failed condition, in the order listed.",
+  "requiredDocuments": ["purchase_request", "supplier_quote", "supplier_registration"],
+  "documentLabels": {
+    "purchase_request": "purchase request",
+    "supplier_quote": "supplier quote",
+    "supplier_registration": "supplier registration"
+  },
+  "dates": "calendar dates YYYY-MM-DD; comparisons are inclusive",
+  "conditions": [
+    { "check": "each required document kind is submitted exactly once", "reason": "<label> missing | <label> submitted more than once" },
+    { "check": "purchase_request.request_number == supplier_quote.request_number", "reason": "request number differs between request and quote" },
+    { "check": "purchase_request.item == supplier_quote.item", "reason": "item differs between request and quote" },
+    { "check": "supplier_quote.supplier == supplier_registration.supplier", "reason": "supplier differs between quote and registration" },
+    { "check": "supplier_registration.status == \"approved\"", "reason": "supplier registration not approved" },
+    { "check": "supplier_registration.valid_until >= evaluation_date", "reason": "supplier registration expired" },
+    { "check": "supplier_quote.valid_until >= evaluation_date", "reason": "supplier quote expired" },
+    { "check": "amount_lamports == supplier_quote.amount_lamports", "reason": "amount differs from the quote" },
+    { "check": "amount_lamports <= purchase_request.budget_cap_lamports", "reason": "amount exceeds the budget cap" }
+  ],
+  "notEvaluated": "a condition that reads a missing or duplicated document is not evaluated",
+  "mandate": { "check": "amount_lamports <= autonomy_limit_lamports", "reason": "amount exceeds autonomy limit" },
+  "outcomes": { "pass": "AUTO_APPROVED", "fail": "ESCALATED" }
+}

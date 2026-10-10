@@ -1,3 +1,5 @@
+pub mod agent_purchase;
+pub mod documents;
 pub mod error;
 pub mod machine;
 pub mod registry;
