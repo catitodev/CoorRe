@@ -1,5 +1,6 @@
 import init, * as wasm from "./pkg/coorre_verify.js";
 import { verifyBundle, explorerUrl } from "./verify-core.js";
+import { renderCaseDetail, renderCaseList, renderOnchain, renderOverview, renderRules, sol } from "./views.js";
 
 const $ = (id) => document.getElementById(id);
 const BUNDLE_FORMAT = "coorre-audit-bundle/1";
@@ -28,13 +29,6 @@ function link(text, url) {
 function short(value) {
   if (typeof value !== "string") return "";
   return value.length > 20 ? `${value.slice(0, 8)}…${value.slice(-6)}` : value;
-}
-
-function sol(lamports) {
-  if (typeof lamports !== "number") return "";
-  const whole = Math.floor(lamports / 1e9);
-  const fraction = String(lamports % 1e9).padStart(9, "0").replace(/0+$/, "");
-  return fraction ? `${whole}.${fraction} SOL` : `${whole} SOL`;
 }
 
 function setStatus(text, isError = false) {
@@ -87,7 +81,7 @@ function render(result, expected) {
     ["Amount", document.createTextNode(sol(s.amount_lamports))],
     ["Automation limit", document.createTextNode(sol(s.autonomy_limit_lamports))],
     ["Creator", link(s.creator ?? "", explorerUrl("address", s.creator, network))],
-    ["Supplier key", link(s.submitter ?? "", explorerUrl("address", s.submitter, network))],
+    ["Payee key", link(s.submitter ?? "", explorerUrl("address", s.submitter, network))],
     ["AI agent key", link(s.agent ?? "", explorerUrl("address", s.agent, network))],
     ["Rule engine key", link(s.rule_engine ?? "", explorerUrl("address", s.rule_engine, network))],
     ["Approver key", link(s.approver ?? "", explorerUrl("address", s.approver, network))],
@@ -110,6 +104,15 @@ function render(result, expected) {
         el("td", null, t.valid_from),
         onchain
       );
+    })
+  );
+
+  $("check-chain").replaceChildren(
+    ...report.checks.map((c, i) => {
+      const item = el("li", c.status === "PASS" ? "pass" : "fail", el("span", "pin", String(c.id)), el("span", "name", c.name.split(" ").slice(0, 2).join(" ")));
+      item.style.setProperty("--i", String(i));
+      item.title = `${c.id}. ${c.name}: ${c.status}`;
+      return item;
     })
   );
 
@@ -205,7 +208,107 @@ async function verifySelected() {
   await run(bundle.text, files);
 }
 
+const ROUTES = ["overview", "verify", "cases", "rules", "onchain", "security"];
+const SAMPLES = ["SUP-001", "SUP-002", "AGT-002", "PES-002"];
+const rendered = new Set();
+let siteData = null;
+
+function rpcUrl() {
+  return $("rpc-url").value.trim();
+}
+
+function applyTheme(theme) {
+  const root = document.documentElement;
+  if (theme) root.dataset.theme = theme;
+  else delete root.dataset.theme;
+  const dark = theme ? theme === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+  for (const source of document.querySelectorAll("picture source[srcset*='_dark']")) {
+    source.media = dark ? "all" : "not all";
+    const img = source.parentElement.querySelector("img");
+    img.src = img.getAttribute("src");
+  }
+  $("theme-label").textContent = dark ? "Light" : "Dark";
+}
+
+function setupTheme() {
+  let stored = null;
+  try {
+    stored = localStorage.getItem("coorre-theme");
+  } catch {
+    stored = null;
+  }
+  applyTheme(stored === "dark" || stored === "light" ? stored : null);
+  $("theme-toggle").addEventListener("click", () => {
+    const dark = document.documentElement.dataset.theme
+      ? document.documentElement.dataset.theme === "dark"
+      : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const next = dark ? "light" : "dark";
+    applyTheme(next);
+    try {
+      localStorage.setItem("coorre-theme", next);
+    } catch {
+      return;
+    }
+  });
+}
+
+function show(route, arg) {
+  for (const view of document.querySelectorAll(".view")) view.hidden = view.dataset.view !== route;
+  for (const a of document.querySelectorAll(".nav a")) {
+    if (a.dataset.route === route) a.setAttribute("aria-current", "page");
+    else a.removeAttribute("aria-current");
+  }
+  document.title = `CoorRe · ${document.querySelector(`.nav a[data-route="${route}"]`).getAttribute("aria-label")}`;
+  document.querySelectorAll(`[data-view="${route}"] .card, [data-view="${route}"] .panel`).forEach((card, i) => card.style.setProperty("--i", String(Math.min(i, 8))));
+  if (siteData) {
+    if (route === "overview" && !rendered.has(route)) renderOverview(siteData, rpcUrl());
+    if (route === "rules" && !rendered.has(route)) renderRules(siteData);
+    if (route === "onchain" && !rendered.has(route)) renderOnchain(siteData, rpcUrl());
+    if (route === "cases") {
+      $("cases-list").hidden = Boolean(arg);
+      $("case-detail").hidden = !arg;
+      if (arg) renderCaseDetail(siteData, arg, rpcUrl());
+      else if (!rendered.has(route)) renderCaseList(siteData);
+    }
+    if (route !== "cases" || !arg) rendered.add(route);
+  }
+  if (route === "verify" && arg && SAMPLES.includes(arg)) runSample(arg);
+  window.scrollTo(0, 0);
+}
+
+function route(event) {
+  const [name, arg] = location.hash.replace(/^#/, "").split("/");
+  show(ROUTES.includes(name) ? name : "overview", arg ? decodeURIComponent(arg) : undefined);
+  if (event) $("main").focus({ preventScroll: true, focusVisible: false });
+}
+
+function intro() {
+  const node = $("intro");
+  let seen = false;
+  try {
+    seen = sessionStorage.getItem("coorre-intro") === "seen";
+    sessionStorage.setItem("coorre-intro", "seen");
+  } catch {
+    seen = false;
+  }
+  if (seen || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  node.hidden = false;
+  const close = () => {
+    node.hidden = true;
+    document.removeEventListener("keydown", onKey);
+  };
+  const onKey = (event) => {
+    if (event.key === "Escape") close();
+  };
+  document.addEventListener("keydown", onKey);
+  node.addEventListener("click", close);
+  $("intro-skip").addEventListener("click", close);
+  setTimeout(close, 2950);
+}
+
 async function main() {
+  intro();
+  setupTheme();
   await init();
   $("program-id").value = wasm.defaultProgramId();
   $("network-id").value = wasm.defaultNetworkId();
@@ -228,6 +331,13 @@ async function main() {
     addFiles(event.dataTransfer.files);
   });
   setStatus("Ready.");
+  try {
+    siteData = await (await fetch("site-data.json")).json();
+  } catch (error) {
+    setStatus(`Could not load the dashboard data: ${error.message ?? error}`, true);
+  }
+  window.addEventListener("hashchange", route);
+  route();
 }
 
 main().catch((error) => setStatus(`Could not start the verifier: ${error.message ?? error}`, true));
