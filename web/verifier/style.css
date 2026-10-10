@@ -536,6 +536,32 @@ h3 {
   fill: var(--signal);
 }
 
+.hero-chain .link-hit {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.hero-chain .link-hit:focus {
+  outline: none;
+}
+
+.hero-chain .link-step:hover .link-hit,
+.hero-chain .link-step.focused .link-hit {
+  stroke: var(--verdigris);
+  stroke-width: 2;
+}
+
+.hero-chain .link-step:hover text,
+.hero-chain .link-step.focused text {
+  fill: var(--text);
+}
+
+.hero-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--step--1);
+}
+
 .hero-chain text {
   fill: var(--muted);
   font-family: var(--font-sans);

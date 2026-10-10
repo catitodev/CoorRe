@@ -84,3 +84,16 @@ test("every case reads as a complete story with no missing value", async () => {
     }
   }
 });
+
+test("each step of the hero chain opens the matching step of a real case", async () => {
+  const { caseSteps } = await import("../views.js");
+  const source = read("../views.js").toString("utf8");
+  const targets = [...source.matchAll(/label: "([a-z ]+)"[^\n]*go\("#cases\/(SUP-002)\/step-(\d+)"\)/g)].map((m) => [m[1], m[2], Number(m[3])]);
+  const expected = { escrow: "OPEN", evidence: "SUBMITTED", "agent advice": "AGENT_REVIEWED", "rule decision": "blocked", "human signature": "APPROVED" };
+  assert.deepEqual(targets.map((t) => t[0]), Object.keys(expected));
+  for (const [label, id, n] of targets) {
+    const row = caseSteps(data.cases.find((c) => c.id === id))[n];
+    assert.equal(row.kind === "blocked" ? "blocked" : row.step.to, expected[label], label);
+  }
+  assert.match(source, /label: "anchored"[^\n]*go\("#onchain"\)/);
+});

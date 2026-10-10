@@ -93,14 +93,17 @@ export function renderOverview(data, rpcUrl) {
   const escalated = cases.filter((c) => c.steps.some((s) => s.to === "ESCALATED"));
   const blocked = cases.filter((c) => c.blocked_attempt);
 
+  const go = (hash) => () => {
+    location.hash = hash;
+  };
   evidenceChain(document.getElementById("hero-chain"), {
     steps: [
-      { label: "escrow" },
-      { label: "evidence" },
-      { label: "agent advice" },
-      { label: "rule decision" },
-      { label: "human signature", signature: true },
-      { label: "anchored" },
+      { label: "escrow", lines: ["Escrow", "SUP-002: the creator put 0.2 SOL in escrow", "Open this step"], onSelect: go("#cases/SUP-002/step-0") },
+      { label: "evidence", lines: ["Evidence", "SUP-002: the supplier submitted two documents", "Open this step"], onSelect: go("#cases/SUP-002/step-1") },
+      { label: "agent advice", lines: ["Agent advice", "SUP-002: the AI agent recommended escalation", "Open this step"], onSelect: go("#cases/SUP-002/step-2") },
+      { label: "rule decision", lines: ["Rule decision", "SUP-002: an approval above the mandate was refused, then the case was escalated", "Open this step"], onSelect: go("#cases/SUP-002/step-3") },
+      { label: "human signature", signature: true, lines: ["Human signature", "SUP-002: the approver signed the exception", "Open this step"], onSelect: go("#cases/SUP-002/step-5") },
+      { label: "anchored", lines: ["Anchored", "Every step of the ten cases is anchored on Solana devnet", "Open the on-chain proof"], onSelect: go("#onchain") },
     ],
   });
 

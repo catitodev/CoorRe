@@ -357,10 +357,17 @@ export function evidenceChain(container, { steps }) {
   chart.append(line);
   steps.forEach((s, i) => {
     const x = 20 + gap * i;
-    chart.append(
+    const g = svg("g", { class: s.onSelect ? "link-step" : null });
+    g.append(
       order(svg("circle", { cx: x, cy: y, r: s.signature ? 10 : 7, class: s.signature ? "link-sig" : "link-dot" }), i),
       svg("text", { x, y: y + 28, "text-anchor": i === 0 ? "start" : i === steps.length - 1 ? "end" : "middle" }, s.label)
     );
+    if (s.onSelect) {
+      const hit = svg("circle", { cx: x, cy: y, r: 22, class: "link-hit" });
+      g.append(hit);
+      interactive(hit, s.lines ?? [s.label], s.onSelect);
+    }
+    chart.append(g);
   });
   container.replaceChildren(chart);
 }
