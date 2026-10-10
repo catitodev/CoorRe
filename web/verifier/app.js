@@ -1,5 +1,5 @@
 import init, * as wasm from "./pkg/coorre_verify.js";
-import { verifyBundle, explorerUrl } from "./verify-core.js";
+import { verifyBundle, explorerUrl, isAccountSnapshot } from "./verify-core.js";
 import { renderCaseDetail, renderCaseList, renderOnchain, renderOverview, renderRules, sol } from "./views.js";
 
 const $ = (id) => document.getElementById(id);
@@ -65,6 +65,7 @@ function render(result, expected) {
     result.tamperedName ? ` · one byte of ${result.tamperedName} was changed on purpose` : "",
     result.missing.length ? ` · missing files: ${result.missing.join(", ")}` : "",
     result.bundleProgramId !== expected.programId ? ` · the bundle names program ${result.bundleProgramId}` : "",
+    result.source === "snapshot" ? ` · accounts from the recorded devnet snapshot, slot ${result.slot}` : "",
   ].filter(Boolean);
   verdict.replaceChildren(
     el("strong", null, passed ? `${count}/${report.checks.length} checks passed` : `Verification failed: ${count}/${report.checks.length} checks passed`),
@@ -130,7 +131,7 @@ function render(result, expected) {
   $("result").hidden = false;
 }
 
-async function run(bundleText, files) {
+async function run(bundleText, files, snapshot = null) {
   setBusy(true);
   setStatus("Checking…");
   const expected = {
@@ -146,9 +147,14 @@ async function run(bundleText, files) {
       programId: expected.programId,
       networkId: expected.networkId,
       tamper: $("tamper").checked,
+      snapshot,
     });
     render(result, expected);
-    setStatus(`Accounts read from the RPC at slot ${result.slot}. Everything else was computed in this browser.`);
+    setStatus(
+      result.source === "snapshot"
+        ? `Accounts read from the recorded devnet snapshot (slot ${result.slot}); no network request was made. Everything was computed in this browser.`
+        : `Accounts read from the RPC at slot ${result.slot}. Everything else was computed in this browser.`
+    );
     $("result").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
     $("result").hidden = true;
@@ -168,7 +174,8 @@ async function runSample(id) {
         bytes: new Uint8Array(await (await fetch(`samples/${id}/artifacts/${encodeURIComponent(name)}`)).arrayBuffer()),
       }))
     );
-    await run(bundleText, files);
+    const snapshot = $("use-snapshot").checked ? await (await fetch("samples/devnet-snapshot.json")).json() : null;
+    await run(bundleText, files, snapshot);
   } catch (error) {
     setStatus(`Could not load the sample: ${error.message ?? error}`, true);
   }
@@ -185,15 +192,27 @@ async function addFiles(fileList) {
   renderFileList();
 }
 
+function parsedJson(name, bytes) {
+  if (!name.endsWith(".json")) return null;
+  try {
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    return null;
+  }
+}
+
 function findBundle() {
   for (const [name, bytes] of selected) {
-    if (!name.endsWith(".json")) continue;
-    try {
-      const text = new TextDecoder().decode(bytes);
-      if (JSON.parse(text).format === BUNDLE_FORMAT) return { name, text };
-    } catch {
-      continue;
-    }
+    const value = parsedJson(name, bytes);
+    if (value?.format === BUNDLE_FORMAT) return { name, text: new TextDecoder().decode(bytes) };
+  }
+  return null;
+}
+
+function findSnapshot() {
+  for (const [name, bytes] of selected) {
+    const value = parsedJson(name, bytes);
+    if (isAccountSnapshot(value)) return { name, value };
   }
   return null;
 }
@@ -204,8 +223,9 @@ async function verifySelected() {
     setStatus("No audit bundle found among the files (a JSON file with format coorre-audit-bundle/1).", true);
     return;
   }
-  const files = [...selected.entries()].filter(([name]) => name !== bundle.name).map(([name, bytes]) => ({ name, bytes }));
-  await run(bundle.text, files);
+  const snapshot = findSnapshot();
+  const files = [...selected.entries()].filter(([name]) => name !== bundle.name && name !== snapshot?.name).map(([name, bytes]) => ({ name, bytes }));
+  await run(bundle.text, files, snapshot?.value ?? null);
 }
 
 const ROUTES = ["overview", "verify", "cases", "rules", "onchain", "security"];

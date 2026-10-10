@@ -146,12 +146,13 @@
             <button type="button" id="sample-pes-002">PES-002 · ecosystem area below the contract, approved by a person</button>
           </div>
           <label class="check"><input type="checkbox" id="tamper"> Change one byte of the first document before checking</label>
+          <label class="check"><input type="checkbox" id="use-snapshot"> Read the accounts from the recorded devnet snapshot instead of the network</label>
         </article>
 
         <article class="panel" aria-labelledby="files-title">
           <h2 id="files-title">Or check your own bundle</h2>
           <div id="dropzone" class="dropzone" tabindex="0">
-            <p>Drop <code>bundle.json</code> and the artifact files here, or choose them:</p>
+            <p>Drop <code>bundle.json</code> and the artifact files here, or choose them. Add <code>accounts.json</code> from <code>docs/evidence/devnet-snapshot</code> to verify with no network request.</p>
             <input type="file" id="file-input" multiple>
             <ul id="file-list" class="file-list"></ul>
           </div>

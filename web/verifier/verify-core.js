@@ -33,6 +33,26 @@ export async function fetchAccounts(rpcUrl, addresses, fetchImpl = fetch) {
   };
 }
 
+export const SNAPSHOT_FORMAT = "coorre-devnet-snapshot/1";
+
+export function isAccountSnapshot(value) {
+  return Boolean(value) && typeof value === "object" && Array.isArray(value.addresses) && Array.isArray(value.response?.result?.value);
+}
+
+export function accountsFromSnapshot(snapshot, addresses) {
+  if (!isAccountSnapshot(snapshot)) throw new Error("not a recorded getMultipleAccounts snapshot");
+  const values = snapshot.response.result.value;
+  if (values.length !== snapshot.addresses.length) throw new Error("the snapshot lists more addresses than accounts");
+  const recorded = new Map();
+  snapshot.addresses.forEach((address, i) => {
+    const value = values[i];
+    if (!value) return;
+    if (value.data?.[1] !== "base64" || typeof value.owner !== "string") throw new Error(`${address}: account is not base64-encoded`);
+    recorded.set(address, { address, owner: value.owner, data: base64ToBytes(value.data[0]) });
+  });
+  return { slot: snapshot.response.result.context?.slot, accounts: addresses.map((address) => recorded.get(address) ?? null) };
+}
+
 export async function verifyBundle({
   wasm,
   bundleText,
@@ -41,6 +61,7 @@ export async function verifyBundle({
   programId,
   networkId,
   tamper = false,
+  snapshot = null,
   fetchImpl = fetch,
 }) {
   const verifier = new wasm.BundleVerifier(bundleText);
@@ -60,7 +81,7 @@ export async function verifyBundle({
       verifier.addArtifact(name, used);
     }
     const addresses = JSON.parse(verifier.requiredAccounts());
-    const { slot, accounts } = await fetchAccounts(rpcUrl, addresses, fetchImpl);
+    const { slot, accounts } = snapshot ? accountsFromSnapshot(snapshot, addresses) : await fetchAccounts(rpcUrl, addresses, fetchImpl);
     for (const account of accounts) {
       if (account) verifier.addAccount(account.address, account.owner, account.data);
     }
@@ -71,6 +92,7 @@ export async function verifyBundle({
       declared,
       missing: declared.filter((name) => !provided.has(name)),
       tamperedName,
+      source: snapshot ? "snapshot" : "rpc",
       bundleProgramId: verifier.bundleProgramId(),
       bundleNetworkId: verifier.bundleNetworkId(),
     };

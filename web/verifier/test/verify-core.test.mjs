@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import * as wasm from "../pkg/coorre_verify.js";
-import { verifyBundle, fetchAccounts, explorerUrl, base64ToBytes } from "../verify-core.js";
+import { verifyBundle, fetchAccounts, explorerUrl, base64ToBytes, accountsFromSnapshot, isAccountSnapshot } from "../verify-core.js";
 
 wasm.initSync({ module: readFileSync(new URL("../pkg/coorre_verify_bg.wasm", import.meta.url)) });
 
@@ -144,4 +144,46 @@ test("the page never builds HTML from data and ships a strict CSP", () => {
   const html = read("../index.html").toString("utf8");
   assert.match(html, /Content-Security-Policy" content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'/);
   assert.ok(!/<script(?![^>]*src=)/.test(html), "no inline scripts");
+});
+
+const offline = async () => {
+  throw new Error("no network request is allowed in offline verification");
+};
+
+function snapshot() {
+  return JSON.parse(read("../samples/devnet-snapshot.json").toString("utf8"));
+}
+
+test("the published snapshot is the recorded devnet evidence, byte for byte", () => {
+  assert.deepEqual(read("../samples/devnet-snapshot.json"), read("../../../docs/evidence/devnet-snapshot/accounts.json"));
+  assert.ok(isAccountSnapshot(snapshot()));
+});
+
+for (const id of ["SUP-001", "SUP-002", "AGT-002", "PES-002"]) {
+  test(`${id} verifies 7/7 from the recorded snapshot with no network request`, async () => {
+    const s = sample(id);
+    const result = await verifyBundle({ wasm, bundleText: s.bundleText, files: s.files, rpcUrl: RPC, programId: PROGRAM, networkId: NETWORK, snapshot: snapshot(), fetchImpl: offline });
+    assert.equal(result.source, "snapshot");
+    assert.equal(result.slot, 509686323);
+    assert.deepEqual(failing(result.report), []);
+  });
+}
+
+test("an anchor missing from the snapshot fails checks 4 and 6", async () => {
+  const s = sample("SUP-001");
+  const recorded = snapshot();
+  const anchor = JSON.parse(s.bundleText).evidence[1].anchor_account;
+  recorded.response.result.value[recorded.addresses.indexOf(anchor)] = null;
+  const result = await verifyBundle({ wasm, bundleText: s.bundleText, files: s.files, rpcUrl: RPC, programId: PROGRAM, networkId: NETWORK, snapshot: recorded, fetchImpl: offline });
+  assert.deepEqual(failing(result.report), [4, 6]);
+});
+
+test("only well-formed snapshots are read", () => {
+  assert.ok(!isAccountSnapshot({ format: "coorre-audit-bundle/1" }));
+  assert.ok(!isAccountSnapshot(null));
+  assert.throws(() => accountsFromSnapshot({ addresses: ["A"], response: { result: { value: [] } } }, ["A"]), /more addresses/);
+  assert.throws(() => accountsFromSnapshot({ addresses: ["A"], response: { result: { value: [{ owner: "P", data: ["AQ==", "base58"] }] } } }, ["A"]), /base64/);
+  const { accounts } = accountsFromSnapshot({ addresses: ["A"], response: { result: { value: [{ owner: "P", data: ["AQI=", "base64"] }] } } }, ["A", "B"]);
+  assert.deepEqual(accounts[0].data, new Uint8Array([1, 2]));
+  assert.equal(accounts[1], null);
 });
