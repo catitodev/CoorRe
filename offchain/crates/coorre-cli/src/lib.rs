@@ -5,6 +5,7 @@ pub mod fixtures;
 pub mod keys;
 pub mod print;
 pub mod snapshot;
+pub mod zcash_memo;
 
 use coorre_model::Role;
 

@@ -13,6 +13,7 @@ use coorre_cli::fixtures::load_cases;
 use coorre_cli::keys;
 use coorre_cli::print::print_report;
 use coorre_cli::snapshot::load_recorded_accounts;
+use coorre_cli::zcash_memo;
 use coorre_verify::{COORRE_DEVNET_PROGRAM_ID, SOLANA_DEVNET_NETWORK_ID};
 
 #[derive(Parser)]
@@ -28,6 +29,22 @@ enum Command {
     Demo(DemoCommand),
     #[command(about = "Verify an audit bundle against the chain")]
     Verify(VerifyArgs),
+    #[command(
+        name = "zcash-memo",
+        about = "Prepare or check the Zcash memo that links a payment to a released decision (offline; sends nothing)"
+    )]
+    ZcashMemo(ZcashMemoArgs),
+}
+
+#[derive(Args)]
+struct ZcashMemoArgs {
+    #[arg(long)]
+    bundle: PathBuf,
+    #[arg(
+        long,
+        help = "A memo read from a payment (text, or 1024 hex characters) to check against the bundle"
+    )]
+    check: Option<String>,
 }
 
 #[derive(Subcommand)]
@@ -232,11 +249,69 @@ fn verify(args: &VerifyArgs) -> anyhow::Result<bool> {
     Ok(report.passed())
 }
 
+fn zcash_memo_command(args: &ZcashMemoArgs) -> anyhow::Result<bool> {
+    let bundle = load_bundle(&args.bundle)?;
+    let stdout = std::io::stdout();
+    let mut out = stdout.lock();
+    match &args.check {
+        None => {
+            let decision = zcash_memo::release_decision(&bundle)?;
+            writeln!(out, "  case        {}", bundle.case_ref)?;
+            writeln!(
+                out,
+                "  decision    {} (evidence {})",
+                decision.memo.state.name(),
+                decision.evidence_number
+            )?;
+            writeln!(
+                out,
+                "  text memo   (ZIP 302 text, for a wallet's memo field)"
+            )?;
+            writeln!(out, "{}", zcash_memo::encode_text(&decision.memo))?;
+            writeln!(
+                out,
+                "  binary memo (ZIP 302 arbitrary data, 512 bytes as hex)"
+            )?;
+            writeln!(out, "{}", zcash_memo::encode_binary_hex(&decision.memo))?;
+            writeln!(
+                out,
+                "  Nothing is sent: no Zcash transaction is created by this command."
+            )?;
+            Ok(true)
+        }
+        Some(text) => {
+            let memo = zcash_memo::parse_any(text)?;
+            match zcash_memo::check(&memo, &bundle) {
+                Ok(decision) => {
+                    writeln!(
+                        out,
+                        "  MATCH       the memo points to the {} decision of {} (evidence {})",
+                        decision.memo.state.name(),
+                        bundle.case_ref,
+                        decision.evidence_number
+                    )?;
+                    writeln!(
+                        out,
+                        "  Confirm that this decision is anchored: coorre verify --bundle {} --artifacts <folder>",
+                        args.bundle.display()
+                    )?;
+                    Ok(true)
+                }
+                Err(e) => {
+                    writeln!(out, "  NO MATCH    {e}")?;
+                    Ok(false)
+                }
+            }
+        }
+    }
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
     let result = match &cli.command {
         Command::Demo(DemoCommand::Run(args)) => demo(args),
         Command::Verify(args) => verify(args),
+        Command::ZcashMemo(args) => zcash_memo_command(args),
     };
     match result {
         Ok(true) => ExitCode::SUCCESS,
