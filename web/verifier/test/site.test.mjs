@@ -131,3 +131,14 @@ test("the pages workflow publishes every file the page loads", () => {
 function fs_list(dir) {
   return readdirSync(dir).filter((f) => !f.startsWith("."));
 }
+
+test("spacing follows the 4 px scale", () => {
+  const off = [];
+  for (const m of css.matchAll(/((?:margin|padding)(?:-[a-z]+)?|gap|row-gap|column-gap):\s*([^;]+);/g)) {
+    for (const v of m[2].matchAll(/(-?\d+(?:\.\d+)?)px/g)) {
+      const n = Math.abs(Number(v[1]));
+      if (n % 4 !== 0 && n !== 1 && n !== 2) off.push(`${m[1]}: ${m[2]}`);
+    }
+  }
+  assert.deepEqual(off, []);
+});

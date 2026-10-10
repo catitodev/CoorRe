@@ -166,7 +166,7 @@ select {
 }
 
 button {
-  padding: 8px 14px;
+  padding: 8px 16px;
   border-radius: 6px;
   border: 1px solid var(--text);
   background: transparent;
@@ -230,8 +230,8 @@ a:focus-visible,
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 18px;
-  padding: 18px 10px;
+  gap: 20px;
+  padding: 20px 12px;
   border: 1px solid var(--border);
   border-radius: 22px;
   background: var(--card);
@@ -279,7 +279,7 @@ a:focus-visible,
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   width: 100%;
 }
 
@@ -288,9 +288,9 @@ a:focus-visible,
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   width: 100%;
-  padding: 10px 4px 8px;
+  padding: 12px 4px 8px;
   border: 1px solid transparent;
   border-radius: 14px;
   color: var(--muted);
@@ -330,7 +330,7 @@ a:focus-visible,
   margin-top: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   width: 100%;
 }
 
@@ -372,12 +372,12 @@ main:focus-visible {
 
 h2 {
   font-size: var(--step-1);
-  margin: 0 0 6px;
+  margin: 0 0 8px;
 }
 
 h3 {
   font-size: var(--step-1);
-  margin: 16px 0 6px;
+  margin: 16px 0 8px;
 }
 
 .note,
@@ -387,7 +387,7 @@ h3 {
 
 .note {
   font-size: var(--step-0);
-  margin: 0 0 14px;
+  margin: 0 0 16px;
   max-width: 70ch;
 }
 
@@ -403,7 +403,7 @@ h3 {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 22px;
+  padding: 24px;
   margin-bottom: 16px;
   min-width: 0;
 }
@@ -430,7 +430,7 @@ h3 {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .card-head h2 {
@@ -478,7 +478,7 @@ h3 {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  padding: 10px 18px;
+  padding: 12px 20px;
   border-radius: 8px;
   border: 1px solid var(--text);
   color: var(--text);
@@ -589,7 +589,7 @@ h3 {
 
 .now .kv {
   display: flex;
-  gap: 18px;
+  gap: 20px;
   flex-wrap: wrap;
   color: var(--muted);
   font-size: var(--step-0);
@@ -602,7 +602,7 @@ h3 {
 .ring-wrap {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 150px;
-  gap: 18px;
+  gap: 20px;
   align-items: center;
 }
 
@@ -652,9 +652,9 @@ h3 {
 
 .mini-stats {
   display: flex;
-  gap: 22px;
+  gap: 24px;
   flex-wrap: wrap;
-  margin-top: 14px;
+  margin-top: 16px;
 }
 
 .mini-stats div {
@@ -682,7 +682,7 @@ h3 {
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
-  padding: 11px 0;
+  padding: 12px 0;
   border-bottom: 1px solid var(--border);
 }
 
@@ -742,7 +742,7 @@ h3 {
 .status-text {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: var(--step--1);
   white-space: nowrap;
 }
@@ -771,7 +771,7 @@ h3 {
   display: grid;
   place-items: center;
   width: 52px;
-  padding: 6px 0;
+  padding: 8px 0;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--raised);
@@ -809,14 +809,14 @@ h3 {
 .tiles {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .tiles a {
   display: grid;
   gap: 8px;
   justify-items: center;
-  padding: 14px 8px;
+  padding: 16px 8px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--raised);
@@ -840,7 +840,7 @@ h3 {
 .status-card {
   display: grid;
   grid-template-columns: 170px minmax(0, 1fr);
-  gap: 26px;
+  gap: 28px;
   align-items: center;
 }
 
@@ -849,13 +849,13 @@ h3 {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 14px;
+  gap: 16px;
 }
 
 .meters li {
   display: grid;
   grid-template-columns: 210px minmax(0, 1fr) 120px;
-  gap: 14px;
+  gap: 16px;
   align-items: center;
   font-size: var(--step-0);
 }
@@ -960,7 +960,7 @@ h3 {
 }
 
 select {
-  padding: 6px 8px;
+  padding: 8px 8px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--raised);
@@ -1000,7 +1000,7 @@ details input {
   display: block;
   width: 100%;
   font: var(--step-0) var(--font-mono);
-  padding: 6px 8px;
+  padding: 8px 8px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--bg);
@@ -1014,7 +1014,7 @@ summary {
 
 .verdict {
   border-radius: 6px;
-  padding: 12px 14px;
+  padding: 12px 16px;
   font-size: var(--step-1);
 }
 
@@ -1030,7 +1030,7 @@ summary {
 
 .check-chain {
   list-style: none;
-  margin: 18px 0 8px;
+  margin: 20px 0 8px;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -1042,7 +1042,7 @@ summary {
   text-align: center;
   font-size: var(--step--1);
   color: var(--muted);
-  padding-top: 34px;
+  padding-top: 36px;
 }
 
 .check-chain li::before {
@@ -1125,7 +1125,7 @@ td {
   text-align: left;
   vertical-align: top;
   border-bottom: 1px solid var(--border);
-  padding: 8px 6px;
+  padding: 8px 8px;
 }
 
 th {
@@ -1222,7 +1222,7 @@ th.num {
 }
 
 .check ul {
-  margin: 6px 0 0;
+  margin: 8px 0 0;
   padding-left: 20px;
   color: var(--muted);
   font-size: var(--step-0);
@@ -1232,7 +1232,7 @@ th.num {
 .badge {
   display: inline-block;
   min-width: 3.2em;
-  padding: 1px 6px;
+  padding: 1px 8px;
   border-radius: 4px;
   font-size: var(--step--1);
   font-weight: 600;
@@ -1264,7 +1264,7 @@ th.num {
 .outcome {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   white-space: nowrap;
 }
 
@@ -1305,7 +1305,7 @@ th.num {
 .trail {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   height: 20px;
   margin: 12px 0;
 }
@@ -1442,14 +1442,14 @@ th.num {
 .legend li {
   display: grid;
   grid-template-columns: 10px 1fr auto;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
 }
 
 .legend-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 18px;
+  gap: 8px 20px;
   margin-top: 12px;
   font-size: var(--step-0);
 }
@@ -1550,7 +1550,7 @@ th.num {
 .facts {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 6px 14px;
+  gap: 8px 16px;
   margin: 0;
 }
 
@@ -1568,7 +1568,7 @@ th.num {
 
 .record-grid {
   list-style: none;
-  margin: 14px 0 0;
+  margin: 16px 0 0;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -1578,7 +1578,7 @@ th.num {
 .record-grid li {
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 8px 12px;
   font-size: var(--step-0);
   background: var(--raised);
 }
@@ -1609,7 +1609,7 @@ th.num {
 
 .steps li {
   position: relative;
-  padding: 0 0 18px 38px;
+  padding: 0 0 20px 40px;
 }
 
 .steps .dot {
@@ -1732,8 +1732,8 @@ th.num {
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin: 6px 0 0;
+  gap: 8px;
+  margin: 8px 0 0;
   padding: 0;
   list-style: none;
 }
@@ -1741,7 +1741,7 @@ th.num {
 .chips li {
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 2px 10px;
+  padding: 2px 12px;
   font-size: var(--step-0);
   background: var(--raised);
 }
@@ -1780,7 +1780,7 @@ th.num {
 }
 
 .plain li {
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .threats td:last-child {
@@ -1792,7 +1792,7 @@ th.num {
   position: fixed;
   z-index: 40;
   max-width: 280px;
-  padding: 8px 10px;
+  padding: 8px 12px;
   border-radius: 6px;
   background: var(--ink);
   color: var(--mist);
@@ -1822,7 +1822,7 @@ th.num {
 .intro-stage {
   display: grid;
   justify-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .intro-arc {
@@ -2153,7 +2153,7 @@ th.num {
     z-index: 20;
     display: flex;
     align-items: center;
-    padding: 10px 16px;
+    padding: 12px 16px;
     background: var(--card);
     border-bottom: 1px solid var(--border);
   }
@@ -2174,7 +2174,7 @@ th.num {
     z-index: 20;
     flex-direction: row;
     gap: 0;
-    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
     border-radius: 18px 18px 0 0;
     border-bottom: 0;
     background: var(--bg);
@@ -2192,7 +2192,7 @@ th.num {
 
   .nav a,
   .rail-button {
-    padding: 8px 2px 6px;
+    padding: 8px 2px 8px;
     font-size: var(--step--1);
   }
 
@@ -2252,5 +2252,40 @@ th.num {
 
   .tiles {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .threats thead {
+    display: none;
+  }
+
+  .threats,
+  .threats tbody,
+  .threats tr,
+  .threats td {
+    display: block;
+    width: 100%;
+  }
+
+  .threats tr {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .threats td {
+    padding: 0;
+    border: 0;
+  }
+
+  .threats td:first-child {
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .threats td:last-child {
+    margin-top: 4px;
+    white-space: normal;
+    font-size: var(--step--1);
   }
 }
