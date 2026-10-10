@@ -241,3 +241,10 @@ Entry template:
 - Result: web tests 26 (17 before), bridge 22 and Rust 188 pass. In the in-app browser at 1280 px and 375 px, light and dark: all six views render with no error, the four samples verify 7/7 against devnet and fail checks 1 and 7 with one changed byte, there is no horizontal overflow, no console error, and the only request to another origin is getMultipleAccounts to api.devnet.solana.com with public addresses. Ten of ten case records on devnet hold the final state their bundle recorded; the run costs derived from the bundles match DEPLOYMENTS.md.
 - Limitations / deviations: committed on the local branch site-redesign only; publishing to GitHub Pages waits for approval. A brand rule surfaced by the tests: the ambient background tint uses blue, not orange, because orange is reserved for the human signature and MandateExceeded.
 - Commit(s): feat(web): generate dashboard data from the recorded devnet bundles; feat(web): turn the verifier into a dashboard site; test(web): cover the dashboards and the published file list; docs: describe the verifier dashboards and their live reads; docs: record the verifier redesign in the evidence log
+
+### 2026-10-10 07:47 BRT — Dashboard site published on GitHub Pages
+- Authors: Clarkson Bartalini and Ramon Porto.
+- Approval: merge, push and republication approved explicitly.
+- Work: site-redesign fast-forwarded into main and pushed; CI passed on all four jobs (run 38045787904); Pages workflow run 38045875456 on commit 0928346, every step successful.
+- Live check on https://catitodev.github.io/CoorRe/ at 1280 px and 375 px, light and dark: the six views render with no error; the four samples verify 7/7 against devnet and fail exactly checks 1 and 7 with one changed byte; ten of ten case records on devnet match their bundles; no horizontal overflow; no console error; the only request to another origin is getMultipleAccounts to api.devnet.solana.com with public addresses. The published index.html, app.js, views.js, charts.js, live.js, verify-core.js, style.css and site-data.json are byte-identical to the repository.
+- Commit(s): docs: record the dashboard site publication

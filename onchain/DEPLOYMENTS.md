@@ -138,6 +138,7 @@ onchain/devnet-bundles/2026-10-10, unchanged, so any case can be verified again.
 ### Browser verifier on GitHub Pages (2026-10-10 03:26 UTC)
 
 https://catitodev.github.io/CoorRe/ , published from commit `8289136` by the Pages workflow run [38020483114](https://github.com/catitodev/CoorRe/actions/runs/38020483114).
+Republished with the dashboards from commit `0928346` by run [38045875456](https://github.com/catitodev/CoorRe/actions/runs/38045875456) (2026-10-10 10:43 UTC).
 
 ## Spike: `playground_spike` (2026-10-08)
 
