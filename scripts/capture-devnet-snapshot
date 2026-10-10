@@ -1,0 +1,115 @@
+#!/usr/bin/env node
+"use strict";
+
+const fs = require("node:fs");
+const path = require("node:path");
+
+const root = path.resolve(__dirname, "..");
+const NETWORK_ID = "solana:devnet";
+const PROGRAM_ID = "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv";
+const DEVNET_GENESIS_HASH = "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG";
+const DEFAULT_RPC_URL = "https://api.devnet.solana.com";
+const READ_METHODS = new Set(["getGenesisHash", "getMultipleAccounts", "getSignatureStatuses"]);
+
+function readJson(file) {
+  return JSON.parse(fs.readFileSync(file, "utf8"));
+}
+
+function bundleDirs() {
+  const dirs = [];
+  const samples = path.join(root, "web/verifier/samples");
+  for (const name of fs.readdirSync(samples).sort()) dirs.push(path.join(samples, name));
+  const runs = path.join(root, "onchain/devnet-bundles");
+  for (const run of fs.readdirSync(runs).sort()) {
+    const runDir = path.join(runs, run);
+    if (!fs.statSync(runDir).isDirectory()) continue;
+    for (const name of fs.readdirSync(runDir).sort()) dirs.push(path.join(runDir, name));
+  }
+  return dirs.filter((d) => fs.existsSync(path.join(d, "bundle.json")));
+}
+
+function caseFrom(dir) {
+  const bundle = readJson(path.join(dir, "bundle.json"));
+  if (bundle.network_id !== NETWORK_ID || bundle.program_id !== PROGRAM_ID) {
+    throw new Error(`${dir}: bundle is not for ${PROGRAM_ID} on ${NETWORK_ID}`);
+  }
+  const addresses = [bundle.case_record];
+  for (const e of bundle.evidence) if (!addresses.includes(e.anchor_account)) addresses.push(e.anchor_account);
+  const transactions = [];
+  if (bundle.open_receipt) transactions.push({ step: "open_case", account: bundle.case_record, signature: bundle.open_receipt.tx_signature });
+  for (const e of bundle.evidence) {
+    if (!e.receipt) continue;
+    const s = e.document.credentialSubject;
+    transactions.push({ step: `${s.fromState}>${s.toState}`, account: e.anchor_account, signature: e.receipt.tx_signature });
+  }
+  return {
+    id: path.basename(dir),
+    bundle: path.relative(root, path.join(dir, "bundle.json")),
+    case_ref: bundle.case_ref,
+    case_record: bundle.case_record,
+    addresses,
+    transactions,
+  };
+}
+
+async function rpc(url, method, params) {
+  if (!READ_METHODS.has(method)) throw new Error(`${method} is not a read method`);
+  const request = { jsonrpc: "2.0", id: 1, method, params };
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) throw new Error(`${method}: HTTP ${response.status}`);
+  const body = await response.json();
+  if (body.error) throw new Error(`${method}: ${JSON.stringify(body.error)}`);
+  return { request, response: body };
+}
+
+async function main() {
+  const url = process.env.COORRE_RPC_URL || DEFAULT_RPC_URL;
+  if (new URL(url).protocol !== "https:") throw new Error("the RPC URL must use https");
+  const outDir = path.join(root, "docs/evidence/devnet-snapshot");
+  const cases = bundleDirs().map(caseFrom);
+  const addresses = cases.flatMap((c) => c.addresses);
+  const signatures = cases.flatMap((c) => c.transactions.map((t) => t.signature));
+  if (new Set(addresses).size !== addresses.length) throw new Error("an account appears in two bundles");
+  if (addresses.length > 100) throw new Error("getMultipleAccounts accepts at most 100 addresses");
+  if (signatures.length > 256) throw new Error("getSignatureStatuses accepts at most 256 signatures");
+
+  const genesis = await rpc(url, "getGenesisHash", []);
+  if (genesis.response.result !== DEVNET_GENESIS_HASH) throw new Error(`${url} is not Solana devnet`);
+  const capturedAt = new Date().toISOString();
+  const accounts = await rpc(url, "getMultipleAccounts", [addresses, { encoding: "base64", commitment: "finalized" }]);
+  const statuses = await rpc(url, "getSignatureStatuses", [signatures, { searchTransactionHistory: true }]);
+
+  const values = accounts.response.result.value;
+  const missing = addresses.filter((_, i) => values[i] === null);
+  const foreign = addresses.filter((_, i) => values[i] !== null && values[i].owner !== PROGRAM_ID);
+  const unconfirmed = signatures.filter((_, i) => {
+    const s = statuses.response.result.value[i];
+    return s === null || s.err !== null || s.confirmationStatus !== "finalized";
+  });
+
+  fs.mkdirSync(outDir, { recursive: true });
+  const common = { network_id: NETWORK_ID, program_id: PROGRAM_ID, rpc_url: new URL(url).origin, genesis_hash: genesis.response.result, captured_at_utc: capturedAt };
+  fs.writeFileSync(
+    path.join(outDir, "accounts.json"),
+    `${JSON.stringify({ format: "coorre-devnet-snapshot/1", ...common, slot: accounts.response.result.context.slot, cases: cases.map(({ transactions, ...c }) => c), addresses, request: accounts.request, response: accounts.response }, null, 1)}\n`,
+  );
+  fs.writeFileSync(
+    path.join(outDir, "signatures.json"),
+    `${JSON.stringify({ format: "coorre-devnet-signatures/1", ...common, slot: statuses.response.result.context.slot, cases: cases.map((c) => ({ id: c.id, case_ref: c.case_ref, transactions: c.transactions })), signatures, request: statuses.request, response: statuses.response }, null, 1)}\n`,
+  );
+  console.log(`captured ${addresses.length} accounts of ${cases.length} cases at slot ${accounts.response.result.context.slot} (${capturedAt})`);
+  console.log(`statuses of ${signatures.length} transactions at slot ${statuses.response.result.context.slot}`);
+  console.log(`missing accounts: ${missing.length}; accounts not owned by the program: ${foreign.length}; transactions not finalized or failed: ${unconfirmed.length}`);
+  for (const a of [...missing, ...foreign]) console.log(`  account ${a}`);
+  for (const s of unconfirmed) console.log(`  transaction ${s}`);
+  if (missing.length || foreign.length || unconfirmed.length) process.exitCode = 1;
+}
+
+main().catch((e) => {
+  console.error(`error: ${e.message}`);
+  process.exit(2);
+});
