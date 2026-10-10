@@ -3,6 +3,10 @@
 A static page that verifies a CoorRe audit bundle with the same Rust code as
 `coorre verify`, compiled to WebAssembly (`coorre-verify` with the `wasm` feature).
 
+This is the public verification mode: no login, no account, and anyone holding a bundle
+and its documents can run the seven checks. A permissioned mode (views by role, viewing
+keys) is on the roadmap and is not part of this build; the page shows it as such.
+
 - Evidence, signatures, hashes, the hash chain and the comparison with the on-chain
   accounts are computed in the browser.
 - The only network requests are `getMultipleAccounts` calls to the chosen Solana RPC,

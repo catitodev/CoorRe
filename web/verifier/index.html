@@ -75,7 +75,7 @@
         <div class="bento">
           <article class="card hero span-8">
             <h1 id="overview-title" class="hero-title">Provable decisions for AI agents.</h1>
-            <p class="hero-text">The agent acts within its mandate, the rule decides, and a person signs every exception. On Solana, the program enforces the limit and releases a payment only when the evidence-backed decision is anchored. Anyone can verify every step without trusting us.</p>
+            <p class="hero-text">CoorRe is a verifiability engine: it turns the evidence and decisions of a process into signed, anchored proof, with a verifier anyone can run. On Solana, its most demanding application, the program enforces who can act and the limit of autonomy; above the limit, only the human approver can release the payment.</p>
             <div id="hero-chain" class="hero-chain"></div>
           </article>
           <article class="card span-4" aria-live="polite">
@@ -122,6 +122,16 @@
       <section class="view" id="view-verify" data-view="verify" aria-labelledby="verify-title" hidden>
         <h1 id="verify-title" class="view-title">Verify</h1>
         <p class="lead">Check an audit trail without trusting whoever produced it. The evidence, signatures and hashes are checked in this browser with the same Rust code as the command line; only public account addresses are sent to a Solana RPC to read what the chain recorded.</p>
+        <div class="grid" role="group" aria-label="Verification modes">
+          <article class="panel">
+            <div class="card-head"><h2>Public</h2><span class="pill">available</span></div>
+            <p>Anyone checks a trail on this page or on the command line, with no login and no account. Whoever holds an audit bundle and its documents can verify it; the chain holds only hashes, keys, states and amounts.</p>
+          </article>
+          <article class="panel">
+            <div class="card-head"><h2>Permissioned</h2><span class="pill">roadmap</span></div>
+            <p>Views by role and viewing keys, so each party sees only what its role needs. Not part of this build.</p>
+          </article>
+        </div>
         <article class="panel" aria-labelledby="samples-title">
           <h2 id="samples-title">Try a recorded case</h2>
           <p>Cases from the devnet demos of 2026-10-08 and 2026-10-10 (synthetic data).</p>
@@ -217,7 +227,7 @@
 
       <section class="view" id="view-security" data-view="security" aria-labelledby="security-title" hidden>
         <h1 id="security-title" class="view-title">Security</h1>
-        <p class="lead">What each control guarantees, and what this build does not claim. The full threat model is in <a href="https://github.com/catitodev/CoorRe/blob/main/docs/SECURITY.md" rel="noopener">docs/SECURITY.md</a>.</p>
+        <p class="lead">What each control checks, and what this build does not claim. The full threat model is in <a href="https://github.com/catitodev/CoorRe/blob/main/docs/SECURITY.md" rel="noopener">docs/SECURITY.md</a>.</p>
         <div class="table-wrap">
           <table class="threats">
             <thead><tr><th>Threat</th><th>Control</th><th>Where it holds</th></tr></thead>
@@ -249,7 +259,7 @@
               <li>That a document is genuine: the demo documents are synthetic; a real deployment needs documents signed by their issuer or registry.</li>
               <li>That a rule is the right policy for an organisation or a law.</li>
               <li>Who holds a key: the chain proves which keys acted, not which people.</li>
-              <li>Anything on mainnet: this build runs on devnet only, with demo keys held by the operator.</li>
+              <li>Anything on mainnet, which is a next step: this build runs on devnet only, with demo keys operated by the CoorRe team.</li>
             </ul>
           </article>
         </div>
