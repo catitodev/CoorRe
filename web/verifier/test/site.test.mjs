@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -61,5 +61,39 @@ test("the brand tokens are the ones taken from the logo", () => {
   for (const token of ["#10161A", "#E9EEF0", "#1F7A68", "#3FB39B"]) {
     assert.ok(css.toLowerCase().includes(token.toLowerCase()), token);
   }
-  assert.ok(!/#E8531F/i.test(css), "orange is reserved for the signature and is not a UI colour");
+  assert.equal((css.match(/#E8531F/gi) ?? []).length, 1, "orange is defined once, as the signal token");
+  assert.match(css, /--signal: #E8531F;/);
+  for (const [, selector, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const uses = body.split(";").filter((decl) => /var\(--(signal|series-human)\)/.test(decl));
+    if (!uses.length) continue;
+    const onlyToken = uses.every((decl) => /^\s*--series-human:\s*var\(--signal\)/.test(decl));
+    assert.ok(onlyToken || /human|blocked|sig/.test(selector), `orange used outside the signature: ${selector.trim()}`);
+  }
 });
+
+test("every view has a menu entry and every menu entry has a view", () => {
+  const views = [...html.matchAll(/data-view="([a-z]+)"/g)].map((m) => m[1]);
+  const routes = [...html.matchAll(/data-route="([a-z]+)"/g)].map((m) => m[1]);
+  assert.deepEqual([...views].sort(), [...routes].sort());
+  assert.deepEqual(views, ["overview", "verify", "cases", "rules", "onchain", "security"]);
+  for (const route of routes) assert.match(html, new RegExp(`data-route="${route}" aria-label="[^"]+"`));
+});
+
+test("the intro draws the logo from the brand geometry, not from a font", () => {
+  const lockup = readFileSync(path.join(root, "brand", "coorre_lockup_A_light.svg"), "utf8");
+  for (const d of [...lockup.matchAll(/ d="([^"]+)"/g)].map((m) => m[1])) assert.ok(html.includes(d), d.slice(0, 30));
+});
+
+test("the pages workflow publishes every file the page loads", () => {
+  const workflow = readFileSync(path.join(root, "..", "..", ".github", "workflows", "pages.yml"), "utf8");
+  const modules = new Set([...app.matchAll(/from "\.\/([^"]+)"/g)].map((m) => m[1]).filter((f) => !f.startsWith("pkg/")));
+  for (const file of fs_list(root)) {
+    if (/\.(js|json)$/.test(file) && !["package.json"].includes(file) && (modules.has(file) || file === "site-data.json" || file === "app.js")) {
+      assert.ok(workflow.includes(`web/verifier/${file}`), `pages.yml does not copy ${file}`);
+    }
+  }
+});
+
+function fs_list(dir) {
+  return readdirSync(dir).filter((f) => !f.startsWith("."));
+}
