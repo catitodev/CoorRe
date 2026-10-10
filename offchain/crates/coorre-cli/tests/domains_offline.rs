@@ -21,7 +21,7 @@ struct Expected {
     log_line: &'static str,
 }
 
-const EXPECTED: [Expected; 2] = [
+const EXPECTED: [Expected; 4] = [
     Expected {
         id: "AGT-001",
         rule: "agent-purchase",
@@ -35,6 +35,20 @@ const EXPECTED: [Expected; 2] = [
         final_state: CaseState::Approved,
         rogue: Some("MandateExceeded"),
         log_line: "escalated to the human approver: supplier registration expired; amount exceeds autonomy limit",
+    },
+    Expected {
+        id: "PES-001",
+        rule: "ecosystem-services-payment",
+        final_state: CaseState::AutoApproved,
+        rogue: None,
+        log_line: "within the mandate: escrow released to the payee",
+    },
+    Expected {
+        id: "PES-002",
+        rule: "ecosystem-services-payment",
+        final_state: CaseState::Approved,
+        rogue: Some("MandateExceeded"),
+        log_line: "escalated to the human approver: verified area below committed area; amount exceeds autonomy limit",
     },
 ];
 

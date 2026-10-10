@@ -1,0 +1,22 @@
+{
+  "id": "ecosystem-services-payment",
+  "version": "1",
+  "description": "Auto-approve a payment for ecosystem services only when the contract and the monitoring report refer to the same contract, the contract is valid on the evaluation date, the monitoring was observed within the contract validity and not after the evaluation date, the verified area is at least the committed area, and the amount is within the automated actor's autonomy limit; otherwise escalate to the human approver with one reason per failed condition, in the order listed.",
+  "requiredDocuments": ["pes_contract", "monitoring_report"],
+  "documentLabels": {
+    "pes_contract": "ecosystem services contract",
+    "monitoring_report": "monitoring report"
+  },
+  "dates": "calendar dates YYYY-MM-DD; comparisons are inclusive",
+  "areas": "square metres as canonical decimal strings",
+  "conditions": [
+    { "check": "each required document kind is submitted exactly once", "reason": "<label> missing | <label> submitted more than once" },
+    { "check": "pes_contract.contract_number == monitoring_report.contract_number", "reason": "contract number differs between contract and monitoring report" },
+    { "check": "pes_contract.valid_from <= evaluation_date <= pes_contract.valid_until", "reason": "ecosystem services contract not yet valid | ecosystem services contract expired" },
+    { "check": "pes_contract.valid_from <= monitoring_report.observed_on <= pes_contract.valid_until and monitoring_report.observed_on <= evaluation_date", "reason": "monitoring observed outside the contract validity | monitoring observed after the evaluation date" },
+    { "check": "monitoring_report.verified_area_m2 >= pes_contract.committed_area_m2", "reason": "verified area below committed area" }
+  ],
+  "notEvaluated": "a condition that reads a missing or duplicated document is not evaluated",
+  "mandate": { "check": "amount_lamports <= autonomy_limit_lamports", "reason": "amount exceeds autonomy limit" },
+  "outcomes": { "pass": "AUTO_APPROVED", "fail": "ESCALATED" }
+}

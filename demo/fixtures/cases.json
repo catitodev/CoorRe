@@ -72,6 +72,35 @@
         "justification": "The supplier filed its registration renewal before expiry and the probe is needed for the next monitoring campaign; the purchasing manager approves this payment above the automation limit."
       },
       "demo": false
+    },
+    {
+      "id": "PES-001",
+      "rule": { "id": "ecosystem-services-payment", "version": "1" },
+      "payee": "Cooperativa Demo Nascentes",
+      "amount_lamports": "20000000",
+      "autonomy_limit_lamports": "30000000",
+      "documents": [
+        "PES-001/pes-contract.json",
+        "PES-001/monitoring-report.json"
+      ],
+      "approver": null,
+      "demo": false
+    },
+    {
+      "id": "PES-002",
+      "rule": { "id": "ecosystem-services-payment", "version": "1" },
+      "payee": "Cooperativa Demo Serra Verde",
+      "amount_lamports": "40000000",
+      "autonomy_limit_lamports": "30000000",
+      "documents": [
+        "PES-002/pes-contract.json",
+        "PES-002/monitoring-report.json"
+      ],
+      "approver": {
+        "decision": "approve",
+        "justification": "The shortfall comes from a documented fire in the dry season and the burned section is under recovery; the program committee approves this payment above the automation limit and schedules a new verification."
+      },
+      "demo": false
     }
   ]
 }

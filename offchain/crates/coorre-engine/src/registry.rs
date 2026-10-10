@@ -2,6 +2,7 @@ use coorre_model::jcs;
 use serde_json::{Map, Value, json};
 
 use crate::agent_purchase;
+use crate::ecosystem_services;
 use crate::error::{EngineError, Result};
 use crate::rule::{self, Decision, DocumentArtifact, SupplierDocsInput};
 
@@ -9,6 +10,7 @@ use crate::rule::{self, Decision, DocumentArtifact, SupplierDocsInput};
 pub enum RuleId {
     SupplierDocs,
     AgentPurchase,
+    EcosystemServicesPayment,
 }
 
 fn parse_rule_document(source: &str, id: &str, version: &str) -> Result<Value> {
@@ -29,12 +31,17 @@ pub struct ParsedArtifact {
 }
 
 impl RuleId {
-    pub const ALL: [RuleId; 2] = [RuleId::SupplierDocs, RuleId::AgentPurchase];
+    pub const ALL: [RuleId; 3] = [
+        RuleId::SupplierDocs,
+        RuleId::AgentPurchase,
+        RuleId::EcosystemServicesPayment,
+    ];
 
     pub fn id(self) -> &'static str {
         match self {
             RuleId::SupplierDocs => rule::RULE_ID,
             RuleId::AgentPurchase => agent_purchase::RULE_ID,
+            RuleId::EcosystemServicesPayment => ecosystem_services::RULE_ID,
         }
     }
 
@@ -42,6 +49,7 @@ impl RuleId {
         match self {
             RuleId::SupplierDocs => rule::RULE_VERSION,
             RuleId::AgentPurchase => agent_purchase::RULE_VERSION,
+            RuleId::EcosystemServicesPayment => ecosystem_services::RULE_VERSION,
         }
     }
 
@@ -58,6 +66,11 @@ impl RuleId {
                 agent_purchase::RULE_DOCUMENT,
                 agent_purchase::RULE_ID,
                 agent_purchase::RULE_VERSION,
+            ),
+            RuleId::EcosystemServicesPayment => parse_rule_document(
+                ecosystem_services::RULE_DOCUMENT,
+                ecosystem_services::RULE_ID,
+                ecosystem_services::RULE_VERSION,
             ),
         }
     }
@@ -92,6 +105,7 @@ impl RuleId {
                 })
             }
             RuleId::AgentPurchase => agent_purchase::parse_artifact(bytes),
+            RuleId::EcosystemServicesPayment => ecosystem_services::parse_artifact(bytes),
         }
     }
 
@@ -113,6 +127,12 @@ impl RuleId {
                     .collect::<Result<_>>()?,
             }),
             RuleId::AgentPurchase => agent_purchase::evaluate(
+                evaluation_date,
+                amount_lamports,
+                autonomy_limit_lamports,
+                documents,
+            ),
+            RuleId::EcosystemServicesPayment => ecosystem_services::evaluate(
                 evaluation_date,
                 amount_lamports,
                 autonomy_limit_lamports,
@@ -161,11 +181,15 @@ mod tests {
         );
     }
 
-    const PINNED_RULE_HASHES: [(RuleId, &str); 2] = [
+    const PINNED_RULE_HASHES: [(RuleId, &str); 3] = [
         (RuleId::SupplierDocs, SUPPLIER_DOCS_RULE_HASH),
         (
             RuleId::AgentPurchase,
             "3d77e718e5ee0b6a66448c960024fe1dadff3950364eed67e2401d23eecc91b2",
+        ),
+        (
+            RuleId::EcosystemServicesPayment,
+            "eb9e053a54cf94256949e7bb134390e68efb86fa4be4434f1b0c24d34d4307c9",
         ),
     ];
 
@@ -220,6 +244,38 @@ mod tests {
             RuleId::AgentPurchase
                 .parse_artifact(&fixture("SUP-001/tax-certificate.json"))
                 .is_err()
+        );
+    }
+
+    #[test]
+    fn ecosystem_services_fixtures_give_the_documented_decisions() {
+        assert_eq!(
+            evaluate_case(
+                RuleId::EcosystemServicesPayment,
+                &[
+                    "PES-001/pes-contract.json",
+                    "PES-001/monitoring-report.json"
+                ],
+                20_000_000,
+                30_000_000
+            ),
+            Decision::AutoApproved
+        );
+        assert_eq!(
+            evaluate_case(
+                RuleId::EcosystemServicesPayment,
+                &[
+                    "PES-002/pes-contract.json",
+                    "PES-002/monitoring-report.json"
+                ],
+                40_000_000,
+                30_000_000
+            )
+            .reasons(),
+            [
+                "verified area below committed area",
+                "amount exceeds autonomy limit"
+            ]
         );
     }
 

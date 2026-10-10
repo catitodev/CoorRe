@@ -28,7 +28,10 @@ const AMOUNT: u64 = 20_000_000;
 const LIMIT: u64 = 30_000_000;
 const EVALUATION_DATE: &str = "2026-10-09";
 
-const DOMAIN_CASES: [(RuleId, &str); 1] = [(RuleId::AgentPurchase, "AGT-002")];
+const DOMAIN_CASES: [(RuleId, &str); 2] = [
+    (RuleId::AgentPurchase, "AGT-002"),
+    (RuleId::EcosystemServicesPayment, "PES-002"),
+];
 
 fn key(seed: u8) -> Ed25519Keypair {
     Ed25519Keypair::from_seed(&[seed; 32])

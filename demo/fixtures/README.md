@@ -19,6 +19,8 @@ Every document carries `"synthetic": true`; names, issuers and numbers are inven
 |---|---|---|---|---|---|
 | AGT-001 | agent-purchase v1 | 0.02 SOL | 0.03 SOL | purchase request, supplier quote and supplier registration agree and are current | AUTO_APPROVED, escrow released to the payee |
 | AGT-002 | agent-purchase v1 | 0.04 SOL | 0.03 SOL | supplier registration expired 2026-09-30 | rogue AUTO_APPROVED rejected with MandateExceeded, then ESCALATED ("supplier registration expired", "amount exceeds autonomy limit"), then APPROVED by the approver, escrow released |
+| PES-001 | ecosystem-services-payment v1 | 0.02 SOL | 0.03 SOL | contract valid, monitoring observed within it, 124,500 m² verified against 120,000 m² committed | AUTO_APPROVED, escrow released to the payee |
+| PES-002 | ecosystem-services-payment v1 | 0.04 SOL | 0.03 SOL | 118,000 m² verified against 150,000 m² committed | rogue AUTO_APPROVED rejected with MandateExceeded, then ESCALATED ("verified area below committed area", "amount exceeds autonomy limit"), then APPROVED by the approver, escrow released |
 
 `cases.json` lists the cases; each document file is a JSON artifact whose SHA-256 goes
 into the evidence. Validity is evaluated on the day the demo runs.
