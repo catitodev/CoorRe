@@ -19,6 +19,9 @@ keys) is on the roadmap and is not part of this build; the page shows it as such
   keyboard focus and a table view.
 - The expected program id is a setting of the page (default: the CoorRe devnet
   deployment), never a value read from the bundle (docs/decisions/ADR-002).
+- Type is IBM Plex Sans for text and IBM Plex Mono for hashes, keys and values, self-hosted
+  in `fonts/` (Latin-1 subsets of @ibm/plex-sans 1.1.0 and @ibm/plex-mono 2.5.0 from the
+  official ibm/plex packages) under the SIL Open Font License 1.1 (`fonts/OFL.txt`).
 - Bundle content is untrusted: it is rendered as text only, links point only to the
   Solana Explorer after base58 validation, and a strict Content-Security-Policy allows
   scripts from the page itself only.

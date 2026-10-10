@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; connect-src 'self' https:; img-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; connect-src 'self' https:; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
   <title>CoorRe Verifier</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -75,7 +75,11 @@
         <div class="bento">
           <article class="card hero span-8">
             <h1 id="overview-title" class="hero-title">Provable decisions for AI agents.</h1>
-            <p class="hero-text">CoorRe is a verifiability engine: it turns the evidence and decisions of a process into signed, anchored proof, with a verifier anyone can run. On Solana, its most demanding application, the program enforces who can act and the limit of autonomy; above the limit, only the human approver can release the payment.</p>
+            <p class="hero-text">CoorRe is a verifiability engine: it turns the evidence and decisions of a process into signed, anchored proof that anyone can check. On Solana, the program enforces who can act and the limit of autonomy; above the limit, only the human approver can release the payment.</p>
+            <div class="hero-actions">
+              <a class="button primary" href="#verify">Verify a recorded case</a>
+              <a class="button" href="#cases">See the ten cases</a>
+            </div>
             <div id="hero-chain" class="hero-chain"></div>
           </article>
           <article class="card span-4" aria-live="polite">

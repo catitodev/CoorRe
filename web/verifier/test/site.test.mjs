@@ -29,6 +29,7 @@ test("the content security policy stays strict", () => {
   const policy = /Content-Security-Policy" content="([^"]+)"/.exec(html)?.[1] ?? "";
   assert.match(policy, /img-src 'self'(;|$)/);
   assert.match(policy, /style-src 'self'(;|$)/);
+  assert.match(policy, /font-src 'self'(;|$)/);
   assert.ok(!/'unsafe-(inline|eval)'|data:/.test(policy), policy);
   assert.ok(!/\sstyle="/.test(html), "inline style attribute");
   assert.ok(!/<style[\s>]/.test(html), "inline style element");
@@ -102,6 +103,19 @@ test("the rail logo is framed so no part of the mark is cut", () => {
   for (const [left, top, right, bottom] of extents) {
     assert.ok(left >= x0 && top >= y0 && right <= x0 + w && bottom <= y0 + h, `${[left, top, right, bottom]} outside ${svg[1]}`);
   }
+});
+
+test("every font is self-hosted, published and licensed", () => {
+  const workflow = readFileSync(path.join(root, "..", "..", ".github", "workflows", "pages.yml"), "utf8");
+  const fonts = [...css.matchAll(/url\("([^"]+)"\)/g)].map((m) => m[1]);
+  assert.ok(fonts.length >= 5, fonts.join(", "));
+  for (const font of fonts) {
+    assert.match(font, /^fonts\/[A-Za-z0-9-]+\.woff2$/);
+    assert.ok(existsSync(path.join(root, font)), `missing ${font}`);
+  }
+  assert.ok(workflow.includes("web/verifier/fonts"), "pages.yml does not copy the fonts");
+  assert.match(readFileSync(path.join(root, "fonts", "OFL.txt"), "utf8"), /SIL Open Font License, Version 1\.1/);
+  assert.ok(!/font-weight: (?!400|500|600)\d+/.test(css), "a weight without a loaded font file");
 });
 
 test("the pages workflow publishes every file the page loads", () => {

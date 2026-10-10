@@ -1,3 +1,43 @@
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("fonts/IBMPlexSans-Regular-Latin1.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("fonts/IBMPlexSans-Medium-Latin1.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("fonts/IBMPlexSans-SemiBold-Latin1.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("fonts/IBMPlexMono-Regular-Latin1.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("fonts/IBMPlexMono-Medium-Latin1.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --ink: #10161A;
   --mist: #E9EEF0;
@@ -20,11 +60,16 @@
   --series-auto: #0E8A70;
   --series-human: var(--signal);
   --series-third: #4A6DB8;
-  --glow-a: 12%;
-  --glow-b: 7%;
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   --radius: 18px;
-  --font: ui-monospace, "SF Mono", SFMono-Regular, Menlo, "DejaVu Sans Mono", Consolas, "Ubuntu Mono", monospace;
+  --font-sans: "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, "Noto Sans", Ubuntu, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, "DejaVu Sans Mono", Consolas, monospace;
+  --step--1: 0.75rem;
+  --step-0: 0.875rem;
+  --step-1: 1rem;
+  --step-2: 1.25rem;
+  --step-3: 1.75rem;
+  --step-4: 2.5rem;
   color-scheme: light;
 }
 
@@ -47,8 +92,6 @@
     --fail-bg: #3a1916;
     --series-auto: #2E9F86;
     --series-third: #5F86CC;
-    --glow-a: 16%;
-    --glow-b: 12%;
     color-scheme: dark;
   }
 }
@@ -71,8 +114,6 @@
   --fail-bg: #3a1916;
   --series-auto: #2E9F86;
   --series-third: #5F86CC;
-  --glow-a: 16%;
-  --glow-b: 12%;
   color-scheme: dark;
 }
 
@@ -87,19 +128,26 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background:
-    radial-gradient(ellipse 70% 55% at 8% -12%, color-mix(in srgb, var(--verdigris) var(--glow-a), transparent), transparent 72%),
-    radial-gradient(ellipse 55% 50% at 105% 105%, color-mix(in srgb, var(--series-third) var(--glow-b), transparent), transparent 72%),
-    var(--bg);
-  background-attachment: fixed;
+  background: var(--bg);
   color: var(--text);
-  font: 15px/1.6 var(--font);
+  font: 400 var(--step-1)/1.55 var(--font-sans);
+  font-feature-settings: "tnum" 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+strong,
+b,
+th {
+  font-weight: 600;
 }
 
 code,
 .mono {
-  font-family: var(--font);
-  font-size: 0.92em;
+  font-family: var(--font-mono);
+  font-size: max(0.92em, var(--step--1));
   overflow-wrap: anywhere;
 }
 
@@ -247,7 +295,7 @@ a:focus-visible,
   border-radius: 14px;
   color: var(--muted);
   text-decoration: none;
-  font-size: 0.7rem;
+  font-size: var(--step--1);
   letter-spacing: 0.02em;
   background: transparent;
 }
@@ -287,7 +335,7 @@ a:focus-visible,
 }
 
 .rail-button {
-  font-family: var(--font);
+  font-family: var(--font-sans);
   cursor: pointer;
 }
 
@@ -306,14 +354,14 @@ main:focus-visible {
 .page-foot {
   margin-top: 28px;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--step--1);
 }
 
 .view-title {
-  font-size: clamp(1.6rem, 2.6vw, 2.2rem);
+  font-size: clamp(var(--step-2), 2.6vw, var(--step-3));
   line-height: 1.2;
   margin: 0 0 12px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .lead {
@@ -323,12 +371,12 @@ main:focus-visible {
 }
 
 h2 {
-  font-size: 1.05rem;
+  font-size: var(--step-1);
   margin: 0 0 6px;
 }
 
 h3 {
-  font-size: 0.98rem;
+  font-size: var(--step-1);
   margin: 16px 0 6px;
 }
 
@@ -338,7 +386,7 @@ h3 {
 }
 
 .note {
-  font-size: 0.9rem;
+  font-size: var(--step-0);
   margin: 0 0 14px;
   max-width: 70ch;
 }
@@ -390,8 +438,8 @@ h3 {
 }
 
 .card-link {
-  font-size: 0.82rem;
-  color: var(--verdigris);
+  font-size: var(--step-0);
+  color: color-mix(in srgb, var(--verdigris) 80%, var(--text));
   text-decoration: none;
 }
 
@@ -401,10 +449,7 @@ h3 {
 
 .pill {
   display: inline-block;
-  padding: 3px 10px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: var(--step--1);
   color: var(--muted);
   white-space: nowrap;
 }
@@ -412,13 +457,44 @@ h3 {
 .hero {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
 }
 
 .hero-title {
   margin: 0;
-  font-size: clamp(1.5rem, 2.4vw, 2.1rem);
-  line-height: 1.2;
+  font-size: clamp(var(--step-3), 3.2vw, var(--step-4));
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--text);
+  color: var(--text);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.button.primary {
+  background: var(--button-bg);
+  border-color: var(--button-bg);
+  color: var(--button-text);
+}
+
+.button:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .hero-text {
@@ -462,20 +538,20 @@ h3 {
 
 .hero-chain text {
   fill: var(--muted);
-  font-family: var(--font);
-  font-size: 11px;
+  font-family: var(--font-sans);
+  font-size: 12px;
 }
 
 .big {
   display: block;
-  font-size: 2.6rem;
-  font-weight: 700;
+  font-size: var(--step-4);
+  font-weight: 600;
   line-height: 1.05;
   font-variant-numeric: tabular-nums;
 }
 
 .big small {
-  font-size: 1.1rem;
+  font-size: var(--step-1);
   color: var(--muted);
   font-weight: 500;
 }
@@ -490,7 +566,7 @@ h3 {
   gap: 18px;
   flex-wrap: wrap;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--step-0);
 }
 
 .now .kv strong {
@@ -537,15 +613,15 @@ h3 {
 
 .ring .ring-value {
   fill: var(--text);
-  font-family: var(--font);
+  font-family: var(--font-sans);
   font-size: 26px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .ring .ring-caption {
   fill: var(--muted);
-  font-family: var(--font);
-  font-size: 11px;
+  font-family: var(--font-sans);
+  font-size: 12px;
 }
 
 .mini-stats {
@@ -561,11 +637,11 @@ h3 {
 
 .mini-stats span {
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: var(--step--1);
 }
 
 .mini-stats strong {
-  font-size: 1.35rem;
+  font-size: var(--step-2);
   font-variant-numeric: tabular-nums;
 }
 
@@ -596,7 +672,7 @@ h3 {
 .rows .row-sub {
   display: block;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--step--1);
 }
 
 .rows a {
@@ -638,20 +714,31 @@ h3 {
 }
 
 .status-text {
-  font-size: 0.78rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--step--1);
   white-space: nowrap;
 }
 
-.status-text.auto {
-  color: var(--series-auto);
+.status-text::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
 }
 
-.status-text.human {
-  color: var(--series-human);
+.status-text.auto::before {
+  background: var(--series-auto);
 }
 
-.status-text.third {
-  color: var(--series-third);
+.status-text.human::before {
+  background: var(--series-human);
+}
+
+.status-text.third::before {
+  background: var(--series-third);
 }
 
 .date-badge {
@@ -666,11 +753,11 @@ h3 {
 }
 
 .date-badge strong {
-  font-size: 1.15rem;
+  font-size: var(--step-2);
 }
 
 .date-badge span {
-  font-size: 0.68rem;
+  font-size: var(--step--1);
   color: var(--muted);
   letter-spacing: 0.06em;
 }
@@ -709,7 +796,7 @@ h3 {
   background: var(--raised);
   text-decoration: none;
   text-align: center;
-  font-size: 0.8rem;
+  font-size: var(--step--1);
 }
 
 .tiles a:hover {
@@ -717,7 +804,7 @@ h3 {
 }
 
 .tiles strong {
-  font-size: 0.95rem;
+  font-size: var(--step-1);
 }
 
 .tiles span {
@@ -744,7 +831,7 @@ h3 {
   grid-template-columns: 210px minmax(0, 1fr) 120px;
   gap: 14px;
   align-items: center;
-  font-size: 0.85rem;
+  font-size: var(--step-0);
 }
 
 .meters .meter {
@@ -774,8 +861,8 @@ h3 {
 
 .vbars text {
   fill: var(--muted);
-  font-family: var(--font);
-  font-size: 11px;
+  font-family: var(--font-sans);
+  font-size: 12px;
 }
 
 .vbars .track {
@@ -843,7 +930,7 @@ h3 {
   align-items: center;
   gap: 8px;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: var(--step-0);
 }
 
 select {
@@ -886,7 +973,7 @@ details label {
 details input {
   display: block;
   width: 100%;
-  font: 0.9rem var(--font);
+  font: var(--step-0) var(--font-mono);
   padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -902,7 +989,7 @@ summary {
 .verdict {
   border-radius: 6px;
   padding: 12px 14px;
-  font-size: 1.05rem;
+  font-size: var(--step-1);
 }
 
 .verdict.pass {
@@ -927,7 +1014,7 @@ summary {
 .check-chain li {
   position: relative;
   text-align: center;
-  font-size: 0.78rem;
+  font-size: var(--step--1);
   color: var(--muted);
   padding-top: 34px;
 }
@@ -959,8 +1046,8 @@ summary {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 0.72rem;
-  font-weight: 700;
+  font-size: var(--step--1);
+  font-weight: 600;
 }
 
 .check-chain .pass .pin {
@@ -989,7 +1076,7 @@ summary {
 .summary dd {
   margin: 0;
   overflow-wrap: anywhere;
-  font-size: 0.88rem;
+  font-size: var(--step-0);
 }
 
 #result h2 {
@@ -1004,7 +1091,7 @@ summary {
 table {
   border-collapse: collapse;
   width: 100%;
-  font-size: 0.9rem;
+  font-size: var(--step-0);
 }
 
 th,
@@ -1058,7 +1145,7 @@ th.num {
   margin: 6px 0 0;
   padding-left: 20px;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--step-0);
   overflow-wrap: anywhere;
 }
 
@@ -1068,8 +1155,8 @@ th.num {
   margin-right: 8px;
   padding: 1px 6px;
   border-radius: 4px;
-  font-size: 0.8rem;
-  font-weight: 700;
+  font-size: var(--step--1);
+  font-weight: 600;
   text-align: center;
 }
 
@@ -1089,7 +1176,7 @@ th.num {
   display: inline-block;
   padding: 1px 8px;
   border-radius: 999px;
-  font-size: 0.78rem;
+  font-size: var(--step--1);
   font-weight: 600;
   border: 1px solid var(--border);
   white-space: nowrap;
@@ -1176,7 +1263,7 @@ th.num {
 
 .chart text {
   fill: var(--muted);
-  font-family: var(--font);
+  font-family: var(--font-sans);
   font-size: 12px;
 }
 
@@ -1270,7 +1357,7 @@ th.num {
   padding: 0;
   display: grid;
   gap: 8px;
-  font-size: 0.9rem;
+  font-size: var(--step-0);
 }
 
 .legend li {
@@ -1285,7 +1372,7 @@ th.num {
   flex-wrap: wrap;
   gap: 8px 18px;
   margin-top: 12px;
-  font-size: 0.85rem;
+  font-size: var(--step-0);
 }
 
 .legend-row li {
@@ -1301,14 +1388,14 @@ th.num {
 }
 
 .legend .count {
-  font-weight: 700;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
 .donut-total {
   fill: var(--text);
   font-size: 30px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .donut-caption {
@@ -1391,7 +1478,7 @@ th.num {
 .live dt,
 .facts dt {
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: var(--step-0);
 }
 
 .live dd,
@@ -1413,13 +1500,13 @@ th.num {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px 10px;
-  font-size: 0.82rem;
+  font-size: var(--step-0);
   background: var(--raised);
 }
 
 .record-grid strong {
   display: block;
-  font-size: 0.9rem;
+  font-size: var(--step-0);
 }
 
 .steps {
@@ -1467,16 +1554,16 @@ th.num {
 }
 
 .steps .step-head {
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .steps .step-meta {
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--step-0);
 }
 
 .steps .step-body {
-  font-size: 0.9rem;
+  font-size: var(--step-0);
   margin-top: 2px;
 }
 
@@ -1498,7 +1585,7 @@ th.num {
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 2px 10px;
-  font-size: 0.82rem;
+  font-size: var(--step-0);
   background: var(--raised);
 }
 
@@ -1527,7 +1614,7 @@ th.num {
 .matrix .reason {
   display: block;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--step--1);
 }
 
 .plain {
@@ -1552,7 +1639,7 @@ th.num {
   border-radius: 6px;
   background: var(--ink);
   color: var(--mist);
-  font-size: 0.82rem;
+  font-size: var(--step-0);
   line-height: 1.4;
   pointer-events: none;
   box-shadow: 0 4px 14px color-mix(in srgb, var(--ink) 30%, transparent);
@@ -1624,8 +1711,8 @@ th.num {
 .intro-tagline {
   margin: 0;
   color: var(--text);
-  font-family: -apple-system, "Segoe UI", Roboto, "Noto Sans", Ubuntu, "Helvetica Neue", Arial, sans-serif;
-  font-size: 1.25rem;
+  font-family: var(--font-sans);
+  font-size: var(--step-2);
   font-weight: 500;
 }
 
@@ -1635,7 +1722,7 @@ th.num {
   bottom: 20px;
   border-color: var(--border);
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--step-0);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -1944,7 +2031,7 @@ th.num {
   .nav a,
   .rail-button {
     padding: 8px 2px 6px;
-    font-size: 0.62rem;
+    font-size: var(--step--1);
   }
 
   .rail-foot {
