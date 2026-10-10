@@ -218,3 +218,9 @@ Entry template:
 - Result: `coorre verify` against devnet on the six committed bundles: 7/7 each. Rust 184 tests and verifier page 17 tests pass. The social preview now served by GitHub for the repository is pixel-identical to docs/assets/social-preview.png.
 - Limitations / deviations: GitHub Pages is still not published.
 - Commit(s): chore: keep the devnet bundles of the six remaining domain cases; docs: shorten the sentence on how the team formed; docs: record the versioned bundles in the evidence log
+
+### 2026-10-09 23:53 BRT — README in English and Brazilian Portuguese
+- Authors: Clarkson Bartalini and Ramon Porto.
+- Work: README.pt-BR.md, a full translation of the README with the same 18 sections, images, diagrams, commands, links, figures and sources; the tagline "Provable decisions for AI agents." stays in English, as in the animations and the social image, which are unchanged. A language switcher at the top of both files. Source titles are kept in their original language; the translation of the figures and of the legal references was checked against the pages already cited (LGPD article 20, Law 4.320/1964 articles 62 and 63, Law 14.119/2021 article 6 paragraph 6, Law 13.019/2014 article 48). A new test keeps both files in step: same sections, details blocks, pictures, Mermaid diagrams, commands, links and cited figures, and every relative link resolves; it was checked to fail when one command or one section is removed from the Portuguese file.
+- Result: both files render through GitHub's markdown API with the same structure (18 sections, 12 details blocks, 3 picture elements, 2 Mermaid diagrams); no em dashes; Rust 188 tests pass.
+- Commit(s): docs: add the README in Brazilian Portuguese; test: keep the English and Portuguese READMEs in step; docs: record the bilingual README in the evidence log
