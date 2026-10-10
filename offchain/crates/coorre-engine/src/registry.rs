@@ -6,6 +6,7 @@ use crate::ecosystem_services;
 use crate::error::{EngineError, Result};
 use crate::milestone;
 use crate::rule::{self, Decision, DocumentArtifact, SupplierDocsInput};
+use crate::service_delivery;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RuleId {
@@ -13,6 +14,7 @@ pub enum RuleId {
     AgentPurchase,
     EcosystemServicesPayment,
     MilestonePayment,
+    ServiceDelivery,
 }
 
 fn parse_rule_document(source: &str, id: &str, version: &str) -> Result<Value> {
@@ -33,17 +35,19 @@ pub struct ParsedArtifact {
 }
 
 impl RuleId {
-    pub const ALL: [RuleId; 4] = [
+    pub const ALL: [RuleId; 5] = [
         RuleId::SupplierDocs,
         RuleId::AgentPurchase,
         RuleId::EcosystemServicesPayment,
         RuleId::MilestonePayment,
+        RuleId::ServiceDelivery,
     ];
 
     pub fn id(self) -> &'static str {
         match self {
             RuleId::SupplierDocs => rule::RULE_ID,
             RuleId::AgentPurchase => agent_purchase::RULE_ID,
+            RuleId::ServiceDelivery => service_delivery::RULE_ID,
             RuleId::MilestonePayment => milestone::RULE_ID,
             RuleId::EcosystemServicesPayment => ecosystem_services::RULE_ID,
         }
@@ -53,6 +57,7 @@ impl RuleId {
         match self {
             RuleId::SupplierDocs => rule::RULE_VERSION,
             RuleId::AgentPurchase => agent_purchase::RULE_VERSION,
+            RuleId::ServiceDelivery => service_delivery::RULE_VERSION,
             RuleId::MilestonePayment => milestone::RULE_VERSION,
             RuleId::EcosystemServicesPayment => ecosystem_services::RULE_VERSION,
         }
@@ -71,6 +76,11 @@ impl RuleId {
                 agent_purchase::RULE_DOCUMENT,
                 agent_purchase::RULE_ID,
                 agent_purchase::RULE_VERSION,
+            ),
+            RuleId::ServiceDelivery => parse_rule_document(
+                service_delivery::RULE_DOCUMENT,
+                service_delivery::RULE_ID,
+                service_delivery::RULE_VERSION,
             ),
             RuleId::MilestonePayment => parse_rule_document(
                 milestone::RULE_DOCUMENT,
@@ -115,6 +125,7 @@ impl RuleId {
                 })
             }
             RuleId::AgentPurchase => agent_purchase::parse_artifact(bytes),
+            RuleId::ServiceDelivery => service_delivery::parse_artifact(bytes),
             RuleId::MilestonePayment => milestone::parse_artifact(bytes),
             RuleId::EcosystemServicesPayment => ecosystem_services::parse_artifact(bytes),
         }
@@ -138,6 +149,12 @@ impl RuleId {
                     .collect::<Result<_>>()?,
             }),
             RuleId::AgentPurchase => agent_purchase::evaluate(
+                evaluation_date,
+                amount_lamports,
+                autonomy_limit_lamports,
+                documents,
+            ),
+            RuleId::ServiceDelivery => service_delivery::evaluate(
                 evaluation_date,
                 amount_lamports,
                 autonomy_limit_lamports,
@@ -198,7 +215,7 @@ mod tests {
         );
     }
 
-    const PINNED_RULE_HASHES: [(RuleId, &str); 4] = [
+    const PINNED_RULE_HASHES: [(RuleId, &str); 5] = [
         (RuleId::SupplierDocs, SUPPLIER_DOCS_RULE_HASH),
         (
             RuleId::AgentPurchase,
@@ -211,6 +228,10 @@ mod tests {
         (
             RuleId::MilestonePayment,
             "bb7edb9e6d965c6c508d1f3abcb56000811e7dbd4fe558145dddc874bc37ed85",
+        ),
+        (
+            RuleId::ServiceDelivery,
+            "c8ef062c4eb22745086f9ff84b143c5549b06aef0079aa3e52327a0a9928e21c",
         ),
     ];
 
@@ -320,6 +341,29 @@ mod tests {
         assert_eq!(
             evaluate_case(RuleId::MilestonePayment, &mil_002, 20_000_000, 30_000_000).reasons(),
             ["open findings in the accountability report"]
+        );
+    }
+
+    #[test]
+    fn service_delivery_fixtures_give_the_documented_decisions() {
+        let files = |id: &str| {
+            [
+                format!("{id}/service-contract.json"),
+                format!("{id}/acceptance-record.json"),
+                format!("{id}/invoice.json"),
+            ]
+        };
+        let srv_001 = files("SRV-001");
+        let srv_001: Vec<&str> = srv_001.iter().map(String::as_str).collect();
+        assert_eq!(
+            evaluate_case(RuleId::ServiceDelivery, &srv_001, 20_000_000, 30_000_000),
+            Decision::AutoApproved
+        );
+        let srv_002 = files("SRV-002");
+        let srv_002: Vec<&str> = srv_002.iter().map(String::as_str).collect();
+        assert_eq!(
+            evaluate_case(RuleId::ServiceDelivery, &srv_002, 20_000_000, 30_000_000).reasons(),
+            ["invoice issued before acceptance"]
         );
     }
 

@@ -1,0 +1,24 @@
+{
+  "id": "service-delivery",
+  "version": "1",
+  "description": "Auto-approve the payment of a service contract only when the contract, the acceptance record and the invoice refer to the same contract, the provider on the invoice is the contracted one, the deliverable was accepted within the contract validity, the invoice was issued on or after the acceptance, the amount equals the invoice, the invoice fits the price cap, and the amount is within the automated actor's autonomy limit; otherwise escalate to the human approver with one reason per failed condition, in the order listed.",
+  "requiredDocuments": ["service_contract", "acceptance_record", "invoice"],
+  "documentLabels": {
+    "service_contract": "service contract",
+    "acceptance_record": "acceptance record",
+    "invoice": "invoice"
+  },
+  "dates": "calendar dates YYYY-MM-DD; comparisons are inclusive",
+  "conditions": [
+    { "check": "each required document kind is submitted exactly once", "reason": "<label> missing | <label> submitted more than once" },
+    { "check": "service_contract.contract_number == acceptance_record.contract_number == invoice.contract_number", "reason": "contract number differs between documents" },
+    { "check": "service_contract.provider == invoice.provider", "reason": "provider differs between contract and invoice" },
+    { "check": "service_contract.valid_from <= acceptance_record.accepted_on <= service_contract.valid_until", "reason": "acceptance outside the contract validity" },
+    { "check": "invoice.issued_on >= acceptance_record.accepted_on", "reason": "invoice issued before acceptance" },
+    { "check": "amount_lamports == invoice.amount_lamports", "reason": "amount differs from the invoice" },
+    { "check": "invoice.amount_lamports <= service_contract.price_cap_lamports", "reason": "invoice amount exceeds the price cap" }
+  ],
+  "notEvaluated": "a condition that reads a missing or duplicated document is not evaluated",
+  "mandate": { "check": "amount_lamports <= autonomy_limit_lamports", "reason": "amount exceeds autonomy limit" },
+  "outcomes": { "pass": "AUTO_APPROVED", "fail": "ESCALATED" }
+}

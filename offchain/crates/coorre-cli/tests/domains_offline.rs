@@ -21,7 +21,7 @@ struct Expected {
     log_line: &'static str,
 }
 
-const EXPECTED: [Expected; 6] = [
+const EXPECTED: [Expected; 8] = [
     Expected {
         id: "AGT-001",
         rule: "agent-purchase",
@@ -63,6 +63,20 @@ const EXPECTED: [Expected; 6] = [
         final_state: CaseState::Rejected,
         rogue: None,
         log_line: "escalated to the human approver: open findings in the accountability report",
+    },
+    Expected {
+        id: "SRV-001",
+        rule: "service-delivery",
+        final_state: CaseState::AutoApproved,
+        rogue: None,
+        log_line: "within the mandate: escrow released to the payee",
+    },
+    Expected {
+        id: "SRV-002",
+        rule: "service-delivery",
+        final_state: CaseState::Rejected,
+        rogue: None,
+        log_line: "escalated to the human approver: invoice issued before acceptance",
     },
 ];
 

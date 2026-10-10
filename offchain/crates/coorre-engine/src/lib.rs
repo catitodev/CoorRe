@@ -6,6 +6,7 @@ pub mod machine;
 pub mod milestone;
 pub mod registry;
 pub mod rule;
+pub mod service_delivery;
 
 pub use error::{EngineError, Result};
 pub use machine::{

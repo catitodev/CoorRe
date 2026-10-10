@@ -20,6 +20,7 @@ Further domains (off-chain rules in the registry, ADR-005; synthetic documents; 
 - agent-purchase v1 (purchase request, supplier quote, supplier registration): AGT-001 → AUTO_APPROVED; AGT-002, supplier registration expired and amount above the limit → MandateExceeded attempt rejected → ESCALATED with both reasons → APPROVED.
 - ecosystem-services-payment v1 (contract for payments for ecosystem services, monitoring report): PES-001 → AUTO_APPROVED; PES-002, verified area below the committed area and amount above the limit → MandateExceeded attempt rejected → ESCALATED with both reasons → APPROVED.
 - milestone-payment v1 (funding agreement, milestone report, accountability report): MIL-001 → AUTO_APPROVED; MIL-002, open findings on a previous installment, amount within the limit → ESCALATED with that reason → REJECTED → escrow refunded to the creator.
+- service-delivery v1 (service contract, acceptance record, invoice): SRV-001 → AUTO_APPROVED; SRV-002, invoice issued before the acceptance, amount within the limit → ESCALATED with that reason → REJECTED → escrow refunded to the creator.
 
 ## 3. Evidence model
 - JSON compatible with W3C VC Data Model 2.0. Canonicalization RFC 8785 (JCS). evidence_hash = SHA-256(JCS(document without "proof")).

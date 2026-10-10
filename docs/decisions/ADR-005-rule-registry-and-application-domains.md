@@ -39,6 +39,7 @@ build could show one process only.
 | agent-purchase v1 | Purchases prepared by AI agents | purchase request, supplier quote, supplier registration |
 | ecosystem-services-payment v1 | Payments for ecosystem services with monitoring evidence | contract, monitoring report |
 | milestone-payment v1 | Milestone payments in funded projects, with accountability | funding agreement, milestone report, accountability report |
+| service-delivery v1 | Service contracts delivered by consultancies | service contract, acceptance record, invoice |
 
 ## What this does not prove
 - That the documents are genuine. Every document in the demo is synthetic; a real

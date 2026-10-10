@@ -132,6 +132,37 @@
         "justification": "Two findings on the previous installment are still open; this installment stays withheld until they are remedied and the escrow returns to the fund."
       },
       "demo": false
+    },
+    {
+      "id": "SRV-001",
+      "rule": { "id": "service-delivery", "version": "1" },
+      "payee": "Consultoria Demo Alfa Ltda",
+      "amount_lamports": "20000000",
+      "autonomy_limit_lamports": "30000000",
+      "documents": [
+        "SRV-001/service-contract.json",
+        "SRV-001/acceptance-record.json",
+        "SRV-001/invoice.json"
+      ],
+      "approver": null,
+      "demo": false
+    },
+    {
+      "id": "SRV-002",
+      "rule": { "id": "service-delivery", "version": "1" },
+      "payee": "Consultoria Demo Beta Ltda",
+      "amount_lamports": "20000000",
+      "autonomy_limit_lamports": "30000000",
+      "documents": [
+        "SRV-002/service-contract.json",
+        "SRV-002/acceptance-record.json",
+        "SRV-002/invoice.json"
+      ],
+      "approver": {
+        "decision": "reject",
+        "justification": "The invoice predates the acceptance of the deliverable; payment is refused, the escrow returns to the contracting party and a new invoice must be issued after acceptance."
+      },
+      "demo": false
     }
   ]
 }

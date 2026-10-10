@@ -1,0 +1,11 @@
+{
+  "synthetic": true,
+  "kind": "service_contract",
+  "issuer": "Contratante Demo (demo data)",
+  "contract_number": "CT-2026-0045",
+  "provider": "Consultoria Demo Alfa Ltda",
+  "scope": "Water governance diagnostic report (demo data)",
+  "price_cap_lamports": "25000000",
+  "valid_from": "2026-03-01",
+  "valid_until": "2027-02-28"
+}
