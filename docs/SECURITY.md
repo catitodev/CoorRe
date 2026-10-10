@@ -1,7 +1,7 @@
 # Security Notes and Threat Model (living document)
 
 ## Privileged roles
-Creator/operator (opens and funds cases), submitter/payee, agent, rule_engine, approver. Four role keys must be distinct per case. Program upgrade authority: Playground wallet on devnet (backed up in .local/); production target: Squads multisig.
+Creator/operator (opens and funds cases), submitter/payee, agent, rule_engine, approver. Four role keys must be distinct per case. Program upgrade authority: Playground wallet on devnet (backed up in .local/); a Squads multisig is a next step.
 
 ## Threats and controls
 - Case squatting (someone opens our case_id first): CaseRecord PDA seeds include the creator.
@@ -23,10 +23,12 @@ Creator/operator (opens and funds cases), submitter/payee, agent, rule_engine, a
 - Payout stuck at the end of a case (payee left below the rent-exempt minimum): open_case rejects any `amount` below the rent-exempt minimum of a zero-data account, read from the Rent sysvar at runtime (AmountBelowRentExempt).
 - Supply chain: pinned versions, committed lockfiles, CI on every push.
 - Secrets: keys only in .local/ (gitignored); never logged.
-- Wrong network: the bridge refuses to send unless the RPC reports the devnet genesis hash; mainnet is never reachable by accident.
+- Wrong network: the bridge refuses to send unless the RPC reports the devnet genesis hash, so no other cluster is reachable by accident.
 - Key files: the bridge and the CLI refuse key files readable by group or others and keypairs whose public half does not match the seed; key material never appears in output or errors. The CLI spawns the bridge without a shell, with a cleared environment that carries only PATH and the COORRE_* settings.
 - Bridge input: strict JSON members, canonical hex/u64/base58 parsing, validated before any network call; the bridge is spawned without a shell.
 - Browser verifier: bundle content is rendered as text only (no innerHTML or eval, enforced by a test), Explorer links only after base58 validation, Content-Security-Policy `default-src 'none'` with scripts from the page itself and `wasm-unsafe-eval` for WebAssembly; the only data sent out is the list of public account addresses in one `getMultipleAccounts` call per verification, plus one per page load for the dashboards (the program, its program data and the recorded case records). The dashboards render data generated from the committed bundles, as text and SVG built with DOM methods; theme and intro preferences are kept in the viewer's own browser storage only.
+- Offline verification from a recorded snapshot (`coorre verify --accounts`): the snapshot is a claim by whoever recorded it, so a pass proves agreement with the recorded accounts, not with the chain; the transaction signatures and slots in docs/evidence/devnet-snapshot/ allow an independent re-check. The capture script only calls read methods, refuses an RPC that does not report the devnet genesis hash, requires https and records only the RPC origin, so an API key in the URL never reaches the repository. Attacks run against the recorded cases are in docs/evidence/ATTACK_MATRIX.md.
+- Zcash memo (`coorre zcash-memo`): offline only, no keys and no network. A memo links a payment to an anchored decision; it is written by the payer and does not prove the payer followed the decision (docs/design/ZCASH_READINESS.md).
 - Build supply chain of the verifier: wasm-bindgen pinned to `=0.2.128` in the crate; CI downloads the official CLI release and checks its pinned SHA-256 before use.
 
 ## Bridge dependencies (checked 2026-10-08)
