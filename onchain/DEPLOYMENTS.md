@@ -74,6 +74,65 @@ artifact, check 1 FAILS and the command exits 1. Balances read from the chain: t
 submitter received exactly 50,000,000 + 200,000,000 lamports; both case records are
 back to their rent-exempt minimum (1,940,560); the creator spent 0.26519808 SOL.
 
+### Domain cases on devnet: `coorre demo run --case …` (2026-10-10 02:12 UTC)
+
+Eight cases under the four rules added in ADR-005 (agent-purchase v1,
+ecosystem-services-payment v1, milestone-payment v1, service-delivery v1), with
+synthetic documents, case references `urn:coorre:case:<ID>-20261010T021202Z` and the
+same demo keys and program. The program was not changed or redeployed.
+
+| Case | Step | Transaction |
+|---|---|---|
+| AGT-001 | OPEN | [`oviyg7cqHPknBTVY…`](https://explorer.solana.com/tx/oviyg7cqHPknBTVYLM5gMie9aFSQ3ByH6Q1bwUt55WTt7grJoxFQypGJ8eiDMSDZQzgDQj2Xtoy87Ku2R4jmb2X?cluster=devnet) |
+| AGT-001 | SUBMITTED | [`3eGzARKUYdkMrKF6…`](https://explorer.solana.com/tx/3eGzARKUYdkMrKF66zmhU7Kc9VHW1KWAdSjRgwTfQGadACJEBNp4cN9TbJNaLLqAQuHTCFTVZ8TPKuQgFDeYX3Tc?cluster=devnet) |
+| AGT-001 | AGENT_REVIEWED | [`4cFpuRsrY4T6fr5F…`](https://explorer.solana.com/tx/4cFpuRsrY4T6fr5FLVoMiEKKhMxpZQr4sDDVMzdpEjYSvbXtS883P9aZ3rFXDLT6NAySQ54azB88EN81ENtfFuC8?cluster=devnet) |
+| AGT-001 | AUTO_APPROVED | [`3rTeiVAQN8MbEKrG…`](https://explorer.solana.com/tx/3rTeiVAQN8MbEKrGJ5E9f1zbhd2tRLHqG35uDuGkLmcZAMTWpK5WfczpfpxysZ4htvevSN1qksPac3QYmkVvJFkY?cluster=devnet) |
+| AGT-002 | OPEN | [`3i4aQHJcVa6wEw8G…`](https://explorer.solana.com/tx/3i4aQHJcVa6wEw8GLEQfaWtitFiTjUx8C7J93HwjQqpUGuV96SpZfK1bqNQckma4QmEHBRwFcBYpCK4FM2ZjSSMm?cluster=devnet) |
+| AGT-002 | SUBMITTED | [`4FmPEnsFzdeZb9TS…`](https://explorer.solana.com/tx/4FmPEnsFzdeZb9TS3EjTsfXFLtMRkM4JpW46X3vWXxsopLwVTzmehbwr2GqcF3Zoc7CNL4uYwsUAbiNfPFbxtJGN?cluster=devnet) |
+| AGT-002 | AGENT_REVIEWED | [`54KpR4AG9PoR1qHV…`](https://explorer.solana.com/tx/54KpR4AG9PoR1qHVEijafpiunJ7t3j1qF3pxiS8tPznsNt8ZroidF2wArjYt9REH1yrNF4Q4oQRCJJwWQGaXgPw?cluster=devnet) |
+| AGT-002 | ROGUE AUTO_APPROVED (rule_engine key, 0.04 SOL > 0.03 SOL limit) | rejected in simulation: `MandateExceeded`, no transaction |
+| AGT-002 | ESCALATED | [`3RLknXh5PGkcCFh8…`](https://explorer.solana.com/tx/3RLknXh5PGkcCFh8Vah97pevU3gBBKCoSvwFozCaAMKxrdopr9CUJgi266KkunVJV2kjbxn1B24YQ5bsQNR4qzxY?cluster=devnet) |
+| AGT-002 | APPROVED | [`NmdtA5YRW1nBTmiB…`](https://explorer.solana.com/tx/NmdtA5YRW1nBTmiBqEQJSpitnMQyQLpUZXSGNUTFJ6fSQR9WTXtkrEM54drMT3tavcFvxV221SFpPN9icqGvBmn?cluster=devnet) |
+| PES-001 | OPEN | [`53BCxhKYDFEtGRpn…`](https://explorer.solana.com/tx/53BCxhKYDFEtGRpnqiiXMPoCYQvHZ47fqyv8bKUn6pKnzjjHoaFHbJvQrYEw8axJHoWcuzCEX1SwMPiahFHZ9r2m?cluster=devnet) |
+| PES-001 | SUBMITTED | [`dp8A3LGcAdbRbiqG…`](https://explorer.solana.com/tx/dp8A3LGcAdbRbiqGRYP6qBHC7BSLaMJifrUKRfAXn2xwQf9qjtKxbBpCsFoHvkkEKZHgx9dBmyX5Bh24wBnyH9c?cluster=devnet) |
+| PES-001 | AGENT_REVIEWED | [`4bfLaeZtrxQZS6QP…`](https://explorer.solana.com/tx/4bfLaeZtrxQZS6QPtXfg8smpJeA66CCtpQGFv2Vf8gaj18oMR49gJ9jrcAQh96KvgxcLYmPGfHViwoieu4sC9WP7?cluster=devnet) |
+| PES-001 | AUTO_APPROVED | [`3uzkLCcMmUUUkbPT…`](https://explorer.solana.com/tx/3uzkLCcMmUUUkbPT3fGwmYHAr9vyxjG3zh3URbw1bP7iF6AM3WN56ePcJVUv7cdrHvAGZ3hu1DSHWg9eRVwm8LSY?cluster=devnet) |
+| PES-002 | OPEN | [`2GEFbzGL95UNPYE3…`](https://explorer.solana.com/tx/2GEFbzGL95UNPYE3gs7zMFZ5uRGghmHh8EsTDrXqte1scNHMj3BDXvSxWzhTuJMtr8pDYNwbnBLeKjTP9ccgHgE7?cluster=devnet) |
+| PES-002 | SUBMITTED | [`2kCWRni2YVAFYiaH…`](https://explorer.solana.com/tx/2kCWRni2YVAFYiaHAc2sGtk3DNi298PUXD22irSmEorSiM5JByjLWvJC6nRgfBpQCKomLH7Mf75osa8cnYWdGvab?cluster=devnet) |
+| PES-002 | AGENT_REVIEWED | [`br3TKct7Bs2qpW3M…`](https://explorer.solana.com/tx/br3TKct7Bs2qpW3M225xZf7N7FpJijqjMhEnvfE6ojf2uj2nvEKtMCG78nBrNm2wt8irKH1cd9UySCiXpYViZAo?cluster=devnet) |
+| PES-002 | ROGUE AUTO_APPROVED (rule_engine key, 0.04 SOL > 0.03 SOL limit) | rejected in simulation: `MandateExceeded`, no transaction |
+| PES-002 | ESCALATED | [`3ZgrVx7zs7Ncvyax…`](https://explorer.solana.com/tx/3ZgrVx7zs7NcvyaxFFPpFEBccjg7BYmZK7QtbJmCsPXM93JZo9fmE3ro1bg639MNMDkfDjNoX5YRcNLGVHhznbov?cluster=devnet) |
+| PES-002 | APPROVED | [`5WrgY3n5ViURcBRi…`](https://explorer.solana.com/tx/5WrgY3n5ViURcBRiwV1jQvBkj2NPDevy4p6SVWyr8kVUQwMmi819yxQXAUYFxaw1jcemKRPTJrQwLPvdGLsurPLx?cluster=devnet) |
+| MIL-001 | OPEN | [`zFxocbbvjXQQYZCn…`](https://explorer.solana.com/tx/zFxocbbvjXQQYZCnGtxsFMgeeXtaha3yyTZDFiF5nJYBRPSKcnGDMwCsxA9nh8C2bJocsxeXYvb2ukGwwsDXPN1?cluster=devnet) |
+| MIL-001 | SUBMITTED | [`3L3v77XYq3kDhqqj…`](https://explorer.solana.com/tx/3L3v77XYq3kDhqqjp1SvzobWVRkQahGdRawgt9H6UNS6kntyRMBRkdCfdEyxQPKCSMx2ZENQnTMijTSTqeDsgLnx?cluster=devnet) |
+| MIL-001 | AGENT_REVIEWED | [`5wLM95TjVzgX8GUq…`](https://explorer.solana.com/tx/5wLM95TjVzgX8GUq6fQ1djfVhvc5oPrutsm9Dvo5dwSFF5oadVJVXkDdJzU72kBFfGh52yp18KLuTUtDMCDu6Th1?cluster=devnet) |
+| MIL-001 | AUTO_APPROVED | [`5TMsTFENPinNkwqe…`](https://explorer.solana.com/tx/5TMsTFENPinNkwqeGLP6DPQJgAEyo2JNXgDxGQSoKTb7SPuvxGdJSsqwdQj64B1ekgXoWVnwV53EisF5FuJScEt3?cluster=devnet) |
+| MIL-002 | OPEN | [`4b6SBRQpBm4Ffr2j…`](https://explorer.solana.com/tx/4b6SBRQpBm4Ffr2jFEGeLNfcXG5butzGvvAFrzaQnqmef9fwcXMMfQDdVrfV6e911juKgCFegNVhQDBWrTdR2M5p?cluster=devnet) |
+| MIL-002 | SUBMITTED | [`2mu9rX5oAYEu5igr…`](https://explorer.solana.com/tx/2mu9rX5oAYEu5igr9jTt17rRLgsyqthdNgheUTYQj1yF7Vy9Qpmury6ByoRfV7yxVM7dZaXM7v89TwtCPbGtjCg5?cluster=devnet) |
+| MIL-002 | AGENT_REVIEWED | [`62PSbga61XwJu9KB…`](https://explorer.solana.com/tx/62PSbga61XwJu9KBZugrTco4C9Fnyg6whCgjy56Z2scD9v9fLiG6W4yKw5mqnCmC3ypznyRYF9ZAxhZ6HAowbgDk?cluster=devnet) |
+| MIL-002 | ESCALATED | [`NtYBxozNsoVzKKb3…`](https://explorer.solana.com/tx/NtYBxozNsoVzKKb3of5QSnP2YVBKC5n2NKCwN2dt7FcXHKfbPQ395UYaFe32Qnbd4V8p7Lu2gpspzn4HhwXuA18?cluster=devnet) |
+| MIL-002 | REJECTED | [`5rW4veHJEtHiDHsQ…`](https://explorer.solana.com/tx/5rW4veHJEtHiDHsQJphtp8TtvUpSyLYBMLAGBbDCbyZYLXQVUwc91fjqsqi9yNUKa4G4MAC9BodBi1PS2Gd6vrDF?cluster=devnet) |
+| SRV-001 | OPEN | [`3ELKd6fLAcTcxvmM…`](https://explorer.solana.com/tx/3ELKd6fLAcTcxvmMQ2E66E22TZx5dzC9zFXXcGbv2apGu1jLpa5bq4byutqeyTtj2f2kRVrFz6uHNcnVyw6BjynZ?cluster=devnet) |
+| SRV-001 | SUBMITTED | [`3MJsmDmzRbqczKgN…`](https://explorer.solana.com/tx/3MJsmDmzRbqczKgNuc254LTi1CkxTYMqHP778V6SLwPxbuFhr2CBDAyaBCD1N44MagovdmGXQNv3hAUoqCzThpAe?cluster=devnet) |
+| SRV-001 | AGENT_REVIEWED | [`JGhS8sgMkMrFevqD…`](https://explorer.solana.com/tx/JGhS8sgMkMrFevqD4x8FYFgxd9PirqTdNtDMSHH9HnXK7u8z8zzNNPHZkr4gZAs3SwXWvFcPE5rJe722XXRrJ4N?cluster=devnet) |
+| SRV-001 | AUTO_APPROVED | [`2JMRXjZ6sRHqCKJN…`](https://explorer.solana.com/tx/2JMRXjZ6sRHqCKJN5p4nMAxnyESL8tgLLRqiEyQ8WJPQkaB3HaDs33TFE1DkQVqFvSU6jXosQLWDebV98YRySeAb?cluster=devnet) |
+| SRV-002 | OPEN | [`3UpfGdFAQgr1rUAF…`](https://explorer.solana.com/tx/3UpfGdFAQgr1rUAFbG9jTAd5yXD9hLVy5sU2gKuY43bExqJ7dZPq3gJtRh5ukYbWGZUNg3g4nemu41GKuwQ6dZWh?cluster=devnet) |
+| SRV-002 | SUBMITTED | [`3PvVQHZBnk3cGjPb…`](https://explorer.solana.com/tx/3PvVQHZBnk3cGjPbk62T6siyPQTYUDH4MbovdrkWU4Nv6k1at9rVmiipaH1oK7SMKR92QYNifDAPAaUrnbSNvykv?cluster=devnet) |
+| SRV-002 | AGENT_REVIEWED | [`6KDZP7dBCvbudAdP…`](https://explorer.solana.com/tx/6KDZP7dBCvbudAdPw4KNjhExQ4Fiqxo64fFDL2BkppoyZ2hFJBqg29QTJMbYoJg9nmUp7euYNXs5R4aQtu6wctD?cluster=devnet) |
+| SRV-002 | ESCALATED | [`3mxYzpp1FDWFrKv1…`](https://explorer.solana.com/tx/3mxYzpp1FDWFrKv1wzgzXksqTPzz1c4E46THwwrUojW5173aoFFkRLZmnKTHMKVdwWiMwBut9EVFyWBLGfpTPDNj?cluster=devnet) |
+| SRV-002 | REJECTED | [`3FV3ThfPDWuvyND9…`](https://explorer.solana.com/tx/3FV3ThfPDWuvyND9LfF8kr1XJaWFPTbgmCr2jMthh28U9NJBfek3M8TGheLK3G7pLzcizEoKfQcrCLzMnhg9Wpa4?cluster=devnet) |
+
+Case records: AGT-001 `HFkXBQAZsR5fv9ydjUHGhSzjcbxi4qFNAdz3tVoguVDV` (AUTO_APPROVED), AGT-002 `4tkhyE96rDPd3hCZvxge8i5sYNGmkH4SAsdK5SgJFeQz` (APPROVED), PES-001 `6VKegWgguGwfoqpSkgWYCViqPjsvwqv5uX4vRFbVRGsT` (AUTO_APPROVED), PES-002 `Fg7PbduC8r5KWM8WkRxqsDXfyHoqkBjM9HCaCe8csAF1` (APPROVED), MIL-001 `EJutNMDdpkjw72S5mMbXqgkuwjjF9y7jNYgUaicLLbFJ` (AUTO_APPROVED), MIL-002 `G46pdzcfhWgSJhiNvV36sxGussmWJ7kwaoRd3QDFpmRL` (REJECTED), SRV-001 `CzWgCr1HtwrHzC1Wwy4CGmkDeC6CaDrtWykrWhct9zSb` (AUTO_APPROVED), SRV-002 `DNPDxAjex72NgF9xKRZdLzvywMtmBUWDU2wcTZhGzSLm` (REJECTED).
+
+`coorre verify` run separately on all eight bundles against devnet: 7/7 PASS each, exit 0.
+With one byte flipped in a copy of a document (AGT-002 and PES-002), checks 1 and 7 FAIL
+and the command exits 1. Balances read from the chain: the creator went from
+727,010,520 to 506,218,200 lamports (220,792,320 spent: 160,000,000 released to the
+submitter for the six approved cases, 60,472,320 of rent for eight case records and 28
+evidence anchors, 320,000 of fees; the 40,000,000 escrowed by MIL-002 and SRV-002 was
+refunded); the submitter received exactly 160,000,000 lamports; every case record is
+back to its rent-exempt minimum (1,940,560). AGT-002 and PES-002 are the browser samples
+in web/verifier/samples.
 
 ## Spike: `playground_spike` (2026-10-08)
 
