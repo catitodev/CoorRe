@@ -84,6 +84,26 @@ test("the intro draws the logo from the brand geometry, not from a font", () => 
   for (const d of [...lockup.matchAll(/ d="([^"]+)"/g)].map((m) => m[1])) assert.ok(html.includes(d), d.slice(0, 30));
 });
 
+test("the rail logo is framed so no part of the mark is cut", () => {
+  const svg = /<svg class="rail-logo" viewBox="([^"]+)"[^>]*>([\s\S]*?)<\/svg>/.exec(html);
+  assert.ok(svg, "rail logo not found");
+  const [x0, y0, w, h] = svg[1].split(/\s+/).map(Number);
+  const stroke = Number(/\.mark-arc \{[^}]*stroke-width: (\d+)/.exec(css)[1]);
+  const arc = /d="M ([\d.]+) ([\d.]+) A ([\d.]+) [\d.]+ 0 1 0 ([\d.]+) ([\d.]+)"/.exec(svg[2]).slice(1).map(Number);
+  const [ax, ay1, r, , ay2] = arc;
+  const half = (ay2 - ay1) / 2;
+  const cx = ax - Math.sqrt(r * r - half * half);
+  const cy = ay1 + half;
+  const extents = [[cx - r - stroke / 2, cy - r - stroke / 2, cx + r, cy + r + stroke / 2]];
+  for (const m of svg[2].matchAll(/<circle[^>]*cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/g)) {
+    const [x, y, cr] = m.slice(1).map(Number);
+    extents.push([x - cr, y - cr, x + cr, y + cr]);
+  }
+  for (const [left, top, right, bottom] of extents) {
+    assert.ok(left >= x0 && top >= y0 && right <= x0 + w && bottom <= y0 + h, `${[left, top, right, bottom]} outside ${svg[1]}`);
+  }
+});
+
 test("the pages workflow publishes every file the page loads", () => {
   const workflow = readFileSync(path.join(root, "..", "..", ".github", "workflows", "pages.yml"), "utf8");
   const modules = new Set([...app.matchAll(/from "\.\/([^"]+)"/g)].map((m) => m[1]).filter((f) => !f.startsWith("pkg/")));
