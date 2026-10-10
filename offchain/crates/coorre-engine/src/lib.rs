@@ -3,6 +3,7 @@ pub mod documents;
 pub mod ecosystem_services;
 pub mod error;
 pub mod machine;
+pub mod milestone;
 pub mod registry;
 pub mod rule;
 

@@ -1,0 +1,24 @@
+{
+  "id": "milestone-payment",
+  "version": "1",
+  "description": "Auto-approve the installment of a funded project only when the funding agreement, the milestone report and the accountability report refer to the same agreement, the report covers the agreed milestone and was delivered within its window, previous installments are accounted for with no open findings, the amount fits the milestone amount, and the amount is within the automated actor's autonomy limit; otherwise escalate to the human approver with one reason per failed condition, in the order listed.",
+  "requiredDocuments": ["funding_agreement", "milestone_report", "accountability_report"],
+  "documentLabels": {
+    "funding_agreement": "funding agreement",
+    "milestone_report": "milestone report",
+    "accountability_report": "accountability report"
+  },
+  "dates": "calendar dates YYYY-MM-DD; comparisons are inclusive",
+  "conditions": [
+    { "check": "each required document kind is submitted exactly once", "reason": "<label> missing | <label> submitted more than once" },
+    { "check": "funding_agreement.agreement_number == milestone_report.agreement_number == accountability_report.agreement_number", "reason": "agreement number differs between documents" },
+    { "check": "funding_agreement.milestone_id == milestone_report.milestone_id", "reason": "milestone differs between agreement and report" },
+    { "check": "funding_agreement.window_from <= milestone_report.delivered_on <= funding_agreement.window_until", "reason": "milestone delivered outside the agreed window" },
+    { "check": "accountability_report.previous_installments_accounted == \"true\"", "reason": "previous installments not accounted for" },
+    { "check": "accountability_report.open_findings == \"0\"", "reason": "open findings in the accountability report" },
+    { "check": "amount_lamports <= funding_agreement.milestone_amount_lamports", "reason": "amount exceeds the milestone amount" }
+  ],
+  "notEvaluated": "a condition that reads a missing or duplicated document is not evaluated",
+  "mandate": { "check": "amount_lamports <= autonomy_limit_lamports", "reason": "amount exceeds autonomy limit" },
+  "outcomes": { "pass": "AUTO_APPROVED", "fail": "ESCALATED" }
+}

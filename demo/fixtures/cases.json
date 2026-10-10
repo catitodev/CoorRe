@@ -101,6 +101,37 @@
         "justification": "The shortfall comes from a documented fire in the dry season and the burned section is under recovery; the program committee approves this payment above the automation limit and schedules a new verification."
       },
       "demo": false
+    },
+    {
+      "id": "MIL-001",
+      "rule": { "id": "milestone-payment", "version": "1" },
+      "payee": "Instituto Demo Bacia Viva",
+      "amount_lamports": "20000000",
+      "autonomy_limit_lamports": "30000000",
+      "documents": [
+        "MIL-001/funding-agreement.json",
+        "MIL-001/milestone-report.json",
+        "MIL-001/accountability-report.json"
+      ],
+      "approver": null,
+      "demo": false
+    },
+    {
+      "id": "MIL-002",
+      "rule": { "id": "milestone-payment", "version": "1" },
+      "payee": "Instituto Demo Rio Limpo",
+      "amount_lamports": "20000000",
+      "autonomy_limit_lamports": "30000000",
+      "documents": [
+        "MIL-002/funding-agreement.json",
+        "MIL-002/milestone-report.json",
+        "MIL-002/accountability-report.json"
+      ],
+      "approver": {
+        "decision": "reject",
+        "justification": "Two findings on the previous installment are still open; this installment stays withheld until they are remedied and the escrow returns to the fund."
+      },
+      "demo": false
     }
   ]
 }

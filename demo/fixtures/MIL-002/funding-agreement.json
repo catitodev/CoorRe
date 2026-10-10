@@ -1,0 +1,10 @@
+{
+  "synthetic": true,
+  "kind": "funding_agreement",
+  "issuer": "Fundo Demo de Projetos (demo data)",
+  "agreement_number": "TF-2026-0032",
+  "milestone_id": "M2",
+  "milestone_amount_lamports": "25000000",
+  "window_from": "2026-07-01",
+  "window_until": "2026-12-31"
+}

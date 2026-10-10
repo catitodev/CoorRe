@@ -4,6 +4,7 @@ use serde_json::{Map, Value, json};
 use crate::agent_purchase;
 use crate::ecosystem_services;
 use crate::error::{EngineError, Result};
+use crate::milestone;
 use crate::rule::{self, Decision, DocumentArtifact, SupplierDocsInput};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -11,6 +12,7 @@ pub enum RuleId {
     SupplierDocs,
     AgentPurchase,
     EcosystemServicesPayment,
+    MilestonePayment,
 }
 
 fn parse_rule_document(source: &str, id: &str, version: &str) -> Result<Value> {
@@ -31,16 +33,18 @@ pub struct ParsedArtifact {
 }
 
 impl RuleId {
-    pub const ALL: [RuleId; 3] = [
+    pub const ALL: [RuleId; 4] = [
         RuleId::SupplierDocs,
         RuleId::AgentPurchase,
         RuleId::EcosystemServicesPayment,
+        RuleId::MilestonePayment,
     ];
 
     pub fn id(self) -> &'static str {
         match self {
             RuleId::SupplierDocs => rule::RULE_ID,
             RuleId::AgentPurchase => agent_purchase::RULE_ID,
+            RuleId::MilestonePayment => milestone::RULE_ID,
             RuleId::EcosystemServicesPayment => ecosystem_services::RULE_ID,
         }
     }
@@ -49,6 +53,7 @@ impl RuleId {
         match self {
             RuleId::SupplierDocs => rule::RULE_VERSION,
             RuleId::AgentPurchase => agent_purchase::RULE_VERSION,
+            RuleId::MilestonePayment => milestone::RULE_VERSION,
             RuleId::EcosystemServicesPayment => ecosystem_services::RULE_VERSION,
         }
     }
@@ -66,6 +71,11 @@ impl RuleId {
                 agent_purchase::RULE_DOCUMENT,
                 agent_purchase::RULE_ID,
                 agent_purchase::RULE_VERSION,
+            ),
+            RuleId::MilestonePayment => parse_rule_document(
+                milestone::RULE_DOCUMENT,
+                milestone::RULE_ID,
+                milestone::RULE_VERSION,
             ),
             RuleId::EcosystemServicesPayment => parse_rule_document(
                 ecosystem_services::RULE_DOCUMENT,
@@ -105,6 +115,7 @@ impl RuleId {
                 })
             }
             RuleId::AgentPurchase => agent_purchase::parse_artifact(bytes),
+            RuleId::MilestonePayment => milestone::parse_artifact(bytes),
             RuleId::EcosystemServicesPayment => ecosystem_services::parse_artifact(bytes),
         }
     }
@@ -127,6 +138,12 @@ impl RuleId {
                     .collect::<Result<_>>()?,
             }),
             RuleId::AgentPurchase => agent_purchase::evaluate(
+                evaluation_date,
+                amount_lamports,
+                autonomy_limit_lamports,
+                documents,
+            ),
+            RuleId::MilestonePayment => milestone::evaluate(
                 evaluation_date,
                 amount_lamports,
                 autonomy_limit_lamports,
@@ -181,7 +198,7 @@ mod tests {
         );
     }
 
-    const PINNED_RULE_HASHES: [(RuleId, &str); 3] = [
+    const PINNED_RULE_HASHES: [(RuleId, &str); 4] = [
         (RuleId::SupplierDocs, SUPPLIER_DOCS_RULE_HASH),
         (
             RuleId::AgentPurchase,
@@ -190,6 +207,10 @@ mod tests {
         (
             RuleId::EcosystemServicesPayment,
             "eb9e053a54cf94256949e7bb134390e68efb86fa4be4434f1b0c24d34d4307c9",
+        ),
+        (
+            RuleId::MilestonePayment,
+            "bb7edb9e6d965c6c508d1f3abcb56000811e7dbd4fe558145dddc874bc37ed85",
         ),
     ];
 
@@ -276,6 +297,29 @@ mod tests {
                 "verified area below committed area",
                 "amount exceeds autonomy limit"
             ]
+        );
+    }
+
+    #[test]
+    fn milestone_fixtures_give_the_documented_decisions() {
+        let files = |id: &str| {
+            [
+                format!("{id}/funding-agreement.json"),
+                format!("{id}/milestone-report.json"),
+                format!("{id}/accountability-report.json"),
+            ]
+        };
+        let mil_001 = files("MIL-001");
+        let mil_001: Vec<&str> = mil_001.iter().map(String::as_str).collect();
+        assert_eq!(
+            evaluate_case(RuleId::MilestonePayment, &mil_001, 20_000_000, 30_000_000),
+            Decision::AutoApproved
+        );
+        let mil_002 = files("MIL-002");
+        let mil_002: Vec<&str> = mil_002.iter().map(String::as_str).collect();
+        assert_eq!(
+            evaluate_case(RuleId::MilestonePayment, &mil_002, 20_000_000, 30_000_000).reasons(),
+            ["open findings in the accountability report"]
         );
     }
 
