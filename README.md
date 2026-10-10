@@ -16,9 +16,11 @@
 
 <p align="center"><a href="https://catitodev.github.io/CoorRe/"><b>Live verifier</b></a> · <a href="docs/spec/SPEC.md">Specification</a> · <a href="onchain/DEPLOYMENTS.md">Deployments</a></p>
 
-The agent acts within its mandate, the rule decides, and a person signs every exception. On Solana, the program enforces the limit and releases a payment only when the evidence-backed decision is anchored. Anyone can verify every step without trusting us.
+CoorRe is a verifiability engine. It turns the evidence and decisions of a process into signed, anchored proof, and ships a verifier that anyone can run. An audit then checks the trail instead of rebuilding it.
 
-Built for the Colosseum Crypto World's Fair, Solana track, by watafluxhackteam.
+CoorRe on Solana is the engine's most demanding application: payments released by a rule or an AI agent. The agent acts within its mandate, the rule decides, and a person signs every exception. The program enforces who can act and the limit of autonomy (`MandateExceeded`); above the limit, only the human approver can release the payment. Anyone can verify every step without trusting us.
+
+Submitted to the Colosseum Crypto World's Fair, Solana track, by watafluxhackteam.
 
 ## The problem
 
@@ -92,6 +94,15 @@ Every step is a signed credential whose hash is anchored on Solana. The verifier
 | 7. Decisions reproduced | The verifier re-runs the rule named in the evidence, from the registry it ships, on the submitted documents and gets the recorded decision. |
 
 Check 7 closes a gap the chain cannot: the program enforces the amount against the mandate, but it cannot read documents. If a compromised rule engine approved a case whose license had expired, checks 1 to 6 would still pass and check 7 would fail. The verifier only runs rules it ships: a decision that names any other rule, version or hash fails check 7. See [ADR-004](docs/decisions/ADR-004-reproducible-automated-decisions.md) and [ADR-005](docs/decisions/ADR-005-rule-registry-and-application-domains.md).
+
+## Verification modes
+
+| Mode | Status | Who verifies | What they see |
+|---|---|---|---|
+| Public | Available | Anyone, in the browser or on the command line, with no login | The whole trail: documents, signed steps, role keys, anchors and the seven checks |
+| Permissioned | Roadmap | Each party, by role | Only what its role needs, through views by role and viewing keys |
+
+The public mode is the one in this repository and on the live verifier. The chain holds only hashes, public keys, states and amounts; the credentials and documents travel in the audit bundle, and whoever holds the bundle can verify it. The permissioned mode is not built.
 
 ## Where it applies
 
@@ -272,11 +283,11 @@ The model of threats, the controls and the dependency review are in [docs/SECURI
 
 Declared limits of this build:
 
-- Devnet only, never mainnet. Demo keys are held by the operator.
+- Devnet only; mainnet is a next step. The demo keys are operated by the CoorRe team.
 - The AI agent is simulated and deterministic. No language model is called.
 - All domain documents are synthetic. Check 7 proves a decision follows the rule, not that a document is genuine.
 - No verifiable build and no fuzzing. The public devnet RPC rate-limits.
-- The program upgrade authority is a single wallet. The production target is a Squads multisig.
+- The program upgrade authority is a single wallet; moving it to a Squads multisig is on the roadmap.
 
 ## Roadmap
 
@@ -286,6 +297,9 @@ Declared limits of this build:
 - x402-style payments for agents.
 - Documents signed by a real issuer or registry.
 - Integration with agent payment rails (AP2, x402, Solana Payment Channels) as the decision layer.
+- Permissioned verification: views by role and viewing keys, so each party sees only what its role needs.
+- Payment privacy (sender, recipient, amount) on a private network such as Zcash, with the evidence trail kept public ([design notes](docs/design/ZCASH_READINESS.md)).
+- Mainnet.
 
 ## FAQ
 
@@ -299,7 +313,7 @@ No. Money in CoorRe is always a payment owed for a delivery or a decision: escro
 <details>
 <summary>Why on-chain?</summary>
 
-Because the limit has to hold even if the operator, the server or the agent is compromised. The program refuses an approval above the mandate, which a database or an API cannot guarantee. The chain also gives every step a public record with a timestamp that no single party can rewrite.
+Because the limit has to hold even if the operator, the server or the agent is compromised. The program refuses an approval above the mandate, which a database or an API run by the operator cannot enforce against that same operator. The chain also gives every step a public record with a timestamp that no single party can rewrite.
 
 </details>
 
@@ -333,7 +347,7 @@ Because in many processes the law already conditions payment on proof. In Brazil
 
 ## Team and name
 
-CoorRe is built and owned by its two co-founders, Clarkson Bartalini ([@catitodev](https://github.com/catitodev)), technical lead, and Ramon Porto ([@ramonzitus](https://github.com/ramonzitus)), co-founder. The hackathon team is watafluxhackteam.
+CoorRe has two co-founders. Ramon Porto ([@ramonzitus](https://github.com/ramonzitus)) conceived the idea and the proposal. Clarkson Bartalini ([@catitodev](https://github.com/catitodev)) wrote the code and designed the layout and the architecture. The hackathon team is watafluxhackteam.
 
 Environmental and governance specialists who build their own technology: proving what happened is part of their daily work in monitoring and accountability.
 

@@ -16,9 +16,11 @@
 
 <p align="center"><a href="https://catitodev.github.io/CoorRe/"><b>Verificador ao vivo</b></a> · <a href="docs/spec/SPEC.md">Especificação</a> · <a href="onchain/DEPLOYMENTS.md">Implantações</a></p>
 
-O agente age dentro do seu mandato, a regra decide e uma pessoa assina cada exceção. Na Solana, o programa impõe o limite e só libera um pagamento quando a decisão, sustentada por evidências, está ancorada. Qualquer pessoa pode verificar cada etapa sem precisar confiar em nós.
+A CoorRe é um motor de verificabilidade. Ela transforma as evidências e as decisões de um processo em prova assinada e ancorada, e entrega um verificador que qualquer pessoa executa. A auditoria passa a conferir a trilha em vez de reconstruí-la.
 
-Construído para o Colosseum Crypto World's Fair, trilha Solana, pela watafluxhackteam.
+A CoorRe na Solana é a aplicação mais exigente do motor: pagamentos liberados por uma regra ou por um agente de IA. O agente age dentro do seu mandato, a regra decide e uma pessoa assina cada exceção. O programa impõe quem pode agir e o limite de autonomia (`MandateExceeded`); acima do limite, só o aprovador humano libera o pagamento. Qualquer pessoa pode verificar cada etapa sem precisar confiar em nós.
+
+Inscrito no Colosseum Crypto World's Fair, trilha Solana, pela watafluxhackteam.
 
 ## O problema
 
@@ -92,6 +94,15 @@ Cada etapa é uma credencial assinada cujo hash está ancorado na Solana. O veri
 | 7. Decisões reproduzidas | O verificador executa de novo a regra indicada na evidência, a partir do registro que ele traz, sobre os documentos enviados, e chega à decisão registrada. |
 
 A checagem 7 fecha uma lacuna que a cadeia não consegue fechar: o programa impõe o valor contra o mandato, mas não lê documentos. Se um motor de regras comprometido aprovasse um caso com a licença vencida, as checagens 1 a 6 continuariam passando e a 7 falharia. O verificador só executa as regras que traz consigo: uma decisão que indique qualquer outra regra, versão ou hash falha na checagem 7. Veja a [ADR-004](docs/decisions/ADR-004-reproducible-automated-decisions.md) e a [ADR-005](docs/decisions/ADR-005-rule-registry-and-application-domains.md).
+
+## Modos de verificação
+
+| Modo | Situação | Quem verifica | O que vê |
+|---|---|---|---|
+| Público | Disponível | Qualquer pessoa, no navegador ou na linha de comando, sem login | A trilha inteira: documentos, etapas assinadas, chaves de papel, âncoras e as sete checagens |
+| Permissionado | Roadmap | Cada parte, conforme o papel | Só o que o seu papel precisa, por meio de visões por papel e chaves de visualização |
+
+O modo público é o que está neste repositório e no verificador ao vivo. A cadeia guarda apenas hashes, chaves públicas, estados e valores; as credenciais e os documentos viajam no pacote de auditoria, e quem tem o pacote pode verificá-lo. O modo permissionado não está construído.
 
 ## Onde se aplica
 
@@ -272,11 +283,11 @@ O modelo de ameaças, os controles e a revisão de dependências estão em [docs
 
 Limites declarados desta versão:
 
-- Só devnet, nunca mainnet. As chaves da demonstração ficam com o operador.
+- Só devnet; a mainnet é um próximo passo. As chaves de demonstração são operadas pela equipe da CoorRe.
 - O agente de IA é simulado e determinístico. Nenhum modelo de linguagem é chamado.
 - Todos os documentos dos domínios são sintéticos. A checagem 7 prova que uma decisão segue a regra, não que um documento é autêntico.
 - Sem build verificável e sem fuzzing. O RPC público da devnet limita requisições.
-- A autoridade de upgrade do programa é uma única carteira. O alvo de produção é um multisig Squads.
+- A autoridade de upgrade do programa é uma única carteira; passá-la para um multisig Squads está no roadmap.
 
 ## Roadmap
 
@@ -286,6 +297,9 @@ Limites declarados desta versão:
 - Pagamentos no estilo x402 para agentes.
 - Documentos assinados por um emissor ou registro real.
 - Integração com os trilhos de pagamento para agentes (AP2, x402, Solana Payment Channels) como camada de decisão.
+- Verificação permissionada: visões por papel e chaves de visualização, para que cada parte veja só o que o seu papel precisa.
+- Privacidade de pagamento (remetente, destinatário, valor) em uma rede privada como a Zcash, mantendo pública a trilha de evidências ([notas de desenho](docs/design/ZCASH_READINESS.md)).
+- Mainnet.
 
 ## Perguntas frequentes
 
@@ -299,7 +313,7 @@ Não. Na CoorRe, o dinheiro é sempre um pagamento devido por uma entrega ou por
 <details>
 <summary>Por que on-chain?</summary>
 
-Porque o limite precisa valer mesmo se o operador, o servidor ou o agente forem comprometidos. O programa recusa uma aprovação acima do mandato, algo que um banco de dados ou uma API não conseguem garantir. A cadeia também dá a cada etapa um registro público com data e hora que nenhuma parte sozinha pode reescrever.
+Porque o limite precisa valer mesmo se o operador, o servidor ou o agente forem comprometidos. O programa recusa uma aprovação acima do mandato, algo que um banco de dados ou uma API mantidos pelo operador não conseguem impor contra o próprio operador. A cadeia também dá a cada etapa um registro público com data e hora que nenhuma parte sozinha pode reescrever.
 
 </details>
 
@@ -333,7 +347,7 @@ Porque, em muitos processos, a lei já condiciona o pagamento a uma prova. No Br
 
 ## Equipe e nome
 
-A CoorRe é construída e pertence a seus dois cofundadores, Clarkson Bartalini ([@catitodev](https://github.com/catitodev)), líder técnico, e Ramon Porto ([@ramonzitus](https://github.com/ramonzitus)), cofundador. A equipe do hackathon é a watafluxhackteam.
+A CoorRe tem dois cofundadores. Ramon Porto ([@ramonzitus](https://github.com/ramonzitus)) concebeu a ideia e a proposta. Clarkson Bartalini ([@catitodev](https://github.com/catitodev)) escreveu o código e desenhou o layout e a arquitetura. A equipe do hackathon é a watafluxhackteam.
 
 Especialistas em meio ambiente e governança que constroem a própria tecnologia: provar o que aconteceu faz parte do seu trabalho diário em monitoramento e prestação de contas.
 

@@ -1,4 +1,4 @@
-# CoorRe — Hackathon MVP Specification
+# CoorRe — Hackathon Build Specification
 
 ## 1. Product and insight
 As work is distributed across people, systems and AI agents, organizations must later prove how processes happened, and must bound what automated actors may do. CoorRe makes three things true at once:
@@ -118,4 +118,4 @@ README.md · LICENSE · docs/spec/ · docs/SECURITY.md · docs/evidence/ · docs
 1st: browser verifier → CLI-only verification. 2nd: escrow → mandate enforcement only. Never cut: on-chain mandate enforcement, signer binding, evidence model.
 
 ## 14. Out of scope (declared)
-Real LLM calls, end-user auth, mainnet, SPL tokens, selective disclosure, production key management (demo keys custodial), verifiable builds (require local Docker build), fuzzing (Trident requires local toolchain), Hedera/Regen adapters, integration with agent payment rails (AP2, x402, Solana Payment Channels), real registries and document issuers (all domain documents are synthetic). Roadmap: upgrade authority under a Squads multisig, batch anchoring via Merkle roots, Solana Actions/Blinks for approver decisions, x402-style agent payments.
+Real LLM calls, end-user auth, mainnet, SPL tokens, selective disclosure, key custody outside the operator (demo keys custodial), verifiable builds (require local Docker build), fuzzing (Trident requires local toolchain), Hedera/Regen adapters, integration with agent payment rails (AP2, x402, Solana Payment Channels), real registries and document issuers (all domain documents are synthetic). Roadmap: upgrade authority under a Squads multisig, batch anchoring via Merkle roots, Solana Actions/Blinks for approver decisions, x402-style agent payments, permissioned verification (views by role, viewing keys), payment privacy on a private network such as Zcash (docs/design/ZCASH_READINESS.md), anchoring without a blockchain (docs/design/WEB2_MODE.md), mainnet.
