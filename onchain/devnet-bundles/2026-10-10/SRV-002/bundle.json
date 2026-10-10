@@ -1,0 +1,361 @@
+{
+  "format": "coorre-audit-bundle/1",
+  "case_ref": "urn:coorre:case:SRV-002-20261010T021202Z",
+  "network_id": "solana:devnet",
+  "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+  "case_record": "DNPDxAjex72NgF9xKRZdLzvywMtmBUWDU2wcTZhGzSLm",
+  "open_receipt": {
+    "network_id": "solana:devnet",
+    "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+    "account": "DNPDxAjex72NgF9xKRZdLzvywMtmBUWDU2wcTZhGzSLm",
+    "tx_signature": "3UpfGdFAQgr1rUAFbG9jTAd5yXD9hLVy5sU2gKuY43bExqJ7dZPq3gJtRh5ukYbWGZUNg3g4nemu41GKuwQ6dZWh"
+  },
+  "evidence": [
+    {
+      "anchor_account": "CiJcrME7yaikC9DXApgdGRqqxBfB76NKY4E5AhgpqQ6a",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "execute_with_approval",
+            "id": "did:key:z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9",
+            "kind": "human"
+          },
+          "artifacts": [
+            {
+              "digestSHA256": "f3a93dc203da1723ced548a3396d77ae37eea2b06fe036f003cac989e0627779",
+              "mediaType": "application/json",
+              "name": "service-contract.json"
+            },
+            {
+              "digestSHA256": "3f7da3ec84f7a1411ff8bdc088696fce0b9688fb8be78ca5afb3a32c7217ab52",
+              "mediaType": "application/json",
+              "name": "acceptance-record.json"
+            },
+            {
+              "digestSHA256": "019cbf284d1ca4413c2b55e81ddb16330240cd142de57d181929426e804c52d7",
+              "mediaType": "application/json",
+              "name": "invoice.json"
+            }
+          ],
+          "case": "urn:coorre:case:SRV-002-20261010T021202Z",
+          "fromState": "OPEN",
+          "mandate": {
+            "amountLamports": "20000000",
+            "autonomyLimitLamports": "30000000"
+          },
+          "payload": {
+            "documents": [
+              {
+                "artifact": "service-contract.json",
+                "kind": "service_contract"
+              },
+              {
+                "artifact": "acceptance-record.json",
+                "kind": "acceptance_record"
+              },
+              {
+                "artifact": "invoice.json",
+                "kind": "invoice"
+              }
+            ],
+            "payee": "Consultoria Demo Beta Ltda"
+          },
+          "previousEvidence": "sha256:4016872295ac5b6734607f40d214de3691ab5268244c52beaf90a6c0dc6ca1da",
+          "rule": {
+            "hash": "sha256:c8ef062c4eb22745086f9ff84b143c5549b06aef0079aa3e52327a0a9928e21c",
+            "id": "service-delivery",
+            "version": "1"
+          },
+          "toState": "SUBMITTED"
+        },
+        "id": "urn:uuid:c36d91da-6f92-4d64-95f4-4e494e92e44b",
+        "issuer": "did:key:z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-10T02:14:56Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "z5j7N9taevYDPY7WrgbGtdrSyhh5UPhaTrJdF5nSbAZZEf5Z1A5YjhUuwvVXSg1GhxuXfxQhH2aTwFYhJm7uN8eBZ",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9#z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-10T02:14:56Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "CiJcrME7yaikC9DXApgdGRqqxBfB76NKY4E5AhgpqQ6a",
+        "tx_signature": "3PvVQHZBnk3cGjPbk62T6siyPQTYUDH4MbovdrkWU4Nv6k1at9rVmiipaH1oK7SMKR92QYNifDAPAaUrnbSNvykv"
+      }
+    },
+    {
+      "anchor_account": "8z7Ds7U87sJTLSXcUS3ow2A9LDowC849v6Em1ERwS7j6",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "recommend",
+            "id": "did:key:z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N",
+            "kind": "agent"
+          },
+          "artifacts": [],
+          "case": "urn:coorre:case:SRV-002-20261010T021202Z",
+          "fromState": "SUBMITTED",
+          "mandate": {
+            "amountLamports": "20000000",
+            "autonomyLimitLamports": "30000000"
+          },
+          "payload": {
+            "agent": "simulated pre-analysis agent (deterministic, no model call)",
+            "evaluation_date": "2026-10-10",
+            "findings": [
+              "invoice issued before acceptance"
+            ],
+            "recommendation": "escalate"
+          },
+          "previousEvidence": "sha256:7b4f2337f4d8f978468ba77881c0ae0060a89677eef9f43492f1970e15879f69",
+          "rule": {
+            "hash": "sha256:c8ef062c4eb22745086f9ff84b143c5549b06aef0079aa3e52327a0a9928e21c",
+            "id": "service-delivery",
+            "version": "1"
+          },
+          "toState": "AGENT_REVIEWED"
+        },
+        "id": "urn:uuid:efee326c-f5d0-4579-9d00-b451787d233c",
+        "issuer": "did:key:z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-10T02:15:01Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "z38iFdXP4HQ4vY6kkt7EdhqhzDZon1qXSASeauBpnCfpvxGgicXjnH9VESF62K5aaeCKuU7PoBULqjDBfzm7NcRxq",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N#z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-10T02:15:01Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "8z7Ds7U87sJTLSXcUS3ow2A9LDowC849v6Em1ERwS7j6",
+        "tx_signature": "6KDZP7dBCvbudAdPw4KNjhExQ4Fiqxo64fFDL2BkppoyZ2hFJBqg29QTJMbYoJg9nmUp7euYNXs5R4aQtu6wctD"
+      }
+    },
+    {
+      "anchor_account": "2b26Yw5xp4Ld8foE9Zzq4ot647LiRCfbZdNswokskT5t",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "autonomous",
+            "id": "did:key:z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z",
+            "kind": "system"
+          },
+          "artifacts": [],
+          "case": "urn:coorre:case:SRV-002-20261010T021202Z",
+          "fromState": "AGENT_REVIEWED",
+          "mandate": {
+            "amountLamports": "20000000",
+            "autonomyLimitLamports": "30000000"
+          },
+          "payload": {
+            "decision": "ESCALATED",
+            "evaluation_date": "2026-10-10",
+            "reasons": [
+              "invoice issued before acceptance"
+            ]
+          },
+          "previousEvidence": "sha256:2c915e39cbbb1ff33fcb514e98536d7909906daa2e8e9cef8a98e13df58498ea",
+          "rule": {
+            "hash": "sha256:c8ef062c4eb22745086f9ff84b143c5549b06aef0079aa3e52327a0a9928e21c",
+            "id": "service-delivery",
+            "version": "1"
+          },
+          "toState": "ESCALATED"
+        },
+        "id": "urn:uuid:e373dac3-2880-4077-b4b2-334bd3bf4ecb",
+        "issuer": "did:key:z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-10T02:15:05Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "zM2EAN568KAhCePNNt9KkjKW1193M23kqjYLXjpRho7PEjGzZTQopJXYGBMw2mm7HTz7YyCne95cKX3XckhUMW9H",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z#z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-10T02:15:05Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "2b26Yw5xp4Ld8foE9Zzq4ot647LiRCfbZdNswokskT5t",
+        "tx_signature": "3mxYzpp1FDWFrKv1wzgzXksqTPzz1c4E46THwwrUojW5173aoFFkRLZmnKTHMKVdwWiMwBut9EVFyWBLGfpTPDNj"
+      }
+    },
+    {
+      "anchor_account": "2ArzrsPBoNTmYtTCtDyVXExkmifoc1Edx4LzCncinXpj",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "autonomous",
+            "id": "did:key:z6Mktp3CLpiBF8LXavUfHwho8WQ2Ft155WcHS34Ww7X9vwRQ",
+            "kind": "human"
+          },
+          "artifacts": [],
+          "case": "urn:coorre:case:SRV-002-20261010T021202Z",
+          "fromState": "ESCALATED",
+          "mandate": {
+            "amountLamports": "20000000",
+            "autonomyLimitLamports": "30000000"
+          },
+          "payload": {
+            "decision": "REJECTED",
+            "justification": "The invoice predates the acceptance of the deliverable; payment is refused, the escrow returns to the contracting party and a new invoice must be issued after acceptance."
+          },
+          "previousEvidence": "sha256:5641990b55ffdf724bd4262a1c4e9d43afb3b4df601866bde1dd4eb007ab0891",
+          "rule": {
+            "hash": "sha256:c8ef062c4eb22745086f9ff84b143c5549b06aef0079aa3e52327a0a9928e21c",
+            "id": "service-delivery",
+            "version": "1"
+          },
+          "toState": "REJECTED"
+        },
+        "id": "urn:uuid:bccbf36e-3ddb-4da1-9cec-d94ba15ef345",
+        "issuer": "did:key:z6Mktp3CLpiBF8LXavUfHwho8WQ2Ft155WcHS34Ww7X9vwRQ",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-10T02:15:09Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "z3WfAz5p5B4WweKBqXsAVJjqanEEd6XDRTvhZoSmg2Y7JdNB1SwjFS6ycFAstZLoRnk2yUiokyN513mLrfaxENfm8",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6Mktp3CLpiBF8LXavUfHwho8WQ2Ft155WcHS34Ww7X9vwRQ#z6Mktp3CLpiBF8LXavUfHwho8WQ2Ft155WcHS34Ww7X9vwRQ"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-10T02:15:09Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "2ArzrsPBoNTmYtTCtDyVXExkmifoc1Edx4LzCncinXpj",
+        "tx_signature": "3FV3ThfPDWuvyND9LfF8kr1XJaWFPTbgmCr2jMthh28U9NJBfek3M8TGheLK3G7pLzcizEoKfQcrCLzMnhg9Wpa4"
+      }
+    }
+  ],
+  "rules": [
+    {
+      "conditions": [
+        {
+          "check": "each required document kind is submitted exactly once",
+          "reason": "<label> missing | <label> submitted more than once"
+        },
+        {
+          "check": "service_contract.contract_number == acceptance_record.contract_number == invoice.contract_number",
+          "reason": "contract number differs between documents"
+        },
+        {
+          "check": "service_contract.provider == invoice.provider",
+          "reason": "provider differs between contract and invoice"
+        },
+        {
+          "check": "service_contract.valid_from <= acceptance_record.accepted_on <= service_contract.valid_until",
+          "reason": "acceptance outside the contract validity"
+        },
+        {
+          "check": "invoice.issued_on >= acceptance_record.accepted_on",
+          "reason": "invoice issued before acceptance"
+        },
+        {
+          "check": "amount_lamports == invoice.amount_lamports",
+          "reason": "amount differs from the invoice"
+        },
+        {
+          "check": "invoice.amount_lamports <= service_contract.price_cap_lamports",
+          "reason": "invoice amount exceeds the price cap"
+        }
+      ],
+      "dates": "calendar dates YYYY-MM-DD; comparisons are inclusive",
+      "description": "Auto-approve the payment of a service contract only when the contract, the acceptance record and the invoice refer to the same contract, the provider on the invoice is the contracted one, the deliverable was accepted within the contract validity, the invoice was issued on or after the acceptance, the amount equals the invoice, the invoice fits the price cap, and the amount is within the automated actor's autonomy limit; otherwise escalate to the human approver with one reason per failed condition, in the order listed.",
+      "documentLabels": {
+        "acceptance_record": "acceptance record",
+        "invoice": "invoice",
+        "service_contract": "service contract"
+      },
+      "id": "service-delivery",
+      "mandate": {
+        "check": "amount_lamports <= autonomy_limit_lamports",
+        "reason": "amount exceeds autonomy limit"
+      },
+      "notEvaluated": "a condition that reads a missing or duplicated document is not evaluated",
+      "outcomes": {
+        "fail": "ESCALATED",
+        "pass": "AUTO_APPROVED"
+      },
+      "requiredDocuments": [
+        "service_contract",
+        "acceptance_record",
+        "invoice"
+      ],
+      "version": "1"
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "service-contract.json",
+      "mediaType": "application/json",
+      "digestSHA256": "f3a93dc203da1723ced548a3396d77ae37eea2b06fe036f003cac989e0627779"
+    },
+    {
+      "name": "acceptance-record.json",
+      "mediaType": "application/json",
+      "digestSHA256": "3f7da3ec84f7a1411ff8bdc088696fce0b9688fb8be78ca5afb3a32c7217ab52"
+    },
+    {
+      "name": "invoice.json",
+      "mediaType": "application/json",
+      "digestSHA256": "019cbf284d1ca4413c2b55e81ddb16330240cd142de57d181929426e804c52d7"
+    }
+  ]
+}

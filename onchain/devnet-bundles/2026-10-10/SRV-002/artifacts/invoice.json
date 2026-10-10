@@ -1,0 +1,10 @@
+{
+  "synthetic": true,
+  "kind": "invoice",
+  "issuer": "Consultoria Demo Beta Ltda",
+  "contract_number": "CT-2026-0046",
+  "provider": "Consultoria Demo Beta Ltda",
+  "number": "NF-DEMO-0046",
+  "amount_lamports": "20000000",
+  "issued_on": "2026-09-20"
+}

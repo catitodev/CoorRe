@@ -132,7 +132,8 @@ submitter for the six approved cases, 60,472,320 of rent for eight case records 
 evidence anchors, 320,000 of fees; the 40,000,000 escrowed by MIL-002 and SRV-002 was
 refunded); the submitter received exactly 160,000,000 lamports; every case record is
 back to its rent-exempt minimum (1,940,560). AGT-002 and PES-002 are the browser samples
-in web/verifier/samples.
+in web/verifier/samples; the bundles of the other six cases are in
+onchain/devnet-bundles/2026-10-10, unchanged, so any case can be verified again.
 
 ## Spike: `playground_spike` (2026-10-08)
 

@@ -1,0 +1,10 @@
+{
+  "synthetic": true,
+  "kind": "invoice",
+  "issuer": "Consultoria Demo Alfa Ltda",
+  "contract_number": "CT-2026-0045",
+  "provider": "Consultoria Demo Alfa Ltda",
+  "number": "NF-DEMO-0045",
+  "amount_lamports": "20000000",
+  "issued_on": "2026-09-28"
+}

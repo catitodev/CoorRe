@@ -1,0 +1,361 @@
+{
+  "format": "coorre-audit-bundle/1",
+  "case_ref": "urn:coorre:case:MIL-002-20261010T021202Z",
+  "network_id": "solana:devnet",
+  "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+  "case_record": "G46pdzcfhWgSJhiNvV36sxGussmWJ7kwaoRd3QDFpmRL",
+  "open_receipt": {
+    "network_id": "solana:devnet",
+    "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+    "account": "G46pdzcfhWgSJhiNvV36sxGussmWJ7kwaoRd3QDFpmRL",
+    "tx_signature": "4b6SBRQpBm4Ffr2jFEGeLNfcXG5butzGvvAFrzaQnqmef9fwcXMMfQDdVrfV6e911juKgCFegNVhQDBWrTdR2M5p"
+  },
+  "evidence": [
+    {
+      "anchor_account": "7rVbuXJRVf6EJJU7rNn7Yp8X7KyRywApo1Q7y5BGvjAT",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "execute_with_approval",
+            "id": "did:key:z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9",
+            "kind": "human"
+          },
+          "artifacts": [
+            {
+              "digestSHA256": "f5d98c05f1bab3a5678f9c3288df3445fdb561ffa014cb9541f6e5448c5ddcf6",
+              "mediaType": "application/json",
+              "name": "funding-agreement.json"
+            },
+            {
+              "digestSHA256": "ebdc6e7f435c2835e5db1bc84d341bc28def9bd1a36912d692658f254ada8ee8",
+              "mediaType": "application/json",
+              "name": "milestone-report.json"
+            },
+            {
+              "digestSHA256": "66ea22466801f2bb59829bd7183ab1d7e4ee5d38f62133d5b78edeae6c533b75",
+              "mediaType": "application/json",
+              "name": "accountability-report.json"
+            }
+          ],
+          "case": "urn:coorre:case:MIL-002-20261010T021202Z",
+          "fromState": "OPEN",
+          "mandate": {
+            "amountLamports": "20000000",
+            "autonomyLimitLamports": "30000000"
+          },
+          "payload": {
+            "documents": [
+              {
+                "artifact": "funding-agreement.json",
+                "kind": "funding_agreement"
+              },
+              {
+                "artifact": "milestone-report.json",
+                "kind": "milestone_report"
+              },
+              {
+                "artifact": "accountability-report.json",
+                "kind": "accountability_report"
+              }
+            ],
+            "payee": "Instituto Demo Rio Limpo"
+          },
+          "previousEvidence": "sha256:08733edec9f2846981396c669569cbc72f42b101b52d22fb2e711498473d0ba2",
+          "rule": {
+            "hash": "sha256:bb7edb9e6d965c6c508d1f3abcb56000811e7dbd4fe558145dddc874bc37ed85",
+            "id": "milestone-payment",
+            "version": "1"
+          },
+          "toState": "SUBMITTED"
+        },
+        "id": "urn:uuid:66214b8d-9053-4523-9586-422f74bf599c",
+        "issuer": "did:key:z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-10T02:14:07Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "ztjRj4Au7ozxER9q2yBoKWTifHLtynLr9hULJQn8M8nLyxH6nACiAu8mzA4aZ92jjviEG1rtffeSkAxvAoiyEtS8",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9#z6MkjyFuwRg6EkV56Lh9hMvvLDoSQXRoo3BQ3kw9N6fdcmE9"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-10T02:14:07Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "7rVbuXJRVf6EJJU7rNn7Yp8X7KyRywApo1Q7y5BGvjAT",
+        "tx_signature": "2mu9rX5oAYEu5igr9jTt17rRLgsyqthdNgheUTYQj1yF7Vy9Qpmury6ByoRfV7yxVM7dZaXM7v89TwtCPbGtjCg5"
+      }
+    },
+    {
+      "anchor_account": "YdyaMybLqUYYT6Tog4c95rWrb7KqUwLzZbQ4YWMoaGh",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "recommend",
+            "id": "did:key:z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N",
+            "kind": "agent"
+          },
+          "artifacts": [],
+          "case": "urn:coorre:case:MIL-002-20261010T021202Z",
+          "fromState": "SUBMITTED",
+          "mandate": {
+            "amountLamports": "20000000",
+            "autonomyLimitLamports": "30000000"
+          },
+          "payload": {
+            "agent": "simulated pre-analysis agent (deterministic, no model call)",
+            "evaluation_date": "2026-10-10",
+            "findings": [
+              "open findings in the accountability report"
+            ],
+            "recommendation": "escalate"
+          },
+          "previousEvidence": "sha256:05b9ebc86e97306e9d10fb05694a2a0a51348b287cc4b7b5385379a89e9bc16b",
+          "rule": {
+            "hash": "sha256:bb7edb9e6d965c6c508d1f3abcb56000811e7dbd4fe558145dddc874bc37ed85",
+            "id": "milestone-payment",
+            "version": "1"
+          },
+          "toState": "AGENT_REVIEWED"
+        },
+        "id": "urn:uuid:ae4842a0-3586-4791-848d-baa273a7b789",
+        "issuer": "did:key:z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-10T02:14:11Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "z3ku5s6HhpGwLLUP4QUfMVYGzjZiXmcGt2Hqur99fExbmUZxGHXe6LTGNwWcSburpw5Pc6qacw5FV3RhvYLxBg2oV",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N#z6MkuJNo8uuqfkq41mCmU4Dr3s6NLEgEGLfQoJJFRmspe18N"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-10T02:14:11Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "YdyaMybLqUYYT6Tog4c95rWrb7KqUwLzZbQ4YWMoaGh",
+        "tx_signature": "62PSbga61XwJu9KBZugrTco4C9Fnyg6whCgjy56Z2scD9v9fLiG6W4yKw5mqnCmC3ypznyRYF9ZAxhZ6HAowbgDk"
+      }
+    },
+    {
+      "anchor_account": "H7ev2mjBS934HWCttAJRrqLwDVgENVCXUvwGNtQCsvQY",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "autonomous",
+            "id": "did:key:z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z",
+            "kind": "system"
+          },
+          "artifacts": [],
+          "case": "urn:coorre:case:MIL-002-20261010T021202Z",
+          "fromState": "AGENT_REVIEWED",
+          "mandate": {
+            "amountLamports": "20000000",
+            "autonomyLimitLamports": "30000000"
+          },
+          "payload": {
+            "decision": "ESCALATED",
+            "evaluation_date": "2026-10-10",
+            "reasons": [
+              "open findings in the accountability report"
+            ]
+          },
+          "previousEvidence": "sha256:0a7a94d2680dcf17c6174da8670ece0e699d8e2e348273b09c4c3b38c473bac1",
+          "rule": {
+            "hash": "sha256:bb7edb9e6d965c6c508d1f3abcb56000811e7dbd4fe558145dddc874bc37ed85",
+            "id": "milestone-payment",
+            "version": "1"
+          },
+          "toState": "ESCALATED"
+        },
+        "id": "urn:uuid:a378a79c-6abf-41fb-b81c-edab8f29cae4",
+        "issuer": "did:key:z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-10T02:14:15Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "z2Qd5PyVAiY4zaub1PigCpuaZYQZaKreU9Q7BmtdM5fV1ecyXMuDckzD2XQJNfeunKBg8veR5gbqPC2VkVCro81tf",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z#z6MkjUQ9PqTVbXgSoArtPkz9sJiy4TUC16dGuFgTkdRgyP3z"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-10T02:14:15Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "H7ev2mjBS934HWCttAJRrqLwDVgENVCXUvwGNtQCsvQY",
+        "tx_signature": "NtYBxozNsoVzKKb3of5QSnP2YVBKC5n2NKCwN2dt7FcXHKfbPQ395UYaFe32Qnbd4V8p7Lu2gpspzn4HhwXuA18"
+      }
+    },
+    {
+      "anchor_account": "7qnjrG7zSaJ9cubt73HjJaEYXi995Ym2SgwRWcyjpoUw",
+      "document": {
+        "@context": [
+          "https://www.w3.org/ns/credentials/v2",
+          "https://coorre.example/ns/v1"
+        ],
+        "credentialSubject": {
+          "actor": {
+            "autonomy": "autonomous",
+            "id": "did:key:z6Mktp3CLpiBF8LXavUfHwho8WQ2Ft155WcHS34Ww7X9vwRQ",
+            "kind": "human"
+          },
+          "artifacts": [],
+          "case": "urn:coorre:case:MIL-002-20261010T021202Z",
+          "fromState": "ESCALATED",
+          "mandate": {
+            "amountLamports": "20000000",
+            "autonomyLimitLamports": "30000000"
+          },
+          "payload": {
+            "decision": "REJECTED",
+            "justification": "Two findings on the previous installment are still open; this installment stays withheld until they are remedied and the escrow returns to the fund."
+          },
+          "previousEvidence": "sha256:883ebe0696c84c7a6657d147218b641647d100fea52a4bcf4f9daf72c9a0418a",
+          "rule": {
+            "hash": "sha256:bb7edb9e6d965c6c508d1f3abcb56000811e7dbd4fe558145dddc874bc37ed85",
+            "id": "milestone-payment",
+            "version": "1"
+          },
+          "toState": "REJECTED"
+        },
+        "id": "urn:uuid:187a8750-823a-47b7-bb85-8e8452a3125c",
+        "issuer": "did:key:z6Mktp3CLpiBF8LXavUfHwho8WQ2Ft155WcHS34Ww7X9vwRQ",
+        "proof": {
+          "@context": [
+            "https://www.w3.org/ns/credentials/v2",
+            "https://coorre.example/ns/v1"
+          ],
+          "created": "2026-10-10T02:14:20Z",
+          "cryptosuite": "eddsa-jcs-2022",
+          "proofPurpose": "assertionMethod",
+          "proofValue": "z5y7am4vK9cKRLr8bWXmErEhJ4o6D1zQ8ECT9YQgAT5nAR6VfH4wcSMvmMhPMNaiRcsQESvmhHYrySwEmsnTpkZe",
+          "type": "DataIntegrityProof",
+          "verificationMethod": "did:key:z6Mktp3CLpiBF8LXavUfHwho8WQ2Ft155WcHS34Ww7X9vwRQ#z6Mktp3CLpiBF8LXavUfHwho8WQ2Ft155WcHS34Ww7X9vwRQ"
+        },
+        "type": [
+          "VerifiableCredential",
+          "CoorReTransition"
+        ],
+        "validFrom": "2026-10-10T02:14:20Z"
+      },
+      "receipt": {
+        "network_id": "solana:devnet",
+        "program_id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+        "account": "7qnjrG7zSaJ9cubt73HjJaEYXi995Ym2SgwRWcyjpoUw",
+        "tx_signature": "5rW4veHJEtHiDHsQJphtp8TtvUpSyLYBMLAGBbDCbyZYLXQVUwc91fjqsqi9yNUKa4G4MAC9BodBi1PS2Gd6vrDF"
+      }
+    }
+  ],
+  "rules": [
+    {
+      "conditions": [
+        {
+          "check": "each required document kind is submitted exactly once",
+          "reason": "<label> missing | <label> submitted more than once"
+        },
+        {
+          "check": "funding_agreement.agreement_number == milestone_report.agreement_number == accountability_report.agreement_number",
+          "reason": "agreement number differs between documents"
+        },
+        {
+          "check": "funding_agreement.milestone_id == milestone_report.milestone_id",
+          "reason": "milestone differs between agreement and report"
+        },
+        {
+          "check": "funding_agreement.window_from <= milestone_report.delivered_on <= funding_agreement.window_until",
+          "reason": "milestone delivered outside the agreed window"
+        },
+        {
+          "check": "accountability_report.previous_installments_accounted == \"true\"",
+          "reason": "previous installments not accounted for"
+        },
+        {
+          "check": "accountability_report.open_findings == \"0\"",
+          "reason": "open findings in the accountability report"
+        },
+        {
+          "check": "amount_lamports <= funding_agreement.milestone_amount_lamports",
+          "reason": "amount exceeds the milestone amount"
+        }
+      ],
+      "dates": "calendar dates YYYY-MM-DD; comparisons are inclusive",
+      "description": "Auto-approve the installment of a funded project only when the funding agreement, the milestone report and the accountability report refer to the same agreement, the report covers the agreed milestone and was delivered within its window, previous installments are accounted for with no open findings, the amount fits the milestone amount, and the amount is within the automated actor's autonomy limit; otherwise escalate to the human approver with one reason per failed condition, in the order listed.",
+      "documentLabels": {
+        "accountability_report": "accountability report",
+        "funding_agreement": "funding agreement",
+        "milestone_report": "milestone report"
+      },
+      "id": "milestone-payment",
+      "mandate": {
+        "check": "amount_lamports <= autonomy_limit_lamports",
+        "reason": "amount exceeds autonomy limit"
+      },
+      "notEvaluated": "a condition that reads a missing or duplicated document is not evaluated",
+      "outcomes": {
+        "fail": "ESCALATED",
+        "pass": "AUTO_APPROVED"
+      },
+      "requiredDocuments": [
+        "funding_agreement",
+        "milestone_report",
+        "accountability_report"
+      ],
+      "version": "1"
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "funding-agreement.json",
+      "mediaType": "application/json",
+      "digestSHA256": "f5d98c05f1bab3a5678f9c3288df3445fdb561ffa014cb9541f6e5448c5ddcf6"
+    },
+    {
+      "name": "milestone-report.json",
+      "mediaType": "application/json",
+      "digestSHA256": "ebdc6e7f435c2835e5db1bc84d341bc28def9bd1a36912d692658f254ada8ee8"
+    },
+    {
+      "name": "accountability-report.json",
+      "mediaType": "application/json",
+      "digestSHA256": "66ea22466801f2bb59829bd7183ab1d7e4ee5d38f62133d5b78edeae6c533b75"
+    }
+  ]
+}
