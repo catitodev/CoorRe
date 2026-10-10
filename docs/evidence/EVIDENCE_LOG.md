@@ -285,3 +285,12 @@ Entry template:
 - Fix found by the review, applied before the script was first committed: the snapshot capture script recorded the RPC URL as given, so an API key in a private RPC URL could have been committed; it now requires https and records only the origin. docs/SECURITY.md lists the offline snapshot verification, the capture script and the Zcash memo among the controls and their limits.
 - Not run here: the wasm-bindgen step of scripts/build-verifier (the pinned CLI is not installed locally; CI downloads it with its checksum on every push).
 - Commit(s): docs(security): cover offline verification and the Zcash memo; docs: log stages 2 and 3 and the review before the freeze
+
+### 2026-10-10 20:00 BRT — Verifier type system and first action (UI phase A)
+- Authors: Clarkson Bartalini and Ramon Porto.
+- Approval: phase A of the UI work and the self-hosted IBM Plex fonts with `font-src 'self'` approved explicitly.
+- Sources checked at the time of use: the npm registry entries of @ibm/plex-sans 1.1.0 (published 2024-11-11) and @ibm/plex-mono 2.5.0 (published 2026-06-11), both from the official ibm/plex repository under OFL-1.1; WCAG 2.2 contrast thresholds (4.5:1 for text, 3:1 for graphics).
+- Audit before the change, measured in the browser: one monospace font for all text and 24 distinct font sizes, the smallest 9.9 px; radial glows on the background; status labels in coloured 12 px text.
+- Work: IBM Plex Sans for text and IBM Plex Mono for hashes, keys and values (five Latin-1 woff2 files, about 100 KB, with OFL.txt); six type steps (12, 14, 16, 20, 28 and 40 px) and weights 400, 500 and 600 only; background glows removed; chips reduced to plain labels; the overview hero leads with "Verify a recorded case" and "See the ten cases"; status labels in text colour with a coloured dot; card links darkened slightly in the light theme. The rail logo fix of earlier today is part of this release.
+- Result: web tests 28 pass (fonts self-hosted, published by pages.yml and licensed; CSP keeps font-src 'self'; rail logo framing). In the in-app browser, seven views at desktop and at 375 px, light and dark: no text under 12 px, no horizontal overflow, no console error, the bottom bar labels fit. Contrast from the tokens: body text 13.9 to 15.1:1, secondary text 6.5 to 8.1:1, card links 5.6 and 7.4:1, status dots 3.2 to 4.3:1.
+- Commit(s): feat(web): give the verifier a type system and a clear first action; docs: record the verifier type system
