@@ -435,11 +435,11 @@ export function renderCaseDetail(data, id, rpcUrl, focus) {
   if (focus) {
     const target = container.querySelector(`#${CSS.escape(focus)}`);
     if (target) {
-      requestAnimationFrame(() => {
-        target.classList.add("focus-step");
+      target.classList.add("focus-step");
+      setTimeout(() => {
         target.scrollIntoView({ block: "center" });
         target.focus({ preventScroll: true });
-      });
+      }, 0);
     }
   }
   liveState(data, rpcUrl).then(
