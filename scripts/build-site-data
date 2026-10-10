@@ -1,0 +1,186 @@
+#!/usr/bin/env node
+"use strict";
+
+const fs = require("node:fs");
+const path = require("node:path");
+
+const root = path.resolve(__dirname, "..");
+const CASE_RECORD_RENT = 1940560;
+const EVIDENCE_ANCHOR_RENT = 1605280;
+const SIGNATURE_FEE = 5000;
+
+const RUNS = [
+  { date: "2026-10-08", utc: "19:32", label: "Supplier demo", recorded_spent: 265198080 },
+  { date: "2026-10-10", utc: "02:12", label: "Four new domains", recorded_spent: 220792320 },
+];
+
+const PROGRAM = {
+  id: "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+  network: "solana:devnet",
+  programdata: "FHJ9rgj9U8R77s7QPfngAK543EonGpznTA7cirnxFN3S",
+  upgrade_authority: "7yAwBDhFs8TdMurdwJsq4AB41tX2H9PULpxeAnf87zyZ",
+  deploy_tx: "2ku5UxeTyM1qrVcKhB3s68pDVh2cZyyTpFXuhF8orWjzvswoCguiN5AjoLAAvbxLbG6yRBDHvxgAFYKzcsq7JJxY",
+  deployed: "2026-10-08",
+};
+
+const ROLE_BY_TRANSITION = {
+  "OPEN>SUBMITTED": "payee",
+  "SUBMITTED>AGENT_REVIEWED": "agent",
+  "AGENT_REVIEWED>AUTO_APPROVED": "rule_engine",
+  "AGENT_REVIEWED>ESCALATED": "rule_engine",
+  "ESCALATED>APPROVED": "approver",
+  "ESCALATED>REJECTED": "approver",
+};
+
+function readJson(file) {
+  return JSON.parse(fs.readFileSync(file, "utf8"));
+}
+
+function bundleDirs() {
+  const dirs = [];
+  const samples = path.join(root, "web/verifier/samples");
+  for (const name of fs.readdirSync(samples).sort()) dirs.push({ dir: path.join(samples, name), source: "samples" });
+  const runs = path.join(root, "onchain/devnet-bundles");
+  for (const run of fs.readdirSync(runs).sort()) {
+    const runDir = path.join(runs, run);
+    if (!fs.statSync(runDir).isDirectory()) continue;
+    for (const name of fs.readdirSync(runDir).sort()) dirs.push({ dir: path.join(runDir, name), source: `onchain/devnet-bundles/${run}` });
+  }
+  return dirs.filter((d) => fs.existsSync(path.join(d.dir, "bundle.json")));
+}
+
+function runOf(caseRef) {
+  const stamp = caseRef.slice(caseRef.lastIndexOf("-") + 1);
+  const date = `${stamp.slice(0, 4)}-${stamp.slice(4, 6)}-${stamp.slice(6, 8)}`;
+  return date;
+}
+
+function pick(payload, keys) {
+  const out = {};
+  for (const key of keys) if (payload[key] !== undefined) out[key] = payload[key];
+  return out;
+}
+
+function caseFrom({ dir, source }) {
+  const bundle = readJson(path.join(dir, "bundle.json"));
+  const id = path.basename(dir);
+  const subjects = bundle.evidence.map((e) => e.document.credentialSubject);
+  const first = subjects[0];
+  const amount = Number(first.mandate.amountLamports);
+  const limit = Number(first.mandate.autonomyLimitLamports);
+  const finalState = subjects[subjects.length - 1].toState;
+  const escalated = subjects.some((s) => s.toState === "ESCALATED");
+  const payeeLabel = first.payload.supplier !== undefined ? "supplier" : "payee";
+  const steps = bundle.evidence.map((e) => {
+    const s = e.document.credentialSubject;
+    return {
+      from: s.fromState,
+      to: s.toState,
+      role: ROLE_BY_TRANSITION[`${s.fromState}>${s.toState}`],
+      actor_kind: s.actor.kind,
+      autonomy: s.actor.autonomy,
+      signed_at: e.document.validFrom,
+      anchor: e.anchor_account,
+      tx: e.receipt ? e.receipt.tx_signature : null,
+      ...pick(s.payload, ["decision", "reasons", "recommendation", "findings", "justification", "evaluation_date"]),
+    };
+  });
+  return {
+    id,
+    rule: { id: first.rule.id, version: first.rule.version, hash: first.rule.hash },
+    run: runOf(bundle.case_ref),
+    case_ref: bundle.case_ref,
+    case_record: bundle.case_record,
+    payee_label: payeeLabel,
+    payee: first.payload[payeeLabel],
+    amount,
+    limit,
+    final_state: finalState,
+    outcome: finalState === "AUTO_APPROVED" ? "auto" : finalState === "APPROVED" ? "approved" : finalState === "REJECTED" ? "rejected" : "open",
+    blocked_attempt: escalated && amount > limit,
+    documents: first.artifacts.map((a) => a.name),
+    open_tx: bundle.open_receipt ? bundle.open_receipt.tx_signature : null,
+    steps,
+    sample: source === "samples",
+    source: `${source}/${id}`,
+  };
+}
+
+function ruleFrom(file, cases) {
+  const rule = readJson(file);
+  const hash = cases.find((c) => c.rule.id === rule.id && c.rule.version === rule.version)?.rule.hash ?? null;
+  const conditions = Array.isArray(rule.conditions)
+    ? rule.conditions.map((c) => ({ check: c.check, reason: c.reason }))
+    : rule.requiredDocuments.map((kind) => ({
+        check: `${kind} present once and valid on the evaluation date (${rule.validity})`,
+        reason: `${kind.replace(/_/g, " ")} missing | ${kind.replace(/_/g, " ")} expired | ${kind.replace(/_/g, " ")} not yet valid | ${kind.replace(/_/g, " ")} submitted more than once`,
+      }));
+  const mandate = typeof rule.mandate === "string" ? { check: rule.mandate, reason: "amount exceeds autonomy limit" } : rule.mandate;
+  return {
+    id: rule.id,
+    version: rule.version,
+    hash,
+    description: rule.description,
+    documents: rule.requiredDocuments,
+    labels: rule.documentLabels ?? Object.fromEntries(rule.requiredDocuments.map((k) => [k, k.replace(/_/g, " ")])),
+    conditions,
+    mandate,
+    cases: cases.filter((c) => c.rule.id === rule.id).map((c) => c.id),
+  };
+}
+
+function runsFrom(cases) {
+  return RUNS.map((run) => {
+    const inRun = cases.filter((c) => c.run === run.date);
+    const released = inRun.filter((c) => c.outcome === "auto" || c.outcome === "approved").reduce((n, c) => n + c.amount, 0);
+    const refunded = inRun.filter((c) => c.outcome === "rejected").reduce((n, c) => n + c.amount, 0);
+    const anchors = inRun.reduce((n, c) => n + c.steps.length, 0);
+    const rent = inRun.length * CASE_RECORD_RENT + anchors * EVIDENCE_ANCHOR_RENT;
+    const fees = inRun.length * SIGNATURE_FEE + anchors * 2 * SIGNATURE_FEE;
+    return {
+      ...run,
+      cases: inRun.map((c) => c.id),
+      transactions: inRun.length + anchors,
+      released,
+      refunded,
+      rent,
+      fees,
+      spent: released + rent + fees,
+    };
+  });
+}
+
+function build() {
+  const cases = bundleDirs().map(caseFrom).sort((a, b) => a.run.localeCompare(b.run) || a.id.localeCompare(b.id));
+  const ruleDir = path.join(root, "offchain/crates/coorre-engine/rules");
+  const rules = fs
+    .readdirSync(ruleDir)
+    .filter((f) => f.endsWith(".json"))
+    .sort()
+    .map((f) => ruleFrom(path.join(ruleDir, f), cases));
+  const order = ["supplier-docs", "agent-purchase", "ecosystem-services-payment", "milestone-payment", "service-delivery"];
+  rules.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+  return {
+    format: "coorre-site-data/1",
+    program: PROGRAM,
+    rent: { case_record: CASE_RECORD_RENT, evidence_anchor: EVIDENCE_ANCHOR_RENT, signature_fee: SIGNATURE_FEE },
+    rules,
+    cases,
+    runs: runsFrom(cases),
+  };
+}
+
+const data = build();
+const text = `${JSON.stringify(data, null, 1)}\n`;
+const target = path.join(root, "web/verifier/site-data.json");
+if (process.argv.includes("--check")) {
+  const current = fs.existsSync(target) ? fs.readFileSync(target, "utf8") : "";
+  if (current !== text) {
+    console.error("web/verifier/site-data.json is out of date; run scripts/build-site-data");
+    process.exit(1);
+  }
+  console.log("site-data.json is up to date");
+} else {
+  fs.writeFileSync(target, text);
+  console.log(`wrote ${path.relative(root, target)}: ${data.cases.length} cases, ${data.rules.length} rules`);
+}

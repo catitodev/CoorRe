@@ -1,0 +1,1028 @@
+{
+ "format": "coorre-site-data/1",
+ "program": {
+  "id": "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv",
+  "network": "solana:devnet",
+  "programdata": "FHJ9rgj9U8R77s7QPfngAK543EonGpznTA7cirnxFN3S",
+  "upgrade_authority": "7yAwBDhFs8TdMurdwJsq4AB41tX2H9PULpxeAnf87zyZ",
+  "deploy_tx": "2ku5UxeTyM1qrVcKhB3s68pDVh2cZyyTpFXuhF8orWjzvswoCguiN5AjoLAAvbxLbG6yRBDHvxgAFYKzcsq7JJxY",
+  "deployed": "2026-10-08"
+ },
+ "rent": {
+  "case_record": 1940560,
+  "evidence_anchor": 1605280,
+  "signature_fee": 5000
+ },
+ "rules": [
+  {
+   "id": "supplier-docs",
+   "version": "1",
+   "hash": "sha256:7320d1d698663198cb21f5f5cce3e6d0064b8300a1042ebf13fc8934fbdabd2f",
+   "description": "Auto-approve a supplier payment only when every required document is present and valid on the evaluation date and the amount is within the automated actor's autonomy limit; otherwise escalate to the human approver with explicit reasons.",
+   "documents": [
+    "tax_certificate",
+    "environmental_license"
+   ],
+   "labels": {
+    "tax_certificate": "tax certificate",
+    "environmental_license": "environmental license"
+   },
+   "conditions": [
+    {
+     "check": "tax_certificate present once and valid on the evaluation date (valid_from <= evaluation_date <= valid_until, calendar dates, inclusive)",
+     "reason": "tax certificate missing | tax certificate expired | tax certificate not yet valid | tax certificate submitted more than once"
+    },
+    {
+     "check": "environmental_license present once and valid on the evaluation date (valid_from <= evaluation_date <= valid_until, calendar dates, inclusive)",
+     "reason": "environmental license missing | environmental license expired | environmental license not yet valid | environmental license submitted more than once"
+    }
+   ],
+   "mandate": {
+    "check": "amount_lamports <= autonomy_limit_lamports",
+    "reason": "amount exceeds autonomy limit"
+   },
+   "cases": [
+    "SUP-001",
+    "SUP-002"
+   ]
+  },
+  {
+   "id": "agent-purchase",
+   "version": "1",
+   "hash": "sha256:3d77e718e5ee0b6a66448c960024fe1dadff3950364eed67e2401d23eecc91b2",
+   "description": "Auto-approve the payment of a purchase prepared by an AI agent only when the purchase request, the supplier's quote and the supplier's registration agree, the registration is approved and current, the quote is current, the amount equals the quote and fits the budget cap, and the amount is within the automated actor's autonomy limit; otherwise escalate to the human approver with one reason per failed condition, in the order listed.",
+   "documents": [
+    "purchase_request",
+    "supplier_quote",
+    "supplier_registration"
+   ],
+   "labels": {
+    "purchase_request": "purchase request",
+    "supplier_quote": "supplier quote",
+    "supplier_registration": "supplier registration"
+   },
+   "conditions": [
+    {
+     "check": "each required document kind is submitted exactly once",
+     "reason": "<label> missing | <label> submitted more than once"
+    },
+    {
+     "check": "purchase_request.request_number == supplier_quote.request_number",
+     "reason": "request number differs between request and quote"
+    },
+    {
+     "check": "purchase_request.item == supplier_quote.item",
+     "reason": "item differs between request and quote"
+    },
+    {
+     "check": "supplier_quote.supplier == supplier_registration.supplier",
+     "reason": "supplier differs between quote and registration"
+    },
+    {
+     "check": "supplier_registration.status == \"approved\"",
+     "reason": "supplier registration not approved"
+    },
+    {
+     "check": "supplier_registration.valid_until >= evaluation_date",
+     "reason": "supplier registration expired"
+    },
+    {
+     "check": "supplier_quote.valid_until >= evaluation_date",
+     "reason": "supplier quote expired"
+    },
+    {
+     "check": "amount_lamports == supplier_quote.amount_lamports",
+     "reason": "amount differs from the quote"
+    },
+    {
+     "check": "amount_lamports <= purchase_request.budget_cap_lamports",
+     "reason": "amount exceeds the budget cap"
+    }
+   ],
+   "mandate": {
+    "check": "amount_lamports <= autonomy_limit_lamports",
+    "reason": "amount exceeds autonomy limit"
+   },
+   "cases": [
+    "AGT-001",
+    "AGT-002"
+   ]
+  },
+  {
+   "id": "ecosystem-services-payment",
+   "version": "1",
+   "hash": "sha256:eb9e053a54cf94256949e7bb134390e68efb86fa4be4434f1b0c24d34d4307c9",
+   "description": "Auto-approve a payment for ecosystem services only when the contract and the monitoring report refer to the same contract, the contract is valid on the evaluation date, the monitoring was observed within the contract validity and not after the evaluation date, the verified area is at least the committed area, and the amount is within the automated actor's autonomy limit; otherwise escalate to the human approver with one reason per failed condition, in the order listed.",
+   "documents": [
+    "pes_contract",
+    "monitoring_report"
+   ],
+   "labels": {
+    "pes_contract": "ecosystem services contract",
+    "monitoring_report": "monitoring report"
+   },
+   "conditions": [
+    {
+     "check": "each required document kind is submitted exactly once",
+     "reason": "<label> missing | <label> submitted more than once"
+    },
+    {
+     "check": "pes_contract.contract_number == monitoring_report.contract_number",
+     "reason": "contract number differs between contract and monitoring report"
+    },
+    {
+     "check": "pes_contract.valid_from <= evaluation_date <= pes_contract.valid_until",
+     "reason": "ecosystem services contract not yet valid | ecosystem services contract expired"
+    },
+    {
+     "check": "pes_contract.valid_from <= monitoring_report.observed_on <= pes_contract.valid_until and monitoring_report.observed_on <= evaluation_date",
+     "reason": "monitoring observed outside the contract validity | monitoring observed after the evaluation date"
+    },
+    {
+     "check": "monitoring_report.verified_area_m2 >= pes_contract.committed_area_m2",
+     "reason": "verified area below committed area"
+    }
+   ],
+   "mandate": {
+    "check": "amount_lamports <= autonomy_limit_lamports",
+    "reason": "amount exceeds autonomy limit"
+   },
+   "cases": [
+    "PES-001",
+    "PES-002"
+   ]
+  },
+  {
+   "id": "milestone-payment",
+   "version": "1",
+   "hash": "sha256:bb7edb9e6d965c6c508d1f3abcb56000811e7dbd4fe558145dddc874bc37ed85",
+   "description": "Auto-approve the installment of a funded project only when the funding agreement, the milestone report and the accountability report refer to the same agreement, the report covers the agreed milestone and was delivered within its window, previous installments are accounted for with no open findings, the amount fits the milestone amount, and the amount is within the automated actor's autonomy limit; otherwise escalate to the human approver with one reason per failed condition, in the order listed.",
+   "documents": [
+    "funding_agreement",
+    "milestone_report",
+    "accountability_report"
+   ],
+   "labels": {
+    "funding_agreement": "funding agreement",
+    "milestone_report": "milestone report",
+    "accountability_report": "accountability report"
+   },
+   "conditions": [
+    {
+     "check": "each required document kind is submitted exactly once",
+     "reason": "<label> missing | <label> submitted more than once"
+    },
+    {
+     "check": "funding_agreement.agreement_number == milestone_report.agreement_number == accountability_report.agreement_number",
+     "reason": "agreement number differs between documents"
+    },
+    {
+     "check": "funding_agreement.milestone_id == milestone_report.milestone_id",
+     "reason": "milestone differs between agreement and report"
+    },
+    {
+     "check": "funding_agreement.window_from <= milestone_report.delivered_on <= funding_agreement.window_until",
+     "reason": "milestone delivered outside the agreed window"
+    },
+    {
+     "check": "accountability_report.previous_installments_accounted == \"true\"",
+     "reason": "previous installments not accounted for"
+    },
+    {
+     "check": "accountability_report.open_findings == \"0\"",
+     "reason": "open findings in the accountability report"
+    },
+    {
+     "check": "amount_lamports <= funding_agreement.milestone_amount_lamports",
+     "reason": "amount exceeds the milestone amount"
+    }
+   ],
+   "mandate": {
+    "check": "amount_lamports <= autonomy_limit_lamports",
+    "reason": "amount exceeds autonomy limit"
+   },
+   "cases": [
+    "MIL-001",
+    "MIL-002"
+   ]
+  },
+  {
+   "id": "service-delivery",
+   "version": "1",
+   "hash": "sha256:c8ef062c4eb22745086f9ff84b143c5549b06aef0079aa3e52327a0a9928e21c",
+   "description": "Auto-approve the payment of a service contract only when the contract, the acceptance record and the invoice refer to the same contract, the provider on the invoice is the contracted one, the deliverable was accepted within the contract validity, the invoice was issued on or after the acceptance, the amount equals the invoice, the invoice fits the price cap, and the amount is within the automated actor's autonomy limit; otherwise escalate to the human approver with one reason per failed condition, in the order listed.",
+   "documents": [
+    "service_contract",
+    "acceptance_record",
+    "invoice"
+   ],
+   "labels": {
+    "service_contract": "service contract",
+    "acceptance_record": "acceptance record",
+    "invoice": "invoice"
+   },
+   "conditions": [
+    {
+     "check": "each required document kind is submitted exactly once",
+     "reason": "<label> missing | <label> submitted more than once"
+    },
+    {
+     "check": "service_contract.contract_number == acceptance_record.contract_number == invoice.contract_number",
+     "reason": "contract number differs between documents"
+    },
+    {
+     "check": "service_contract.provider == invoice.provider",
+     "reason": "provider differs between contract and invoice"
+    },
+    {
+     "check": "service_contract.valid_from <= acceptance_record.accepted_on <= service_contract.valid_until",
+     "reason": "acceptance outside the contract validity"
+    },
+    {
+     "check": "invoice.issued_on >= acceptance_record.accepted_on",
+     "reason": "invoice issued before acceptance"
+    },
+    {
+     "check": "amount_lamports == invoice.amount_lamports",
+     "reason": "amount differs from the invoice"
+    },
+    {
+     "check": "invoice.amount_lamports <= service_contract.price_cap_lamports",
+     "reason": "invoice amount exceeds the price cap"
+    }
+   ],
+   "mandate": {
+    "check": "amount_lamports <= autonomy_limit_lamports",
+    "reason": "amount exceeds autonomy limit"
+   },
+   "cases": [
+    "SRV-001",
+    "SRV-002"
+   ]
+  }
+ ],
+ "cases": [
+  {
+   "id": "SUP-001",
+   "rule": {
+    "id": "supplier-docs",
+    "version": "1",
+    "hash": "sha256:7320d1d698663198cb21f5f5cce3e6d0064b8300a1042ebf13fc8934fbdabd2f"
+   },
+   "run": "2026-10-08",
+   "case_ref": "urn:coorre:case:SUP-001-20261008T193251Z",
+   "case_record": "AKfwr5fcW6zCy2TN7LDYcwe8Cqa2TPYRNdogQBv1GkHA",
+   "payee_label": "supplier",
+   "payee": "Fornecedor Demo A Ltda",
+   "amount": 50000000,
+   "limit": 100000000,
+   "final_state": "AUTO_APPROVED",
+   "outcome": "auto",
+   "blocked_attempt": false,
+   "documents": [
+    "tax-certificate.json",
+    "environmental-license.json"
+   ],
+   "open_tx": "2G4u72fT6QU4eAQth6N2cXHE9mvsvmcmP9cgxF1hTAE2MKR5gvEZJA5PpfMRYwM7J1mbVtq49cuD7S6xRfAMPBya",
+   "steps": [
+    {
+     "from": "OPEN",
+     "to": "SUBMITTED",
+     "role": "payee",
+     "actor_kind": "human",
+     "autonomy": "execute_with_approval",
+     "signed_at": "2026-10-08T19:32:55Z",
+     "anchor": "9oen5aj5nywTHGi66os3ArLeUYqvW8x97z2ujfyJfX2j",
+     "tx": "aArpmRa31yEhipKgNeT332NyduktZvmx1j4StYw8vgbF5tGYo9NqXPrtwMrQkUBaQfoPonLHKNgZ2GbhwSbmprn"
+    },
+    {
+     "from": "SUBMITTED",
+     "to": "AGENT_REVIEWED",
+     "role": "agent",
+     "actor_kind": "agent",
+     "autonomy": "recommend",
+     "signed_at": "2026-10-08T19:32:59Z",
+     "anchor": "G35R7tEc1aJiVoE72rF8T5vA6sUCGSqFZ56WeaU4ktsd",
+     "tx": "2P2BfG1RxruVZidhRHvm9o8x8gp2gfsJJwvECgLKpmrWwkAGaX79UEBcBs51piN2P318s4x1ufsVrtn1DotuJdjd",
+     "recommendation": "auto_approve",
+     "findings": [],
+     "evaluation_date": "2026-10-08"
+    },
+    {
+     "from": "AGENT_REVIEWED",
+     "to": "AUTO_APPROVED",
+     "role": "rule_engine",
+     "actor_kind": "system",
+     "autonomy": "autonomous",
+     "signed_at": "2026-10-08T19:33:03Z",
+     "anchor": "6vBeTt161ectBh9q9ngmNKtwQofNPBbPqD92TfP1gRKT",
+     "tx": "4rtRyvcu4nUrBWRnPRUMmDNdidDVGCnkY7QwUtUJ9sn9R65RBHQrVRHG1523NMj6HGVLHQ8fhVU7KyDMyM7jo2QR",
+     "decision": "AUTO_APPROVED",
+     "reasons": [],
+     "evaluation_date": "2026-10-08"
+    }
+   ],
+   "sample": true,
+   "source": "samples/SUP-001"
+  },
+  {
+   "id": "SUP-002",
+   "rule": {
+    "id": "supplier-docs",
+    "version": "1",
+    "hash": "sha256:7320d1d698663198cb21f5f5cce3e6d0064b8300a1042ebf13fc8934fbdabd2f"
+   },
+   "run": "2026-10-08",
+   "case_ref": "urn:coorre:case:SUP-002-20261008T193251Z",
+   "case_record": "6DTcj3BDKpyacSBVWeQW6AaUtF7Z9T8XinXCi9ukZcaX",
+   "payee_label": "supplier",
+   "payee": "Fornecedor Demo B Ltda",
+   "amount": 200000000,
+   "limit": 100000000,
+   "final_state": "APPROVED",
+   "outcome": "approved",
+   "blocked_attempt": true,
+   "documents": [
+    "tax-certificate.json",
+    "environmental-license.json"
+   ],
+   "open_tx": "rBt7urt2sexKvv4kYWKfXCam54wxJsq46Zjs8hiV1HL2rWt8VJMMQKW8BB4HGxiMbirGzofe4CzHLbLh5GhascB",
+   "steps": [
+    {
+     "from": "OPEN",
+     "to": "SUBMITTED",
+     "role": "payee",
+     "actor_kind": "human",
+     "autonomy": "execute_with_approval",
+     "signed_at": "2026-10-08T19:33:16Z",
+     "anchor": "ArPAEC1n2unBSa47jata9z6DgEFj9Nb2jYuLBcieAmJb",
+     "tx": "3eduiGPv3z2KbVNicNovUKYcvJn5UYMEhhhRcwsNB7g9D8bDNpWgT8JPy2sbqmZwK4ujEaGuX4WmkM577JUEy8LN"
+    },
+    {
+     "from": "SUBMITTED",
+     "to": "AGENT_REVIEWED",
+     "role": "agent",
+     "actor_kind": "agent",
+     "autonomy": "recommend",
+     "signed_at": "2026-10-08T19:33:20Z",
+     "anchor": "Hegnp96CZC7H3ufTweq57oRTpakZvKnrGpAxE4V9iRud",
+     "tx": "4tb5Us6gM4dMkyHrFSVLBXWDme5ATisEW5QADx5NRibGeZb4fMg5HG6exgX4cyCpNADV6JAUVrPzZLUo4YwzpxZi",
+     "recommendation": "escalate",
+     "findings": [
+      "environmental license expired",
+      "amount exceeds autonomy limit"
+     ],
+     "evaluation_date": "2026-10-08"
+    },
+    {
+     "from": "AGENT_REVIEWED",
+     "to": "ESCALATED",
+     "role": "rule_engine",
+     "actor_kind": "system",
+     "autonomy": "autonomous",
+     "signed_at": "2026-10-08T19:33:26Z",
+     "anchor": "EZ8RatYSFF1s9hkGSxpVSHceu4CnVQRHoNdeSzdDgQHk",
+     "tx": "3zQBE5sYP5GyqazDYLh445kPeCWmWDBewRHFYsNjJKWye8Q28nFDeMnL4whmmWzmDTPwfZqXxgbZAdg3ZySmNQd2",
+     "decision": "ESCALATED",
+     "reasons": [
+      "environmental license expired",
+      "amount exceeds autonomy limit"
+     ],
+     "evaluation_date": "2026-10-08"
+    },
+    {
+     "from": "ESCALATED",
+     "to": "APPROVED",
+     "role": "approver",
+     "actor_kind": "human",
+     "autonomy": "autonomous",
+     "signed_at": "2026-10-08T19:33:30Z",
+     "anchor": "9EVE4QSBp1gP6sdegoSUJKk1Dd61PjoE7oaPDisUZ5h6",
+     "tx": "2nQ2pHJ7ACi6LQeNSzDAhM2N2ji9kkAZEmgsfTghSNNToQizXVXwkZiR3Ejiz2jwmiz8FUZMR3hG6RUDW1aapfYc",
+     "decision": "APPROVED",
+     "justification": "Environmental license renewal is under way and the purchase is time-critical; the procurement manager approves this payment above the automation limit."
+    }
+   ],
+   "sample": true,
+   "source": "samples/SUP-002"
+  },
+  {
+   "id": "AGT-001",
+   "rule": {
+    "id": "agent-purchase",
+    "version": "1",
+    "hash": "sha256:3d77e718e5ee0b6a66448c960024fe1dadff3950364eed67e2401d23eecc91b2"
+   },
+   "run": "2026-10-10",
+   "case_ref": "urn:coorre:case:AGT-001-20261010T021202Z",
+   "case_record": "HFkXBQAZsR5fv9ydjUHGhSzjcbxi4qFNAdz3tVoguVDV",
+   "payee_label": "payee",
+   "payee": "Fornecedor Demo D Ltda",
+   "amount": 20000000,
+   "limit": 30000000,
+   "final_state": "AUTO_APPROVED",
+   "outcome": "auto",
+   "blocked_attempt": false,
+   "documents": [
+    "purchase-request.json",
+    "supplier-quote.json",
+    "supplier-registration.json"
+   ],
+   "open_tx": "oviyg7cqHPknBTVYLM5gMie9aFSQ3ByH6Q1bwUt55WTt7grJoxFQypGJ8eiDMSDZQzgDQj2Xtoy87Ku2R4jmb2X",
+   "steps": [
+    {
+     "from": "OPEN",
+     "to": "SUBMITTED",
+     "role": "payee",
+     "actor_kind": "human",
+     "autonomy": "execute_with_approval",
+     "signed_at": "2026-10-10T02:12:05Z",
+     "anchor": "DzMA7RcdyFqC4uiuw4afPYFmY2vhYAJU4dSnwvGy7ZVq",
+     "tx": "3eGzARKUYdkMrKF66zmhU7Kc9VHW1KWAdSjRgwTfQGadACJEBNp4cN9TbJNaLLqAQuHTCFTVZ8TPKuQgFDeYX3Tc"
+    },
+    {
+     "from": "SUBMITTED",
+     "to": "AGENT_REVIEWED",
+     "role": "agent",
+     "actor_kind": "agent",
+     "autonomy": "recommend",
+     "signed_at": "2026-10-10T02:12:09Z",
+     "anchor": "2TjKaAYGKhG2rpfym3ENBKo1iuVFCoJALhT8MN3A3K46",
+     "tx": "4cFpuRsrY4T6fr5FLVoMiEKKhMxpZQr4sDDVMzdpEjYSvbXtS883P9aZ3rFXDLT6NAySQ54azB88EN81ENtfFuC8",
+     "recommendation": "auto_approve",
+     "findings": [],
+     "evaluation_date": "2026-10-10"
+    },
+    {
+     "from": "AGENT_REVIEWED",
+     "to": "AUTO_APPROVED",
+     "role": "rule_engine",
+     "actor_kind": "system",
+     "autonomy": "autonomous",
+     "signed_at": "2026-10-10T02:12:13Z",
+     "anchor": "A8SQL7P1YtrtRD2oiJBHwMcvKrnc7T3JaQimPSYiQ2W8",
+     "tx": "3rTeiVAQN8MbEKrGJ5E9f1zbhd2tRLHqG35uDuGkLmcZAMTWpK5WfczpfpxysZ4htvevSN1qksPac3QYmkVvJFkY",
+     "decision": "AUTO_APPROVED",
+     "reasons": [],
+     "evaluation_date": "2026-10-10"
+    }
+   ],
+   "sample": false,
+   "source": "onchain/devnet-bundles/2026-10-10/AGT-001"
+  },
+  {
+   "id": "AGT-002",
+   "rule": {
+    "id": "agent-purchase",
+    "version": "1",
+    "hash": "sha256:3d77e718e5ee0b6a66448c960024fe1dadff3950364eed67e2401d23eecc91b2"
+   },
+   "run": "2026-10-10",
+   "case_ref": "urn:coorre:case:AGT-002-20261010T021202Z",
+   "case_record": "4tkhyE96rDPd3hCZvxge8i5sYNGmkH4SAsdK5SgJFeQz",
+   "payee_label": "payee",
+   "payee": "Fornecedor Demo E Ltda",
+   "amount": 40000000,
+   "limit": 30000000,
+   "final_state": "APPROVED",
+   "outcome": "approved",
+   "blocked_attempt": true,
+   "documents": [
+    "purchase-request.json",
+    "supplier-quote.json",
+    "supplier-registration.json"
+   ],
+   "open_tx": "3i4aQHJcVa6wEw8GLEQfaWtitFiTjUx8C7J93HwjQqpUGuV96SpZfK1bqNQckma4QmEHBRwFcBYpCK4FM2ZjSSMm",
+   "steps": [
+    {
+     "from": "OPEN",
+     "to": "SUBMITTED",
+     "role": "payee",
+     "actor_kind": "human",
+     "autonomy": "execute_with_approval",
+     "signed_at": "2026-10-10T02:12:25Z",
+     "anchor": "FyuKc1eYcLLfjeZ1upWB9Q17o4vieayqPVcVKS2toCaf",
+     "tx": "4FmPEnsFzdeZb9TS3EjTsfXFLtMRkM4JpW46X3vWXxsopLwVTzmehbwr2GqcF3Zoc7CNL4uYwsUAbiNfPFbxtJGN"
+    },
+    {
+     "from": "SUBMITTED",
+     "to": "AGENT_REVIEWED",
+     "role": "agent",
+     "actor_kind": "agent",
+     "autonomy": "recommend",
+     "signed_at": "2026-10-10T02:12:28Z",
+     "anchor": "2F21HbYaC9syeKwamczWtFxQGVP3MqcTtjaFxWH9WN6L",
+     "tx": "54KpR4AG9PoR1qHVEijafpiunJ7t3j1qF3pxiS8tPznsNt8ZroidF2wArjYt9REH1yrNF4Q4oQRCJJwWQGaXgPw",
+     "recommendation": "escalate",
+     "findings": [
+      "supplier registration expired",
+      "amount exceeds autonomy limit"
+     ],
+     "evaluation_date": "2026-10-10"
+    },
+    {
+     "from": "AGENT_REVIEWED",
+     "to": "ESCALATED",
+     "role": "rule_engine",
+     "actor_kind": "system",
+     "autonomy": "autonomous",
+     "signed_at": "2026-10-10T02:12:38Z",
+     "anchor": "AGrpriSiZCHSjuRC5KJ8W85pkiVi4miSBToiLpKQXpQi",
+     "tx": "3RLknXh5PGkcCFh8Vah97pevU3gBBKCoSvwFozCaAMKxrdopr9CUJgi266KkunVJV2kjbxn1B24YQ5bsQNR4qzxY",
+     "decision": "ESCALATED",
+     "reasons": [
+      "supplier registration expired",
+      "amount exceeds autonomy limit"
+     ],
+     "evaluation_date": "2026-10-10"
+    },
+    {
+     "from": "ESCALATED",
+     "to": "APPROVED",
+     "role": "approver",
+     "actor_kind": "human",
+     "autonomy": "autonomous",
+     "signed_at": "2026-10-10T02:12:41Z",
+     "anchor": "J6WBQ7pP1ooR6g6QbGxu7owYDBEdYLjbtSgjiUaon4iJ",
+     "tx": "NmdtA5YRW1nBTmiBqEQJSpitnMQyQLpUZXSGNUTFJ6fSQR9WTXtkrEM54drMT3tavcFvxV221SFpPN9icqGvBmn",
+     "decision": "APPROVED",
+     "justification": "The supplier filed its registration renewal before expiry and the probe is needed for the next monitoring campaign; the purchasing manager approves this payment above the automation limit."
+    }
+   ],
+   "sample": true,
+   "source": "samples/AGT-002"
+  },
+  {
+   "id": "MIL-001",
+   "rule": {
+    "id": "milestone-payment",
+    "version": "1",
+    "hash": "sha256:bb7edb9e6d965c6c508d1f3abcb56000811e7dbd4fe558145dddc874bc37ed85"
+   },
+   "run": "2026-10-10",
+   "case_ref": "urn:coorre:case:MIL-001-20261010T021202Z",
+   "case_record": "EJutNMDdpkjw72S5mMbXqgkuwjjF9y7jNYgUaicLLbFJ",
+   "payee_label": "payee",
+   "payee": "Instituto Demo Bacia Viva",
+   "amount": 20000000,
+   "limit": 30000000,
+   "final_state": "AUTO_APPROVED",
+   "outcome": "auto",
+   "blocked_attempt": false,
+   "documents": [
+    "funding-agreement.json",
+    "milestone-report.json",
+    "accountability-report.json"
+   ],
+   "open_tx": "zFxocbbvjXQQYZCnGtxsFMgeeXtaha3yyTZDFiF5nJYBRPSKcnGDMwCsxA9nh8C2bJocsxeXYvb2ukGwwsDXPN1",
+   "steps": [
+    {
+     "from": "OPEN",
+     "to": "SUBMITTED",
+     "role": "payee",
+     "actor_kind": "human",
+     "autonomy": "execute_with_approval",
+     "signed_at": "2026-10-10T02:13:45Z",
+     "anchor": "eYBFifVeZuCdpGDJtGU3uKWnieL8iHKWguAMkBmnnTA",
+     "tx": "3L3v77XYq3kDhqqjp1SvzobWVRkQahGdRawgt9H6UNS6kntyRMBRkdCfdEyxQPKCSMx2ZENQnTMijTSTqeDsgLnx"
+    },
+    {
+     "from": "SUBMITTED",
+     "to": "AGENT_REVIEWED",
+     "role": "agent",
+     "actor_kind": "agent",
+     "autonomy": "recommend",
+     "signed_at": "2026-10-10T02:13:52Z",
+     "anchor": "9au3jAa7ajCqf8Tgrt7UZoHFfx1nDfSAPoR7JtYemp9y",
+     "tx": "5wLM95TjVzgX8GUq6fQ1djfVhvc5oPrutsm9Dvo5dwSFF5oadVJVXkDdJzU72kBFfGh52yp18KLuTUtDMCDu6Th1",
+     "recommendation": "auto_approve",
+     "findings": [],
+     "evaluation_date": "2026-10-10"
+    },
+    {
+     "from": "AGENT_REVIEWED",
+     "to": "AUTO_APPROVED",
+     "role": "rule_engine",
+     "actor_kind": "system",
+     "autonomy": "autonomous",
+     "signed_at": "2026-10-10T02:13:55Z",
+     "anchor": "4Cu5m8kS71YKDc8pCCwwdD28eFisxcRgMtehw1iJWjUp",
+     "tx": "5TMsTFENPinNkwqeGLP6DPQJgAEyo2JNXgDxGQSoKTb7SPuvxGdJSsqwdQj64B1ekgXoWVnwV53EisF5FuJScEt3",
+     "decision": "AUTO_APPROVED",
+     "reasons": [],
+     "evaluation_date": "2026-10-10"
+    }
+   ],
+   "sample": false,
+   "source": "onchain/devnet-bundles/2026-10-10/MIL-001"
+  },
+  {
+   "id": "MIL-002",
+   "rule": {
+    "id": "milestone-payment",
+    "version": "1",
+    "hash": "sha256:bb7edb9e6d965c6c508d1f3abcb56000811e7dbd4fe558145dddc874bc37ed85"
+   },
+   "run": "2026-10-10",
+   "case_ref": "urn:coorre:case:MIL-002-20261010T021202Z",
+   "case_record": "G46pdzcfhWgSJhiNvV36sxGussmWJ7kwaoRd3QDFpmRL",
+   "payee_label": "payee",
+   "payee": "Instituto Demo Rio Limpo",
+   "amount": 20000000,
+   "limit": 30000000,
+   "final_state": "REJECTED",
+   "outcome": "rejected",
+   "blocked_attempt": false,
+   "documents": [
+    "funding-agreement.json",
+    "milestone-report.json",
+    "accountability-report.json"
+   ],
+   "open_tx": "4b6SBRQpBm4Ffr2jFEGeLNfcXG5butzGvvAFrzaQnqmef9fwcXMMfQDdVrfV6e911juKgCFegNVhQDBWrTdR2M5p",
+   "steps": [
+    {
+     "from": "OPEN",
+     "to": "SUBMITTED",
+     "role": "payee",
+     "actor_kind": "human",
+     "autonomy": "execute_with_approval",
+     "signed_at": "2026-10-10T02:14:07Z",
+     "anchor": "7rVbuXJRVf6EJJU7rNn7Yp8X7KyRywApo1Q7y5BGvjAT",
+     "tx": "2mu9rX5oAYEu5igr9jTt17rRLgsyqthdNgheUTYQj1yF7Vy9Qpmury6ByoRfV7yxVM7dZaXM7v89TwtCPbGtjCg5"
+    },
+    {
+     "from": "SUBMITTED",
+     "to": "AGENT_REVIEWED",
+     "role": "agent",
+     "actor_kind": "agent",
+     "autonomy": "recommend",
+     "signed_at": "2026-10-10T02:14:11Z",
+     "anchor": "YdyaMybLqUYYT6Tog4c95rWrb7KqUwLzZbQ4YWMoaGh",
+     "tx": "62PSbga61XwJu9KBZugrTco4C9Fnyg6whCgjy56Z2scD9v9fLiG6W4yKw5mqnCmC3ypznyRYF9ZAxhZ6HAowbgDk",
+     "recommendation": "escalate",
+     "findings": [
+      "open findings in the accountability report"
+     ],
+     "evaluation_date": "2026-10-10"
+    },
+    {
+     "from": "AGENT_REVIEWED",
+     "to": "ESCALATED",
+     "role": "rule_engine",
+     "actor_kind": "system",
+     "autonomy": "autonomous",
+     "signed_at": "2026-10-10T02:14:15Z",
+     "anchor": "H7ev2mjBS934HWCttAJRrqLwDVgENVCXUvwGNtQCsvQY",
+     "tx": "NtYBxozNsoVzKKb3of5QSnP2YVBKC5n2NKCwN2dt7FcXHKfbPQ395UYaFe32Qnbd4V8p7Lu2gpspzn4HhwXuA18",
+     "decision": "ESCALATED",
+     "reasons": [
+      "open findings in the accountability report"
+     ],
+     "evaluation_date": "2026-10-10"
+    },
+    {
+     "from": "ESCALATED",
+     "to": "REJECTED",
+     "role": "approver",
+     "actor_kind": "human",
+     "autonomy": "autonomous",
+     "signed_at": "2026-10-10T02:14:20Z",
+     "anchor": "7qnjrG7zSaJ9cubt73HjJaEYXi995Ym2SgwRWcyjpoUw",
+     "tx": "5rW4veHJEtHiDHsQJphtp8TtvUpSyLYBMLAGBbDCbyZYLXQVUwc91fjqsqi9yNUKa4G4MAC9BodBi1PS2Gd6vrDF",
+     "decision": "REJECTED",
+     "justification": "Two findings on the previous installment are still open; this installment stays withheld until they are remedied and the escrow returns to the fund."
+    }
+   ],
+   "sample": false,
+   "source": "onchain/devnet-bundles/2026-10-10/MIL-002"
+  },
+  {
+   "id": "PES-001",
+   "rule": {
+    "id": "ecosystem-services-payment",
+    "version": "1",
+    "hash": "sha256:eb9e053a54cf94256949e7bb134390e68efb86fa4be4434f1b0c24d34d4307c9"
+   },
+   "run": "2026-10-10",
+   "case_ref": "urn:coorre:case:PES-001-20261010T021202Z",
+   "case_record": "6VKegWgguGwfoqpSkgWYCViqPjsvwqv5uX4vRFbVRGsT",
+   "payee_label": "payee",
+   "payee": "Cooperativa Demo Nascentes",
+   "amount": 20000000,
+   "limit": 30000000,
+   "final_state": "AUTO_APPROVED",
+   "outcome": "auto",
+   "blocked_attempt": false,
+   "documents": [
+    "pes-contract.json",
+    "monitoring-report.json"
+   ],
+   "open_tx": "53BCxhKYDFEtGRpnqiiXMPoCYQvHZ47fqyv8bKUn6pKnzjjHoaFHbJvQrYEw8axJHoWcuzCEX1SwMPiahFHZ9r2m",
+   "steps": [
+    {
+     "from": "OPEN",
+     "to": "SUBMITTED",
+     "role": "payee",
+     "actor_kind": "human",
+     "autonomy": "execute_with_approval",
+     "signed_at": "2026-10-10T02:12:57Z",
+     "anchor": "4HPsRyJ8xgHgwgZtA57vARLeb9wZekGcdqermD6YaQpQ",
+     "tx": "dp8A3LGcAdbRbiqGRYP6qBHC7BSLaMJifrUKRfAXn2xwQf9qjtKxbBpCsFoHvkkEKZHgx9dBmyX5Bh24wBnyH9c"
+    },
+    {
+     "from": "SUBMITTED",
+     "to": "AGENT_REVIEWED",
+     "role": "agent",
+     "actor_kind": "agent",
+     "autonomy": "recommend",
+     "signed_at": "2026-10-10T02:13:01Z",
+     "anchor": "5jgmjGX1UyRwS9Pqc6M96xUTuF2SDeyAveYubmCQMMbm",
+     "tx": "4bfLaeZtrxQZS6QPtXfg8smpJeA66CCtpQGFv2Vf8gaj18oMR49gJ9jrcAQh96KvgxcLYmPGfHViwoieu4sC9WP7",
+     "recommendation": "auto_approve",
+     "findings": [],
+     "evaluation_date": "2026-10-10"
+    },
+    {
+     "from": "AGENT_REVIEWED",
+     "to": "AUTO_APPROVED",
+     "role": "rule_engine",
+     "actor_kind": "system",
+     "autonomy": "autonomous",
+     "signed_at": "2026-10-10T02:13:07Z",
+     "anchor": "BijYoaUBT4KAxyToXwFpNE9TxknwMwpPLbuSm7fr252w",
+     "tx": "3uzkLCcMmUUUkbPT3fGwmYHAr9vyxjG3zh3URbw1bP7iF6AM3WN56ePcJVUv7cdrHvAGZ3hu1DSHWg9eRVwm8LSY",
+     "decision": "AUTO_APPROVED",
+     "reasons": [],
+     "evaluation_date": "2026-10-10"
+    }
+   ],
+   "sample": false,
+   "source": "onchain/devnet-bundles/2026-10-10/PES-001"
+  },
+  {
+   "id": "PES-002",
+   "rule": {
+    "id": "ecosystem-services-payment",
+    "version": "1",
+    "hash": "sha256:eb9e053a54cf94256949e7bb134390e68efb86fa4be4434f1b0c24d34d4307c9"
+   },
+   "run": "2026-10-10",
+   "case_ref": "urn:coorre:case:PES-002-20261010T021202Z",
+   "case_record": "Fg7PbduC8r5KWM8WkRxqsDXfyHoqkBjM9HCaCe8csAF1",
+   "payee_label": "payee",
+   "payee": "Cooperativa Demo Serra Verde",
+   "amount": 40000000,
+   "limit": 30000000,
+   "final_state": "APPROVED",
+   "outcome": "approved",
+   "blocked_attempt": true,
+   "documents": [
+    "pes-contract.json",
+    "monitoring-report.json"
+   ],
+   "open_tx": "2GEFbzGL95UNPYE3gs7zMFZ5uRGghmHh8EsTDrXqte1scNHMj3BDXvSxWzhTuJMtr8pDYNwbnBLeKjTP9ccgHgE7",
+   "steps": [
+    {
+     "from": "OPEN",
+     "to": "SUBMITTED",
+     "role": "payee",
+     "actor_kind": "human",
+     "autonomy": "execute_with_approval",
+     "signed_at": "2026-10-10T02:13:19Z",
+     "anchor": "567ie4hKrXzcqVoP3RwR4uAoqcct4KSA7drkDTmAMrWH",
+     "tx": "2kCWRni2YVAFYiaHAc2sGtk3DNi298PUXD22irSmEorSiM5JByjLWvJC6nRgfBpQCKomLH7Mf75osa8cnYWdGvab"
+    },
+    {
+     "from": "SUBMITTED",
+     "to": "AGENT_REVIEWED",
+     "role": "agent",
+     "actor_kind": "agent",
+     "autonomy": "recommend",
+     "signed_at": "2026-10-10T02:13:23Z",
+     "anchor": "8Vmg4cvD59nM6c1Cw4KRRWtNpG6RHrhc6SfohCDGaA5L",
+     "tx": "br3TKct7Bs2qpW3M225xZf7N7FpJijqjMhEnvfE6ojf2uj2nvEKtMCG78nBrNm2wt8irKH1cd9UySCiXpYViZAo",
+     "recommendation": "escalate",
+     "findings": [
+      "verified area below committed area",
+      "amount exceeds autonomy limit"
+     ],
+     "evaluation_date": "2026-10-10"
+    },
+    {
+     "from": "AGENT_REVIEWED",
+     "to": "ESCALATED",
+     "role": "rule_engine",
+     "actor_kind": "system",
+     "autonomy": "autonomous",
+     "signed_at": "2026-10-10T02:13:29Z",
+     "anchor": "63AFqEcto8hZtjSxwqUTsSaaxxUVo4xK1oYVBgAECgK5",
+     "tx": "3ZgrVx7zs7NcvyaxFFPpFEBccjg7BYmZK7QtbJmCsPXM93JZo9fmE3ro1bg639MNMDkfDjNoX5YRcNLGVHhznbov",
+     "decision": "ESCALATED",
+     "reasons": [
+      "verified area below committed area",
+      "amount exceeds autonomy limit"
+     ],
+     "evaluation_date": "2026-10-10"
+    },
+    {
+     "from": "ESCALATED",
+     "to": "APPROVED",
+     "role": "approver",
+     "actor_kind": "human",
+     "autonomy": "autonomous",
+     "signed_at": "2026-10-10T02:13:33Z",
+     "anchor": "AQMJZ6U7mgExGUv5vDJFfRjP4XkYWVz431Gg7Xyg7fZz",
+     "tx": "5WrgY3n5ViURcBRiwV1jQvBkj2NPDevy4p6SVWyr8kVUQwMmi819yxQXAUYFxaw1jcemKRPTJrQwLPvdGLsurPLx",
+     "decision": "APPROVED",
+     "justification": "The shortfall comes from a documented fire in the dry season and the burned section is under recovery; the program committee approves this payment above the automation limit and schedules a new verification."
+    }
+   ],
+   "sample": true,
+   "source": "samples/PES-002"
+  },
+  {
+   "id": "SRV-001",
+   "rule": {
+    "id": "service-delivery",
+    "version": "1",
+    "hash": "sha256:c8ef062c4eb22745086f9ff84b143c5549b06aef0079aa3e52327a0a9928e21c"
+   },
+   "run": "2026-10-10",
+   "case_ref": "urn:coorre:case:SRV-001-20261010T021202Z",
+   "case_record": "CzWgCr1HtwrHzC1Wwy4CGmkDeC6CaDrtWykrWhct9zSb",
+   "payee_label": "payee",
+   "payee": "Consultoria Demo Alfa Ltda",
+   "amount": 20000000,
+   "limit": 30000000,
+   "final_state": "AUTO_APPROVED",
+   "outcome": "auto",
+   "blocked_attempt": false,
+   "documents": [
+    "service-contract.json",
+    "acceptance-record.json",
+    "invoice.json"
+   ],
+   "open_tx": "3ELKd6fLAcTcxvmMQ2E66E22TZx5dzC9zFXXcGbv2apGu1jLpa5bq4byutqeyTtj2f2kRVrFz6uHNcnVyw6BjynZ",
+   "steps": [
+    {
+     "from": "OPEN",
+     "to": "SUBMITTED",
+     "role": "payee",
+     "actor_kind": "human",
+     "autonomy": "execute_with_approval",
+     "signed_at": "2026-10-10T02:14:35Z",
+     "anchor": "7soBUU2G8QCsZrWVXdUGYodAbHT4suLN4LMwd3ta2t2E",
+     "tx": "3MJsmDmzRbqczKgNuc254LTi1CkxTYMqHP778V6SLwPxbuFhr2CBDAyaBCD1N44MagovdmGXQNv3hAUoqCzThpAe"
+    },
+    {
+     "from": "SUBMITTED",
+     "to": "AGENT_REVIEWED",
+     "role": "agent",
+     "actor_kind": "agent",
+     "autonomy": "recommend",
+     "signed_at": "2026-10-10T02:14:38Z",
+     "anchor": "3ftKEGVC8XAbiVUATpGeJGn4TevVnxFXffyg3rPzEXS1",
+     "tx": "JGhS8sgMkMrFevqD4x8FYFgxd9PirqTdNtDMSHH9HnXK7u8z8zzNNPHZkr4gZAs3SwXWvFcPE5rJe722XXRrJ4N",
+     "recommendation": "auto_approve",
+     "findings": [],
+     "evaluation_date": "2026-10-10"
+    },
+    {
+     "from": "AGENT_REVIEWED",
+     "to": "AUTO_APPROVED",
+     "role": "rule_engine",
+     "actor_kind": "system",
+     "autonomy": "autonomous",
+     "signed_at": "2026-10-10T02:14:42Z",
+     "anchor": "F3CpafThrFN4SjywRnwLNiKyFYpYVLMWc9Qcsd8QVx2r",
+     "tx": "2JMRXjZ6sRHqCKJN5p4nMAxnyESL8tgLLRqiEyQ8WJPQkaB3HaDs33TFE1DkQVqFvSU6jXosQLWDebV98YRySeAb",
+     "decision": "AUTO_APPROVED",
+     "reasons": [],
+     "evaluation_date": "2026-10-10"
+    }
+   ],
+   "sample": false,
+   "source": "onchain/devnet-bundles/2026-10-10/SRV-001"
+  },
+  {
+   "id": "SRV-002",
+   "rule": {
+    "id": "service-delivery",
+    "version": "1",
+    "hash": "sha256:c8ef062c4eb22745086f9ff84b143c5549b06aef0079aa3e52327a0a9928e21c"
+   },
+   "run": "2026-10-10",
+   "case_ref": "urn:coorre:case:SRV-002-20261010T021202Z",
+   "case_record": "DNPDxAjex72NgF9xKRZdLzvywMtmBUWDU2wcTZhGzSLm",
+   "payee_label": "payee",
+   "payee": "Consultoria Demo Beta Ltda",
+   "amount": 20000000,
+   "limit": 30000000,
+   "final_state": "REJECTED",
+   "outcome": "rejected",
+   "blocked_attempt": false,
+   "documents": [
+    "service-contract.json",
+    "acceptance-record.json",
+    "invoice.json"
+   ],
+   "open_tx": "3UpfGdFAQgr1rUAFbG9jTAd5yXD9hLVy5sU2gKuY43bExqJ7dZPq3gJtRh5ukYbWGZUNg3g4nemu41GKuwQ6dZWh",
+   "steps": [
+    {
+     "from": "OPEN",
+     "to": "SUBMITTED",
+     "role": "payee",
+     "actor_kind": "human",
+     "autonomy": "execute_with_approval",
+     "signed_at": "2026-10-10T02:14:56Z",
+     "anchor": "CiJcrME7yaikC9DXApgdGRqqxBfB76NKY4E5AhgpqQ6a",
+     "tx": "3PvVQHZBnk3cGjPbk62T6siyPQTYUDH4MbovdrkWU4Nv6k1at9rVmiipaH1oK7SMKR92QYNifDAPAaUrnbSNvykv"
+    },
+    {
+     "from": "SUBMITTED",
+     "to": "AGENT_REVIEWED",
+     "role": "agent",
+     "actor_kind": "agent",
+     "autonomy": "recommend",
+     "signed_at": "2026-10-10T02:15:01Z",
+     "anchor": "8z7Ds7U87sJTLSXcUS3ow2A9LDowC849v6Em1ERwS7j6",
+     "tx": "6KDZP7dBCvbudAdPw4KNjhExQ4Fiqxo64fFDL2BkppoyZ2hFJBqg29QTJMbYoJg9nmUp7euYNXs5R4aQtu6wctD",
+     "recommendation": "escalate",
+     "findings": [
+      "invoice issued before acceptance"
+     ],
+     "evaluation_date": "2026-10-10"
+    },
+    {
+     "from": "AGENT_REVIEWED",
+     "to": "ESCALATED",
+     "role": "rule_engine",
+     "actor_kind": "system",
+     "autonomy": "autonomous",
+     "signed_at": "2026-10-10T02:15:05Z",
+     "anchor": "2b26Yw5xp4Ld8foE9Zzq4ot647LiRCfbZdNswokskT5t",
+     "tx": "3mxYzpp1FDWFrKv1wzgzXksqTPzz1c4E46THwwrUojW5173aoFFkRLZmnKTHMKVdwWiMwBut9EVFyWBLGfpTPDNj",
+     "decision": "ESCALATED",
+     "reasons": [
+      "invoice issued before acceptance"
+     ],
+     "evaluation_date": "2026-10-10"
+    },
+    {
+     "from": "ESCALATED",
+     "to": "REJECTED",
+     "role": "approver",
+     "actor_kind": "human",
+     "autonomy": "autonomous",
+     "signed_at": "2026-10-10T02:15:09Z",
+     "anchor": "2ArzrsPBoNTmYtTCtDyVXExkmifoc1Edx4LzCncinXpj",
+     "tx": "3FV3ThfPDWuvyND9LfF8kr1XJaWFPTbgmCr2jMthh28U9NJBfek3M8TGheLK3G7pLzcizEoKfQcrCLzMnhg9Wpa4",
+     "decision": "REJECTED",
+     "justification": "The invoice predates the acceptance of the deliverable; payment is refused, the escrow returns to the contracting party and a new invoice must be issued after acceptance."
+    }
+   ],
+   "sample": false,
+   "source": "onchain/devnet-bundles/2026-10-10/SRV-002"
+  }
+ ],
+ "runs": [
+  {
+   "date": "2026-10-08",
+   "utc": "19:32",
+   "label": "Supplier demo",
+   "recorded_spent": 265198080,
+   "cases": [
+    "SUP-001",
+    "SUP-002"
+   ],
+   "transactions": 9,
+   "released": 250000000,
+   "refunded": 0,
+   "rent": 15118080,
+   "fees": 80000,
+   "spent": 265198080
+  },
+  {
+   "date": "2026-10-10",
+   "utc": "02:12",
+   "label": "Four new domains",
+   "recorded_spent": 220792320,
+   "cases": [
+    "AGT-001",
+    "AGT-002",
+    "MIL-001",
+    "MIL-002",
+    "PES-001",
+    "PES-002",
+    "SRV-001",
+    "SRV-002"
+   ],
+   "transactions": 36,
+   "released": 160000000,
+   "refunded": 40000000,
+   "rent": 60472320,
+   "fees": 320000,
+   "spent": 220792320
+  }
+ ]
+}
