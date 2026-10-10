@@ -12,6 +12,7 @@ use coorre_cli::files::{fetch_accounts, load_bundle, read_artifacts, verify_bund
 use coorre_cli::fixtures::load_cases;
 use coorre_cli::keys;
 use coorre_cli::print::print_report;
+use coorre_cli::snapshot::load_recorded_accounts;
 use coorre_verify::{COORRE_DEVNET_PROGRAM_ID, SOLANA_DEVNET_NETWORK_ID};
 
 #[derive(Parser)]
@@ -80,6 +81,11 @@ struct VerifyArgs {
     out: PathBuf,
     #[arg(long, help = "Print the report as JSON")]
     json: bool,
+    #[arg(
+        long,
+        help = "Read the accounts from a recorded getMultipleAccounts response instead of the network"
+    )]
+    accounts: Option<PathBuf>,
     #[command(flatten)]
     bridge: BridgeArgs,
 }
@@ -180,13 +186,34 @@ fn verify(args: &VerifyArgs) -> anyhow::Result<bool> {
     let env = SystemEnvironment::new();
     let bundle = load_bundle(&args.bundle)?;
     let files = read_artifacts(&args.artifacts, &bundle)?;
-    let work_dir = args
-        .out
-        .join(format!("verify-{}", env.run_suffix()))
-        .join("bridge-io");
-    let keys_dir = args.out.join("no-keys");
-    let mut anchorer = bridge(&args.bridge, &work_dir, &keys_dir)?;
-    let accounts = fetch_accounts(&mut anchorer, &bundle)?;
+    let (accounts, source) = match &args.accounts {
+        Some(path) => {
+            let recorded = load_recorded_accounts(path)?;
+            let slot = recorded
+                .slot
+                .map_or_else(|| "unknown slot".to_owned(), |s| format!("slot {s}"));
+            (
+                recorded.accounts,
+                format!(
+                    "  accounts    recorded in {} ({slot}); no network access",
+                    path.display()
+                ),
+            )
+        }
+        None => {
+            let work_dir = args
+                .out
+                .join(format!("verify-{}", env.run_suffix()))
+                .join("bridge-io");
+            let keys_dir = args.out.join("no-keys");
+            let mut anchorer = bridge(&args.bridge, &work_dir, &keys_dir)?;
+            let accounts = fetch_accounts(&mut anchorer, &bundle)?;
+            (
+                accounts,
+                format!("  accounts    read from {}", anchorer.network_id()),
+            )
+        }
+    };
     let report = verify_bundle(
         &bundle,
         &files,
@@ -199,6 +226,7 @@ fn verify(args: &VerifyArgs) -> anyhow::Result<bool> {
     if args.json {
         writeln!(out, "{}", serde_json::to_string_pretty(&report)?)?;
     } else {
+        writeln!(out, "{source}")?;
         print_report(&report, &mut out)?;
     }
     Ok(report.passed())

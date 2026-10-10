@@ -4,6 +4,7 @@ pub mod files;
 pub mod fixtures;
 pub mod keys;
 pub mod print;
+pub mod snapshot;
 
 use coorre_model::Role;
 
