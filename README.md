@@ -12,6 +12,8 @@
 <img src="docs/assets/badge-wasm.svg" alt="Runs in the browser">
 </p>
 
+<p align="center"><b>English</b> · <a href="README.pt-BR.md">Português (Brasil)</a></p>
+
 The agent acts within its mandate, the rule decides, and a person signs every exception. On Solana, the program enforces the limit and releases a payment only when the evidence-backed decision is anchored. Anyone can verify every step without trusting us.
 
 Built for the Colosseum Crypto World's Fair, Solana track, by watafluxhackteam.
