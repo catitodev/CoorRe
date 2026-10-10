@@ -4,6 +4,15 @@ import { renderCaseDetail, renderCaseList, renderOnchain, renderOverview, render
 
 const $ = (id) => document.getElementById(id);
 const BUNDLE_FORMAT = "coorre-audit-bundle/1";
+const CHECK_PURPOSE = {
+  1: "Each document matches the hash its evidence declares.",
+  2: "Each signed step hashes to the value that was anchored, and its rule is included.",
+  3: "Each step carries a valid Ed25519 signature.",
+  4: "The key that signed each step holds that role on-chain.",
+  5: "The steps form one unbroken chain from the case to its final state.",
+  6: "The accounts belong to the CoorRe program and hold exactly the recomputed values.",
+  7: "Re-running the rule on the documents gives the recorded decision.",
+};
 const selected = new Map();
 const buttons = ["sample-sup-001", "sample-sup-002", "sample-agt-002", "sample-pes-002", "verify-files"];
 
@@ -118,15 +127,24 @@ function render(result, expected) {
   );
 
   $("checks").replaceChildren(
-    ...report.checks.map((c) =>
-      el(
-        "li",
-        `check ${c.status === "PASS" ? "pass" : "fail"}`,
-        el("span", "badge", c.status),
-        el("strong", null, `${c.id}. ${c.name}`),
+    ...report.checks.map((c, i) => {
+      const pass = c.status === "PASS";
+      const details = el("details", null);
+      details.open = !pass;
+      details.append(
+        el(
+          "summary",
+          null,
+          el("span", "check-num", String(c.id)),
+          el("span", "check-text", el("strong", null, c.name), el("span", "check-purpose", CHECK_PURPOSE[c.id] ?? "")),
+          el("span", "badge", pass ? "Pass" : "Fail")
+        ),
         el("ul", null, ...c.details.map((d) => el("li", null, d)))
-      )
-    )
+      );
+      const item = el("li", `check ${pass ? "pass" : "fail"}`, details);
+      item.style.setProperty("--i", String(i));
+      return item;
+    })
   );
   $("result").hidden = false;
 }
