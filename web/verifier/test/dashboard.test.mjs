@@ -68,3 +68,19 @@ test("dashboard modules never build HTML from data", () => {
     }
   }
 });
+
+test("every case reads as a complete story with no missing value", async () => {
+  const { caseSteps, stepStory } = await import("../views.js");
+  for (const c of data.cases) {
+    const rows = caseSteps(c);
+    assert.equal(rows.length, c.steps.length + 1 + (c.blocked_attempt ? 1 : 0), c.id);
+    assert.equal(rows[0].step.to, "OPEN", c.id);
+    const blocked = rows.findIndex((r) => r.kind === "blocked");
+    if (c.blocked_attempt) assert.equal(rows[blocked + 1].step.to, "ESCALATED", c.id);
+    for (const row of rows.filter((r) => r.kind === "step")) {
+      const story = stepStory(c, row.step);
+      for (const text of [story.title, story.body, story.quote ?? ""]) assert.ok(!/\b(undefined|null|NaN)\b/.test(text), `${c.id} ${row.step.to}: ${text}`);
+      if (row.step.role === "approver") assert.ok(story.quote, `${c.id}: the approver's justification is quoted`);
+    }
+  }
+});

@@ -318,25 +318,78 @@ export function renderCaseList(data) {
   draw();
 }
 
-function stepItem(c, s, i) {
+function lowerFirst(text) {
+  return text ? text.charAt(0).toLowerCase() + text.slice(1) : text;
+}
+
+export function stepStory(c, s) {
+  const reasons = (list) => (list?.length ? `: ${list.map(lowerFirst).join("; ")}` : "");
+  switch (s.to) {
+    case "OPEN":
+      return { title: `The creator put ${sol(c.amount)} in escrow`, body: `The program holds it until a signed decision is anchored. The rule engine may release up to ${sol(c.limit)} alone.` };
+    case "SUBMITTED":
+      return { title: `The ${c.payee_label} submitted ${c.documents.length} documents`, body: c.documents.join(", ") };
+    case "AGENT_REVIEWED":
+      return { title: `The AI agent recommended ${s.recommendation === "auto_approve" ? "approval" : "escalation"}${reasons(s.findings)}`, body: "Advice only: the rule engine decides." };
+    case "AUTO_APPROVED":
+      return { title: "The rule engine approved within the mandate", body: `The escrow of ${sol(c.amount)} was released to the ${c.payee_label}.` };
+    case "ESCALATED":
+      return { title: `The rule engine escalated to a person${reasons(s.reasons)}`, body: "Above the limit or outside the rule, only the approver can decide." };
+    case "APPROVED":
+      return { title: "A person approved and signed", body: `The escrow of ${sol(c.amount)} was released to the ${c.payee_label}.`, quote: s.justification };
+    case "REJECTED":
+      return { title: "A person rejected and signed", body: `The escrow of ${sol(c.amount)} was refunded to the creator.`, quote: s.justification };
+    default:
+      return { title: s.to, body: "" };
+  }
+}
+
+function stepItem(c, s, n) {
   const human = s.role === "approver";
+  const story = stepStory(c, s);
   const li = html("li", human ? "human" : null);
-  li.style.setProperty("--i", String(i));
-  const body = [];
-  if (s.recommendation) body.push(`Recommends ${s.recommendation.replace("_", "-")}${s.findings?.length ? `: ${s.findings.join("; ")}` : ""}`);
-  if (s.decision) body.push(`Decision ${s.decision}${s.reasons?.length ? `: ${s.reasons.join("; ")}` : ""}`);
-  if (s.justification) body.push(`“${s.justification}”`);
-  if (s.to === "SUBMITTED") body.push(`${c.documents.length} documents submitted`);
+  li.id = `step-${n}`;
+  li.tabIndex = -1;
+  li.style.setProperty("--i", String(n));
+  const meta = [`${ROLE_LABELS[s.role] ?? "Creator"} · ${s.actor_kind}, ${s.autonomy.replace(/_/g, " ")}`, ` · ${s.signed_at}`];
   li.append(
-    html("span", "dot"),
-    html("div", "step-head", `${s.to} · ${ROLE_LABELS[s.role]}`),
-    html("div", "step-meta", `${s.actor_kind}, ${s.autonomy.replace(/_/g, " ")} · signed ${s.signed_at} · `, s.tx ? tx(s.tx) : "no receipt"),
-    ...body.map((b) => html("div", "step-body", b))
+    ...[
+      html("span", "dot"),
+      human ? html("span", "step-flag", "Human signature") : null,
+      html("div", "step-head", story.title),
+      story.body ? html("div", "step-body", story.body) : null,
+      story.quote ? html("blockquote", "step-quote", `“${story.quote}”`) : null,
+      html("div", "step-meta", ...meta, " · ", s.tx ? tx(s.tx) : "no receipt", s.anchor ? html("span", null, " · anchor ", address(s.anchor)) : null),
+      html("div", "step-state", s.to),
+    ].filter(Boolean)
   );
   return li;
 }
 
-export function renderCaseDetail(data, id, rpcUrl) {
+function blockedItem(c, n) {
+  const li = html("li", "blocked");
+  li.id = `step-${n}`;
+  li.tabIndex = -1;
+  li.style.setProperty("--i", String(n));
+  li.append(
+    html("span", "dot"),
+    html("div", "step-head", `The rule engine tried to approve ${sol(c.amount)} above its ${sol(c.limit)} limit`),
+    html("div", "step-body", "The program refused it with MandateExceeded. No transaction exists and no funds moved."),
+    html("div", "step-state", "AUTO_APPROVED refused")
+  );
+  return li;
+}
+
+export function caseSteps(c) {
+  const rows = [{ kind: "step", step: { to: "OPEN", role: null, actor_kind: "creator", autonomy: "funds the escrow", signed_at: `run of ${c.run}`, tx: c.open_tx, anchor: null } }];
+  for (const s of c.steps) {
+    if (s.to === "ESCALATED" && c.blocked_attempt) rows.push({ kind: "blocked" });
+    rows.push({ kind: "step", step: s });
+  }
+  return rows;
+}
+
+export function renderCaseDetail(data, id, rpcUrl, focus) {
   const container = document.getElementById("case-detail");
   const c = data.cases.find((x) => x.id === id);
   if (!c) {
@@ -353,49 +406,39 @@ export function renderCaseDetail(data, id, rpcUrl) {
     rows: [{ label: c.id, value: c.amount, marker: c.limit, cls: OUTCOMES[c.outcome].cls, tip: [`Amount ${sol(c.amount)}`, `Autonomy limit ${sol(c.limit)}`] }],
   });
 
-  const steps = html("ol", "steps");
-  steps.append(Object.assign(stepItem(c, { to: "OPEN", role: "payee", actor_kind: "creator", autonomy: "funds the escrow", signed_at: c.run, tx: c.open_tx }, 0), {}));
-  steps.firstChild.querySelector(".step-head").textContent = `OPEN · Creator escrows ${sol(c.amount)}`;
-  steps.firstChild.querySelector(".step-meta").replaceChildren(`run of ${c.run} · `, c.open_tx ? tx(c.open_tx) : "no receipt");
-  c.steps.forEach((s, i) => {
-    if (s.to === "ESCALATED" && c.blocked_attempt) {
-      const blocked = html("li", "blocked");
-      blocked.style.setProperty("--i", String(i + 1));
-      blocked.append(
-        html("span", "dot"),
-        html("div", "step-head", "AUTO_APPROVED attempted · Rule engine"),
-        html("div", "step-meta", `${sol(c.amount)} against a ${sol(c.limit)} limit`),
-        html("div", "step-body", "Rejected by the program with MandateExceeded. No transaction exists and no funds moved.")
-      );
-      steps.append(blocked);
-    }
-    steps.append(stepItem(c, s, i + 2));
-  });
+  const steps = html("ol", "steps story");
+  caseSteps(c).forEach((row, n) => steps.append(row.kind === "blocked" ? blockedItem(c, n) : stepItem(c, row.step, n)));
 
   const action = c.sample ? link("Verify this case in the browser", `#verify/${c.id}`) : link("Audit bundle on GitHub", `${REPO}/tree/main/${c.source}`);
   container.replaceChildren(
     back,
-    html("h2", null, `${c.id} · ${c.payee}`),
-    html("p", null, outcomeTag(c.outcome), " · ", `${c.rule.id} v${c.rule.version}`, " · ", `devnet run of ${c.run}`),
+    html("h2", "case-title", `${c.id} · ${c.payee}`),
+    html("p", "case-sub", outcomeTag(c.outcome), " · ", `${c.rule.id} v${c.rule.version}`, " · ", `devnet run of ${c.run}`),
     html(
-      "div",
-      "grid",
-      html(
-        "article",
-        "panel",
-        html("h2", null, "Mandate"),
-        amount,
-        facts([
-          ["Case", html("code", null, c.case_ref)],
-          ["Case record", address(c.case_record)],
-          ["State on devnet now", live],
-          ["Documents", html("ul", "chips", ...c.documents.map((d) => html("li", null, d)))],
-          ["Re-check", action],
-        ])
-      ),
-      html("article", "panel", html("h2", null, "Signed steps"), steps)
-    )
+      "article",
+      "panel",
+      html("h2", null, "Mandate"),
+      amount,
+      facts([
+        ["Case", html("code", null, c.case_ref)],
+        ["Case record", address(c.case_record)],
+        ["State on devnet now", live],
+        ["Documents", html("ul", "chips", ...c.documents.map((d) => html("li", null, d)))],
+        ["Re-check", action],
+      ])
+    ),
+    html("article", "panel", html("h2", null, "What happened, step by step"), html("p", "note", "Each step was signed by the key that holds its role and anchored on Solana devnet."), steps)
   );
+  if (focus) {
+    const target = container.querySelector(`#${CSS.escape(focus)}`);
+    if (target) {
+      requestAnimationFrame(() => {
+        target.classList.add("focus-step");
+        target.scrollIntoView({ block: "center" });
+        target.focus({ preventScroll: true });
+      });
+    }
+  }
   liveState(data, rpcUrl).then(
     ({ slot, accounts }) => {
       const account = accounts[c.case_record];

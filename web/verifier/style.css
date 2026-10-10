@@ -1610,6 +1610,84 @@ th.num {
   font-weight: 600;
 }
 
+.steps.story li {
+  padding-bottom: 24px;
+  border-radius: 12px;
+}
+
+.steps.story .step-head {
+  font-size: var(--step-1);
+  line-height: 1.4;
+  max-width: 70ch;
+}
+
+.steps.story .step-body {
+  color: var(--muted);
+  max-width: 70ch;
+}
+
+.steps.story .step-meta {
+  margin-top: 4px;
+  font-size: var(--step--1);
+}
+
+.step-state {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.step-flag {
+  display: inline-block;
+  margin-bottom: 4px;
+  font-size: var(--step--1);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.steps li.human .step-flag::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--series-human);
+}
+
+.step-quote {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--border);
+  max-width: 70ch;
+}
+
+.steps li.focus-step {
+  outline: 2px solid var(--verdigris);
+  outline-offset: 8px;
+}
+
+.steps li:focus {
+  outline: none;
+}
+
+.steps li.focus-step:focus {
+  outline: 2px solid var(--verdigris);
+}
+
+.case-title {
+  font-size: var(--step-3);
+  line-height: 1.2;
+  margin: 0 0 8px;
+}
+
+.case-sub {
+  margin: 0 0 16px;
+  color: var(--muted);
+}
+
 .steps .step-meta {
   color: var(--muted);
   font-size: var(--step-0);

@@ -290,7 +290,7 @@ function setupTheme() {
   });
 }
 
-function show(route, arg) {
+function show(route, arg, sub) {
   for (const view of document.querySelectorAll(".view")) view.hidden = view.dataset.view !== route;
   for (const a of document.querySelectorAll(".nav a")) {
     if (a.dataset.route === route) a.setAttribute("aria-current", "page");
@@ -305,7 +305,7 @@ function show(route, arg) {
     if (route === "cases") {
       $("cases-list").hidden = Boolean(arg);
       $("case-detail").hidden = !arg;
-      if (arg) renderCaseDetail(siteData, arg, rpcUrl());
+      if (arg) renderCaseDetail(siteData, arg, rpcUrl(), sub);
       else if (!rendered.has(route)) renderCaseList(siteData);
     }
     if (route !== "cases" || !arg) rendered.add(route);
@@ -315,8 +315,8 @@ function show(route, arg) {
 }
 
 function route(event) {
-  const [name, arg] = location.hash.replace(/^#/, "").split("/");
-  show(ROUTES.includes(name) ? name : "overview", arg ? decodeURIComponent(arg) : undefined);
+  const [name, arg, sub] = location.hash.replace(/^#/, "").split("/");
+  show(ROUTES.includes(name) ? name : "overview", arg ? decodeURIComponent(arg) : undefined, sub && /^step-\d+$/.test(sub) ? sub : undefined);
   if (event) $("main").focus({ preventScroll: true, focusVisible: false });
 }
 
