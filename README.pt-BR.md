@@ -374,3 +374,5 @@ A documentação técnica é mantida em inglês.
 ## Licença
 
 Apache-2.0. Veja [LICENSE](LICENSE) e [NOTICE](NOTICE).
+
+A camada de verificação deste repositório (programa on-chain, modelo de evidências, verificador e bridge) é open source sob a licença Apache-2.0, para que qualquer pessoa possa confiar nela e compô-la. A plataforma CoorRe (orquestração de casos, autoria de regras, pacotes de regras por domínio, integrações e o serviço hospedado) está planejada como o produto comercial da empresa.

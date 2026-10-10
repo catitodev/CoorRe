@@ -372,3 +372,5 @@ No code existed before 2026-10-07. The first commit is dated 2026-10-08 and the 
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+The verification layer in this repository (on-chain program, evidence model, verifier and bridge) is open source under Apache-2.0, so anyone can trust and compose it. The CoorRe platform (case orchestration, rule authoring, domain rule packs, integrations and the hosted service) is planned as the company's commercial product.
