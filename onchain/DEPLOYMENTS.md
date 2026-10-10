@@ -135,6 +135,10 @@ back to its rent-exempt minimum (1,940,560). AGT-002 and PES-002 are the browser
 in web/verifier/samples; the bundles of the other six cases are in
 onchain/devnet-bundles/2026-10-10, unchanged, so any case can be verified again.
 
+### Browser verifier on GitHub Pages (2026-10-10 03:26 UTC)
+
+https://catitodev.github.io/CoorRe/ , published from commit `8289136` by the Pages workflow run [38020483114](https://github.com/catitodev/CoorRe/actions/runs/38020483114).
+
 ## Spike: `playground_spike` (2026-10-08)
 
 Throwaway program used to validate the escrow pattern before writing

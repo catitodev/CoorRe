@@ -43,3 +43,6 @@ sent, and the page never builds HTML from data.
 
 `.github/workflows/pages.yml` builds, tests and deploys the page to GitHub Pages. It
 runs only when started by hand (workflow_dispatch).
+
+Live at https://catitodev.github.io/CoorRe/ (see onchain/DEPLOYMENTS.md for the run that
+published it).
