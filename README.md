@@ -14,6 +14,8 @@
 
 <p align="center"><b>English</b> · <a href="README.pt-BR.md">Português (Brasil)</a></p>
 
+<p align="center"><a href="https://catitodev.github.io/CoorRe/"><b>Live verifier</b></a> · <a href="docs/spec/SPEC.md">Specification</a> · <a href="onchain/DEPLOYMENTS.md">Deployments</a></p>
+
 The agent acts within its mandate, the rule decides, and a person signs every exception. On Solana, the program enforces the limit and releases a payment only when the evidence-backed decision is anchored. Anyone can verify every step without trusting us.
 
 Built for the Colosseum Crypto World's Fair, Solana track, by watafluxhackteam.
@@ -166,7 +168,9 @@ The Rust core has no Solana dependency. The Node bridge is the only component th
 
 ## Try it
 
-You need Rust (stable) and Node 20 or later. These commands verify a recorded devnet case against the live chain. They need no keys and no SOL.
+The fastest way: open the [live verifier](https://catitodev.github.io/CoorRe/) and click a recorded case. Everything is checked in your browser; only public account addresses are sent to a Solana RPC.
+
+From the command line, you need Rust (stable) and Node 20 or later. These commands verify a recorded devnet case against the live chain. They need no keys and no SOL.
 
 ```bash
 git clone https://github.com/catitodev/CoorRe.git
@@ -309,7 +313,7 @@ It reads the submitted documents and records a recommendation: escalate or auto-
 <details>
 <summary>Can I verify without running anything?</summary>
 
-Yes, with the browser verifier in [web/verifier](web/verifier), once it is published on GitHub Pages. Until then you can run it locally or use the command in Try it.
+Yes. Open the [live verifier](https://catitodev.github.io/CoorRe/), click one of the four recorded cases or drop your own bundle and documents. The checks run in your browser, from the same Rust code as the command line compiled to WebAssembly.
 
 </details>
 

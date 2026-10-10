@@ -14,6 +14,8 @@
 
 <p align="center"><a href="README.md">English</a> · <b>Português (Brasil)</b></p>
 
+<p align="center"><a href="https://catitodev.github.io/CoorRe/"><b>Verificador ao vivo</b></a> · <a href="docs/spec/SPEC.md">Especificação</a> · <a href="onchain/DEPLOYMENTS.md">Implantações</a></p>
+
 O agente age dentro do seu mandato, a regra decide e uma pessoa assina cada exceção. Na Solana, o programa impõe o limite e só libera um pagamento quando a decisão, sustentada por evidências, está ancorada. Qualquer pessoa pode verificar cada etapa sem precisar confiar em nós.
 
 Construído para o Colosseum Crypto World's Fair, trilha Solana, pela watafluxhackteam.
@@ -166,7 +168,9 @@ O núcleo em Rust não depende da Solana. A bridge em Node é o único component
 
 ## Experimente
 
-Você precisa de Rust (stable) e Node 20 ou mais recente. Estes comandos verificam um caso gravado na devnet contra a cadeia ao vivo. Não precisam de chaves nem de SOL.
+O caminho mais rápido: abra o [verificador ao vivo](https://catitodev.github.io/CoorRe/) e clique em um caso gravado. Tudo é conferido no seu navegador; só endereços de contas públicas são enviados a um RPC da Solana.
+
+Pela linha de comando, você precisa de Rust (stable) e Node 20 ou mais recente. Estes comandos verificam um caso gravado na devnet contra a cadeia ao vivo. Não precisam de chaves nem de SOL.
 
 ```bash
 git clone https://github.com/catitodev/CoorRe.git
@@ -309,7 +313,7 @@ Ele lê os documentos enviados e registra uma recomendação: escalar ou aprovar
 <details>
 <summary>Posso verificar sem rodar nada?</summary>
 
-Sim, com o verificador no navegador em [web/verifier](web/verifier), depois que ele for publicado no GitHub Pages. Até lá, você pode rodá-lo localmente ou usar o comando em Experimente.
+Sim. Abra o [verificador ao vivo](https://catitodev.github.io/CoorRe/), clique em um dos quatro casos gravados ou arraste seu próprio pacote e documentos. As checagens rodam no seu navegador, a partir do mesmo código Rust da linha de comando, compilado para WebAssembly.
 
 </details>
 
