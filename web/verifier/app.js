@@ -1,17 +1,31 @@
 import init, * as wasm from "./pkg/coorre_verify.js";
 import { verifyBundle, explorerUrl, isAccountSnapshot } from "./verify-core.js";
-import { renderCaseDetail, renderCaseList, renderOnchain, renderOverview, renderRules, sol } from "./views.js";
+import { actorKindLabel, autonomyLabel, renderCaseDetail, renderCaseList, renderOnchain, renderOverview, renderRules, sol } from "./views.js";
+import { chooseLanguage, language, LANGUAGES, setLanguage, staticText, t } from "./i18n.js";
 
 const $ = (id) => document.getElementById(id);
 const BUNDLE_FORMAT = "coorre-audit-bundle/1";
 const CHECK_PURPOSE = {
-  1: "Each document matches the hash its evidence declares.",
-  2: "Each signed step hashes to the value that was anchored, and its rule is included.",
-  3: "Each step carries a valid Ed25519 signature.",
-  4: "The key that signed each step holds that role on-chain.",
-  5: "The steps form one unbroken chain from the case to its final state.",
-  6: "The accounts belong to the CoorRe program and hold exactly the recomputed values.",
-  7: "Re-running the rule on the documents gives the recorded decision.",
+  1: () => t("Each document matches the hash its evidence declares."),
+  2: () => t("Each signed step hashes to the value that was anchored, and its rule is included."),
+  3: () => t("Each step carries a valid Ed25519 signature."),
+  4: () => t("The key that signed each step holds that role on-chain."),
+  5: () => t("The steps form one unbroken chain from the case to its final state."),
+  6: () => t("The accounts belong to the CoorRe program and hold exactly the recomputed values."),
+  7: () => t("Re-running the rule on the documents gives the recorded decision."),
+};
+export const CHECK_NAMES = {
+  1: { name: "Artifact digests match", text: () => [t("Artifact digests match"), t("Artifact digests")] },
+  2: { name: "Evidence hash recomputed (JCS + SHA-256)", text: () => [t("Evidence hash recomputed (JCS + SHA-256)"), t("Evidence hash")] },
+  3: { name: "Ed25519 eddsa-jcs-2022 proof valid", text: () => [t("Ed25519 eddsa-jcs-2022 proof valid"), t("Ed25519 eddsa-jcs-2022")] },
+  4: { name: "Signer bound to the on-chain role key", text: () => [t("Signer bound to the on-chain role key"), t("Signer bound")] },
+  5: { name: "Hash chain continuous from genesis", text: () => [t("Hash chain continuous from genesis"), t("Hash chain")] },
+  6: { name: "On-chain match (owner, discriminator, content)", text: () => [t("On-chain match (owner, discriminator, content)"), t("On-chain match")] },
+  7: { name: "Automated decisions reproduced from the rule", text: () => [t("Automated decisions reproduced from the rule"), t("Automated decisions")] },
+};
+const RECOMMENDATIONS = {
+  auto_approve: () => t("auto-approve"),
+  escalate: () => t("escalate"),
 };
 const selected = new Map();
 const buttons = ["sample-sup-001", "sample-sup-002", "sample-agt-002", "sample-pes-002", "verify-files"];
@@ -40,10 +54,20 @@ function short(value) {
   return value.length > 20 ? `${value.slice(0, 8)}…${value.slice(-6)}` : value;
 }
 
-function setStatus(text, isError = false) {
+let lastStatus = null;
+let lastResult = null;
+
+function setStatus(message, isError = false) {
+  lastStatus = { message, isError };
   const status = $("status");
-  status.textContent = text;
+  status.textContent = message();
   status.classList.toggle("error", isError);
+}
+
+function checkTitle(c) {
+  const known = CHECK_NAMES[c.id];
+  if (language() !== "en" && known && known.name === c.name) return known.text();
+  return [c.name, c.name.split(" ").slice(0, 2).join(" ")];
 }
 
 function setBusy(busy) {
@@ -55,8 +79,11 @@ function decisionText(payload) {
   if (!payload || typeof payload !== "object") return "";
   const parts = [];
   if (typeof payload.decision === "string") parts.push(payload.decision);
-  if (typeof payload.recommendation === "string") parts.push(`recommends ${payload.recommendation.replace("_", "-")}`);
-  if (Array.isArray(payload.documents)) parts.push(`${payload.documents.length} documents submitted`);
+  if (typeof payload.recommendation === "string") {
+    const recommendation = language() !== "en" && RECOMMENDATIONS[payload.recommendation] ? RECOMMENDATIONS[payload.recommendation]() : payload.recommendation.replace("_", "-");
+    parts.push(t("recommends {recommendation}", { recommendation }));
+  }
+  if (Array.isArray(payload.documents)) parts.push(t("{count} documents submitted", { count: payload.documents.length }));
   if (Array.isArray(payload.reasons) && payload.reasons.length) parts.push(payload.reasons.join("; "));
   if (Array.isArray(payload.findings) && payload.findings.length) parts.push(payload.findings.join("; "));
   if (typeof payload.justification === "string") parts.push(`“${payload.justification}”`);
@@ -64,6 +91,7 @@ function decisionText(payload) {
 }
 
 function render(result, expected) {
+  lastResult = { result, expected };
   const { report } = result;
   const passed = report.checks.every((c) => c.status === "PASS");
   const count = report.checks.filter((c) => c.status === "PASS").length;
@@ -71,47 +99,47 @@ function render(result, expected) {
 
   const verdict = $("verdict");
   const notes = [
-    result.tamperedName ? ` · one byte of ${result.tamperedName} was changed on purpose` : "",
-    result.missing.length ? ` · missing files: ${result.missing.join(", ")}` : "",
-    result.bundleProgramId !== expected.programId ? ` · the bundle names program ${result.bundleProgramId}` : "",
-    result.source === "snapshot" ? ` · accounts from the recorded devnet snapshot, slot ${result.slot}` : "",
+    result.tamperedName ? ` · ${t("one byte of {name} was changed on purpose", { name: result.tamperedName })}` : "",
+    result.missing.length ? ` · ${t("missing files: {names}", { names: result.missing.join(", ") })}` : "",
+    result.bundleProgramId !== expected.programId ? ` · ${t("the bundle names program {program}", { program: result.bundleProgramId })}` : "",
+    result.source === "snapshot" ? ` · ${t("accounts from the recorded devnet snapshot, slot {slot}", { slot: result.slot })}` : "",
   ].filter(Boolean);
   verdict.replaceChildren(
-    el("strong", null, passed ? `${count}/${report.checks.length} checks passed` : `Verification failed: ${count}/${report.checks.length} checks passed`),
+    el("strong", null, passed ? t("{passed}/{total} checks passed", { passed: count, total: report.checks.length }) : t("Verification failed: {passed}/{total} checks passed", { passed: count, total: report.checks.length })),
     ...notes.map((note) => el("span", null, note))
   );
   verdict.className = `verdict ${passed ? "pass" : "fail"}`;
 
   const s = report.summary;
   const rows = [
-    ["Case", document.createTextNode(s.case_ref)],
-    ["Program", link(s.program_id, explorerUrl("address", s.program_id, network))],
-    ["Case record", link(s.case_record, explorerUrl("address", s.case_record, network))],
-    ["Final state", document.createTextNode(s.final_state ?? "unknown")],
-    ["Amount", document.createTextNode(sol(s.amount_lamports))],
-    ["Automation limit", document.createTextNode(sol(s.autonomy_limit_lamports))],
-    ["Creator", link(s.creator ?? "", explorerUrl("address", s.creator, network))],
-    ["Payee key", link(s.submitter ?? "", explorerUrl("address", s.submitter, network))],
-    ["AI agent key", link(s.agent ?? "", explorerUrl("address", s.agent, network))],
-    ["Rule engine key", link(s.rule_engine ?? "", explorerUrl("address", s.rule_engine, network))],
-    ["Approver key", link(s.approver ?? "", explorerUrl("address", s.approver, network))],
+    [t("Case"), document.createTextNode(s.case_ref)],
+    [t("Program"), link(s.program_id, explorerUrl("address", s.program_id, network))],
+    [t("Case record"), link(s.case_record, explorerUrl("address", s.case_record, network))],
+    [t("Final state"), document.createTextNode(s.final_state ?? t("unknown"))],
+    [t("Amount"), document.createTextNode(sol(s.amount_lamports))],
+    [t("Automation limit"), document.createTextNode(sol(s.autonomy_limit_lamports))],
+    [t("Creator"), link(s.creator ?? "", explorerUrl("address", s.creator, network))],
+    [t("Payee key"), link(s.submitter ?? "", explorerUrl("address", s.submitter, network))],
+    [t("AI agent key"), link(s.agent ?? "", explorerUrl("address", s.agent, network))],
+    [t("Rule engine key"), link(s.rule_engine ?? "", explorerUrl("address", s.rule_engine, network))],
+    [t("Approver key"), link(s.approver ?? "", explorerUrl("address", s.approver, network))],
   ];
   $("summary").replaceChildren(...rows.flatMap(([term, value]) => [el("dt", null, term), el("dd", null, value)]));
 
   const body = $("timeline").querySelector("tbody");
   body.replaceChildren(
-    ...report.timeline.map((t) => {
+    ...report.timeline.map((step) => {
       const onchain = el("td", null);
-      onchain.append(link(`anchor ${short(t.anchor_account)}`, explorerUrl("address", t.anchor_account, network)));
-      if (t.anchor_slot) onchain.append(el("span", "muted", ` slot ${t.anchor_slot}`));
-      if (t.tx_signature) onchain.append(el("br"), link(`tx ${short(t.tx_signature)}`, explorerUrl("tx", t.tx_signature, network)));
+      onchain.append(link(`${t("anchor")} ${short(step.anchor_account)}`, explorerUrl("address", step.anchor_account, network)));
+      if (step.anchor_slot) onchain.append(el("span", "muted", ` ${t("slot")} ${step.anchor_slot}`));
+      if (step.tx_signature) onchain.append(el("br"), link(`tx ${short(step.tx_signature)}`, explorerUrl("tx", step.tx_signature, network)));
       return el(
         "tr",
         null,
-        el("td", null, `${t.from_state} → ${t.to_state}`),
-        el("td", null, `${t.actor_kind} · ${t.autonomy}`, el("br"), el("span", "muted", short(t.actor_did))),
-        el("td", null, decisionText(t.payload)),
-        el("td", null, t.valid_from),
+        el("td", null, `${step.from_state} → ${step.to_state}`),
+        el("td", null, language() === "en" ? `${step.actor_kind} · ${step.autonomy}` : `${actorKindLabel(step.actor_kind)} · ${autonomyLabel(step.autonomy)}`, el("br"), el("span", "muted", short(step.actor_did))),
+        el("td", null, decisionText(step.payload)),
+        el("td", null, step.valid_from),
         onchain
       );
     })
@@ -119,9 +147,10 @@ function render(result, expected) {
 
   $("check-chain").replaceChildren(
     ...report.checks.map((c, i) => {
-      const item = el("li", c.status === "PASS" ? "pass" : "fail", el("span", "pin", String(c.id)), el("span", "name", c.name.split(" ").slice(0, 2).join(" ")));
+      const [name, shortName] = checkTitle(c);
+      const item = el("li", c.status === "PASS" ? "pass" : "fail", el("span", "pin", String(c.id)), el("span", "name", shortName));
       item.style.setProperty("--i", String(i));
-      item.title = `${c.id}. ${c.name}: ${c.status}`;
+      item.title = `${c.id}. ${name}: ${c.status}`;
       return item;
     })
   );
@@ -136,8 +165,8 @@ function render(result, expected) {
           "summary",
           null,
           el("span", "check-num", String(c.id)),
-          el("span", "check-text", el("strong", null, c.name), el("span", "check-purpose", CHECK_PURPOSE[c.id] ?? "")),
-          el("span", "badge", pass ? "Pass" : "Fail")
+          el("span", "check-text", el("strong", null, checkTitle(c)[0]), el("span", "check-purpose", CHECK_PURPOSE[c.id] ? CHECK_PURPOSE[c.id]() : "")),
+          el("span", "badge", pass ? t("Pass") : t("Fail"))
         ),
         el("ul", null, ...c.details.map((d) => el("li", null, d)))
       );
@@ -151,7 +180,7 @@ function render(result, expected) {
 
 async function run(bundleText, files, snapshot = null) {
   setBusy(true);
-  setStatus("Checking…");
+  setStatus(() => t("Checking…"));
   const expected = {
     programId: $("program-id").value.trim(),
     networkId: $("network-id").value.trim(),
@@ -168,15 +197,16 @@ async function run(bundleText, files, snapshot = null) {
       snapshot,
     });
     render(result, expected);
-    setStatus(
+    setStatus(() =>
       result.source === "snapshot"
-        ? `Accounts read from the recorded devnet snapshot (slot ${result.slot}); no network request was made. Everything was computed in this browser.`
-        : `Accounts read from the RPC at slot ${result.slot}. Everything else was computed in this browser.`
+        ? t("Accounts read from the recorded devnet snapshot (slot {slot}); no network request was made. Everything was computed in this browser.", { slot: result.slot })
+        : t("Accounts read from the RPC at slot {slot}. Everything else was computed in this browser.", { slot: result.slot })
     );
     $("result").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
     $("result").hidden = true;
-    setStatus(`Could not verify: ${error.message ?? error}`, true);
+    lastResult = null;
+    setStatus(() => t("Could not verify: {error}", { error: error.message ?? error }), true);
   } finally {
     setBusy(false);
   }
@@ -195,13 +225,13 @@ async function runSample(id) {
     const snapshot = $("use-snapshot").checked ? await (await fetch("samples/devnet-snapshot.json")).json() : null;
     await run(bundleText, files, snapshot);
   } catch (error) {
-    setStatus(`Could not load the sample: ${error.message ?? error}`, true);
+    setStatus(() => t("Could not load the sample: {error}", { error: error.message ?? error }), true);
   }
 }
 
 function renderFileList() {
   $("file-list").replaceChildren(
-    ...[...selected.entries()].map(([name, bytes]) => el("li", null, `${name} (${bytes.length} bytes)`))
+    ...[...selected.entries()].map(([name, bytes]) => el("li", null, t("{name} ({count} bytes)", { name, count: bytes.length })))
   );
 }
 
@@ -238,7 +268,7 @@ function findSnapshot() {
 async function verifySelected() {
   const bundle = findBundle();
   if (!bundle) {
-    setStatus("No audit bundle found among the files (a JSON file with format coorre-audit-bundle/1).", true);
+    setStatus(() => t("No audit bundle found among the files (a JSON file with format coorre-audit-bundle/1)."), true);
     return;
   }
   const snapshot = findSnapshot();
@@ -265,7 +295,88 @@ function applyTheme(theme) {
     const img = source.parentElement.querySelector("img");
     img.src = img.getAttribute("src");
   }
-  $("theme-label").textContent = dark ? "Light" : "Dark";
+  themeLabel();
+}
+
+function themeLabel() {
+  const root = document.documentElement;
+  const dark = root.dataset.theme ? root.dataset.theme === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+  $("theme-label").textContent = dark ? t("Light") : t("Dark");
+}
+
+const staticNodes = [];
+
+function collectStatic() {
+  const skip = "script, style, svg, #theme-label, .lang-switch";
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (node.nodeValue.trim() && !node.parentElement.closest(skip)) staticNodes.push({ node, original: node.nodeValue });
+  }
+  for (const element of document.body.querySelectorAll("[aria-label], [alt], [title], [placeholder]")) {
+    if (element.closest(skip)) continue;
+    for (const attribute of ["aria-label", "alt", "title", "placeholder"]) {
+      if (element.hasAttribute(attribute)) staticNodes.push({ element, attribute, original: element.getAttribute(attribute) });
+    }
+  }
+}
+
+function translateStatic() {
+  for (const entry of staticNodes) {
+    const value = staticText(entry.original);
+    if (entry.node) entry.node.nodeValue = value;
+    else entry.element.setAttribute(entry.attribute, value);
+  }
+}
+
+function languageButtons() {
+  const other = LANGUAGES[language() === "en" ? "pt" : "en"];
+  for (const button of document.querySelectorAll(".lang-switch")) {
+    button.lang = other.tag;
+    button.setAttribute("aria-label", other.switchLabel);
+    button.querySelector(".lang-code").textContent = other.code;
+    button.querySelector(".lang-name").textContent = other.name;
+  }
+}
+
+function applyLanguage(lang) {
+  setLanguage(lang);
+  document.documentElement.lang = LANGUAGES[language()].tag;
+  translateStatic();
+  languageButtons();
+  themeLabel();
+}
+
+function storedLanguage() {
+  try {
+    return localStorage.getItem("coorre-lang");
+  } catch {
+    return null;
+  }
+}
+
+function storeLanguage(lang) {
+  try {
+    localStorage.setItem("coorre-lang", lang);
+  } catch {
+    return;
+  }
+}
+
+function setupLanguage() {
+  collectStatic();
+  applyLanguage(chooseLanguage({ query: new URLSearchParams(location.search).get("lang"), stored: storedLanguage() }));
+  const toggle = () => {
+    const next = language() === "en" ? "pt" : "en";
+    applyLanguage(next);
+    storeLanguage(next);
+    const url = new URL(location.href);
+    if (url.searchParams.has("lang")) {
+      url.searchParams.set("lang", next);
+      history.replaceState(null, "", url);
+    }
+    refresh();
+  };
+  for (const button of document.querySelectorAll(".lang-switch")) button.addEventListener("click", toggle);
 }
 
 function setupTheme() {
@@ -290,7 +401,7 @@ function setupTheme() {
   });
 }
 
-function show(route, arg, sub) {
+function show(route, arg, sub, refreshing = false) {
   for (const view of document.querySelectorAll(".view")) view.hidden = view.dataset.view !== route;
   for (const a of document.querySelectorAll(".nav a")) {
     if (a.dataset.route === route) a.setAttribute("aria-current", "page");
@@ -310,13 +421,27 @@ function show(route, arg, sub) {
     }
     if (route !== "cases" || !arg) rendered.add(route);
   }
+  if (refreshing) return;
   if (route === "verify" && arg && SAMPLES.includes(arg)) runSample(arg);
   window.scrollTo(0, 0);
 }
 
-function route(event) {
+function parseRoute() {
   const [name, arg, sub] = location.hash.replace(/^#/, "").split("/");
-  show(ROUTES.includes(name) ? name : "overview", arg ? decodeURIComponent(arg) : undefined, sub && /^step-\d+$/.test(sub) ? sub : undefined);
+  return [ROUTES.includes(name) ? name : "overview", arg ? decodeURIComponent(arg) : undefined, sub && /^step-\d+$/.test(sub) ? sub : undefined];
+}
+
+function refresh() {
+  rendered.clear();
+  const [name, arg] = parseRoute();
+  show(name, arg, undefined, true);
+  if (lastResult) render(lastResult.result, lastResult.expected);
+  if (lastStatus) setStatus(lastStatus.message, lastStatus.isError);
+  if (selected.size) renderFileList();
+}
+
+function route(event) {
+  show(...parseRoute());
   if (event) $("main").focus({ preventScroll: true, focusVisible: false });
 }
 
@@ -345,6 +470,7 @@ function intro() {
 }
 
 async function main() {
+  setupLanguage();
   intro();
   setupTheme();
   await init();
@@ -368,14 +494,14 @@ async function main() {
     zone.classList.remove("over");
     addFiles(event.dataTransfer.files);
   });
-  setStatus("Ready.");
+  setStatus(() => t("Ready."));
   try {
     siteData = await (await fetch("site-data.json")).json();
   } catch (error) {
-    setStatus(`Could not load the dashboard data: ${error.message ?? error}`, true);
+    setStatus(() => t("Could not load the dashboard data: {error}", { error: error.message ?? error }), true);
   }
   window.addEventListener("hashchange", route);
   route();
 }
 
-main().catch((error) => setStatus(`Could not start the verifier: ${error.message ?? error}`, true));
+main().catch((error) => setStatus(() => t("Could not start the verifier: {error}", { error: error.message ?? error }), true));

@@ -1,3 +1,5 @@
+import { t } from "./i18n.js";
+
 const SVG = "http://www.w3.org/2000/svg";
 
 export function svg(tag, attrs = {}, ...children) {
@@ -118,7 +120,7 @@ export function donut(container, { items, total, caption, unit }) {
     const path = order(svg("path", { d: arcPath(c, c, 62, 92, angle, angle + sweep), class: `mark arc ${item.cls}` }), i);
     const ring = svg("path", { d: arcPath(c, c, 58, 96, angle, angle + sweep), class: "focus-ring" });
     g.append(path, ring);
-    interactive(path, [item.label, `${item.value} of ${sum} ${unit}`, ...(item.detail ?? [])]);
+    interactive(path, [item.label, t("{count} of {total} {unit}", { count: item.value, total: sum, unit }), ...(item.detail ?? [])]);
     chart.append(g);
     angle += sweep;
   });
@@ -132,7 +134,7 @@ export function donut(container, { items, total, caption, unit }) {
     ...items.map((item) => html("li", null, html("span", `swatch ${item.swatch ?? item.cls}`), html("span", null, item.label), html("span", "count", String(item.value))))
   );
   container.replaceChildren(html("div", "donut-wrap", chart, legend));
-  container.append(tableView("Show as table", [{ label: "Outcome" }, { label: unit, num: true }], items.map((item) => [item.label, String(item.value)])));
+  container.append(tableView(t("Show as table"), [{ label: t("Outcome") }, { label: unit, num: true }], items.map((item) => [item.label, String(item.value)])));
 }
 
 function niceMax(value) {
@@ -203,7 +205,7 @@ export function columnBars(container, { rows, caption, unit }) {
     chart.append(g);
   });
   container.replaceChildren(chart);
-  container.append(tableView("Show as table", [{ label: "Reason" }, { label: unit, num: true }], rows.map((r) => [r.label, String(r.value)])));
+  container.append(tableView(t("Show as table"), [{ label: t("Reason") }, { label: unit, num: true }], rows.map((r) => [r.label, String(r.value)])));
 }
 
 export function stackedBars(container, { rows, series, caption, format }) {
@@ -236,29 +238,35 @@ export function stackedBars(container, { rows, series, caption, format }) {
   container.replaceChildren(chart, legend);
 }
 
+const BY_CREATOR = () => [t("by the creator"), t("Opened by the creator, who funds the escrow")];
+const BY_PAYEE = () => [t("by the payee"), t("Signed by the payee")];
+const BY_AGENT = () => [t("by the AI agent"), t("Signed by the AI agent")];
+const BY_RULE_ENGINE = () => [t("by the rule engine"), t("Signed by the rule engine")];
+const BY_APPROVER = () => [t("by the approver"), t("Signed by the approver")];
+
 const SM_NODES = [
-  { id: "OPEN", x: 10, y: 104, role: "creator" },
-  { id: "SUBMITTED", x: 210, y: 104, role: "payee" },
-  { id: "AGENT_REVIEWED", x: 410, y: 104, role: "AI agent" },
-  { id: "AUTO_APPROVED", x: 650, y: 14, role: "rule engine", cls: "terminal-auto" },
-  { id: "ESCALATED", x: 650, y: 194, role: "rule engine" },
-  { id: "APPROVED", x: 890, y: 130, role: "approver", cls: "terminal-human" },
-  { id: "REJECTED", x: 890, y: 232, role: "approver", cls: "terminal-human" },
+  { id: "OPEN", x: 10, y: 104, by: BY_CREATOR },
+  { id: "SUBMITTED", x: 210, y: 104, by: BY_PAYEE },
+  { id: "AGENT_REVIEWED", x: 410, y: 104, by: BY_AGENT },
+  { id: "AUTO_APPROVED", x: 650, y: 14, by: BY_RULE_ENGINE, cls: "terminal-auto" },
+  { id: "ESCALATED", x: 650, y: 194, by: BY_RULE_ENGINE },
+  { id: "APPROVED", x: 890, y: 130, by: BY_APPROVER, cls: "terminal-human" },
+  { id: "REJECTED", x: 890, y: 232, by: BY_APPROVER, cls: "terminal-human" },
 ];
 
 const SM_EDGES = [
-  ["OPEN", "SUBMITTED", ""],
-  ["SUBMITTED", "AGENT_REVIEWED", ""],
-  ["AGENT_REVIEWED", "AUTO_APPROVED", "within limit"],
-  ["AGENT_REVIEWED", "ESCALATED", "escalate"],
-  ["ESCALATED", "APPROVED", "person approves"],
-  ["ESCALATED", "REJECTED", "person rejects"],
+  ["OPEN", "SUBMITTED", () => ""],
+  ["SUBMITTED", "AGENT_REVIEWED", () => ""],
+  ["AGENT_REVIEWED", "AUTO_APPROVED", () => t("within limit")],
+  ["AGENT_REVIEWED", "ESCALATED", () => t("escalate")],
+  ["ESCALATED", "APPROVED", () => t("person approves")],
+  ["ESCALATED", "REJECTED", () => t("person rejects")],
 ];
 
 export function stateMachine(container, { counts, total }) {
   const w = 160;
   const h = 64;
-  const chart = svg("svg", { viewBox: "0 0 1060 306", role: "group", "aria-label": "Case state machine" });
+  const chart = svg("svg", { viewBox: "0 0 1060 306", role: "group", "aria-label": t("Case state machine") });
   chart.append(svg("defs", {}, svg("marker", { id: "sm-arrow", viewBox: "0 0 8 8", refX: 7, refY: 4, markerWidth: 7, markerHeight: 7, orient: "auto" }, svg("path", { d: "M0,0 L8,4 L0,8 z", class: "sm-arrow" }))));
   const byId = Object.fromEntries(SM_NODES.map((n) => [n.id, n]));
   const edgeNodes = [];
@@ -273,7 +281,7 @@ export function stateMachine(container, { counts, total }) {
     const path = order(svg("path", { d: `M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}`, class: "sm-edge", "marker-end": "url(#sm-arrow)", "data-from": from, "data-to": to }), i + 1);
     const straight = y1 === y2;
     const text = order(
-      svg("text", { x: straight ? mid : x2 - 8, y: straight ? y1 - 10 : y2 > y1 ? y2 + 22 : y2 - 10, "text-anchor": straight ? "middle" : "end", class: "sm-edge-label" }, label),
+      svg("text", { x: straight ? mid : x2 - 8, y: straight ? y1 - 10 : y2 > y1 ? y2 + 22 : y2 - 10, "text-anchor": straight ? "middle" : "end", class: "sm-edge-label" }, label()),
       i + 1
     );
     edgeNodes.push(path);
@@ -281,14 +289,15 @@ export function stateMachine(container, { counts, total }) {
   });
   SM_NODES.forEach((n, i) => {
     const count = counts[n.id] ?? 0;
+    const [by, signed] = n.by();
     const g = order(svg("g", { class: `sm-node ${n.cls ?? ""}`, "data-state": n.id }), i);
     g.append(
       svg("rect", { x: n.x, y: n.y, width: w, height: h, rx: 8 }),
       svg("text", { x: n.x + w / 2, y: n.y + 21, "text-anchor": "middle" }, n.id),
-      svg("text", { x: n.x + w / 2, y: n.y + 38, "text-anchor": "middle", class: "sm-count" }, n.id === "OPEN" ? "by the creator" : `by the ${n.role}`),
-      svg("text", { x: n.x + w / 2, y: n.y + 54, "text-anchor": "middle", class: "sm-count" }, `${count} of ${total} cases`)
+      svg("text", { x: n.x + w / 2, y: n.y + 38, "text-anchor": "middle", class: "sm-count" }, by),
+      svg("text", { x: n.x + w / 2, y: n.y + 54, "text-anchor": "middle", class: "sm-count" }, t("{count} of {total} cases", { count, total }))
     );
-    const lines = [n.id, n.id === "OPEN" ? "Opened by the creator, who funds the escrow" : `Signed by the ${n.role}`, `${count} of ${total} devnet cases reached this state`];
+    const lines = [n.id, signed, t("{count} of {total} devnet cases reached this state", { count, total })];
     const highlight = (on) => {
       g.classList.toggle("active", on);
       for (const edge of edgeNodes) edge.classList.toggle("active", on && (edge.dataset.to === n.id || edge.dataset.from === n.id));

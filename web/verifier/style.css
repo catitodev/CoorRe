@@ -369,6 +369,47 @@ a:focus-visible,
   cursor: pointer;
 }
 
+.page-tools {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.topbar-lang,
+.page-lang {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 4px 4px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--step--1);
+}
+
+.topbar-lang:hover,
+.page-lang:hover {
+  background: var(--raised);
+}
+
+.topbar-lang {
+  display: none;
+}
+
+.lang-code {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1.8px solid currentColor;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
 main {
   min-width: 0;
   padding: 4px 4px 40px;
@@ -2183,6 +2224,7 @@ th.num {
     z-index: 20;
     display: flex;
     align-items: center;
+    justify-content: space-between;
     padding: 12px 16px;
     background: var(--card);
     border-bottom: 1px solid var(--border);
@@ -2236,6 +2278,14 @@ th.num {
     display: none;
   }
 
+  .page-tools {
+    display: none;
+  }
+
+  .topbar-lang {
+    display: flex;
+  }
+
   main {
     padding: 16px 16px 24px;
   }
@@ -2282,6 +2332,17 @@ th.num {
 
   .tiles {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 340px) {
+  :root[lang="pt-BR"] .nav {
+    gap: 0;
+  }
+
+  :root[lang="pt-BR"] .nav a,
+  :root[lang="pt-BR"] .rail-button {
+    letter-spacing: 0;
   }
 }
 
