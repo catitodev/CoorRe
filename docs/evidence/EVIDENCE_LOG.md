@@ -318,3 +318,9 @@ Entry template:
 - Browsers: Chrome headless over the DevTools protocol, Firefox 157 over WebDriver BiDi and WebKitGTK 2.52.6 (Safari's engine) render the glass, the plates, the beads and the bars, light and dark, 1280 and 375 px, with SUP-002 verifying 7/7. WebKit draws the outcomes ring flat and without its depth shadow, because it ignores 3D transforms and CSS filters on SVG children; the ring stays as it was before. Fallbacks checked in Chrome: prefers-reduced-transparency gives opaque surfaces with no blur; with backdrop-filter unsupported (simulated by renaming the property) the surfaces return to the previous card colour. The deep link #cases/SUP-002/step-5 still focuses the human signature plate.
 - Result: Rust 216, bridge 22, web 38 and preflight 12 tests pass; live Playground preflight PASS. No change to app.js, the program, the bridge or the dependencies.
 - Commit(s): style(web): lay the verifier on glass over the brand mark; docs: record the glass verifier
+
+### 2026-10-11 06:20 BRT — Live check of the glass verifier
+- Authors: Clarkson Bartalini and Ramon Porto.
+- Published: CI run on aa96735 green on all four jobs; Pages deploy of aa96735 dispatched with explicit approval and completed; the live style.css and index.html are byte-identical to the commit.
+- Live check on https://catitodev.github.io/CoorRe/: SUP-002 verifies 7/7 in light and dark with no console error; the cards are on glass (18 px blur light, 20 px dark, 12 px at 375 px) and the dark glass carries its 62% ink base; the brand mark is behind the page; #cases/SUP-002/step-5 focuses the human signature plate, drawn tilted; no horizontal scroll at 1280 or 375 px.
+- Commit(s): docs: record the live check of the glass verifier
