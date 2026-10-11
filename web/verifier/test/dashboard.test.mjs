@@ -61,7 +61,7 @@ test("live reads send one getMultipleAccounts with public addresses only", async
 });
 
 test("dashboard modules never build HTML from data", () => {
-  for (const file of ["../views.js", "../charts.js", "../live.js", "../app.js"]) {
+  for (const file of ["../views.js", "../charts.js", "../live.js", "../app.js", "../i18n.js"]) {
     const source = read(file).toString("utf8");
     for (const forbidden of ["innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "new Function"]) {
       assert.ok(!source.includes(forbidden), `${file}: ${forbidden}`);
@@ -88,12 +88,12 @@ test("every case reads as a complete story with no missing value", async () => {
 test("each step of the hero chain opens the matching step of a real case", async () => {
   const { caseSteps } = await import("../views.js");
   const source = read("../views.js").toString("utf8");
-  const targets = [...source.matchAll(/label: "([a-z ]+)"[^\n]*go\("#cases\/(SUP-002)\/step-(\d+)"\)/g)].map((m) => [m[1], m[2], Number(m[3])]);
+  const targets = [...source.matchAll(/key: "([a-z ]+)"[^\n]*go\("#cases\/(SUP-002)\/step-(\d+)"\)/g)].map((m) => [m[1], m[2], Number(m[3])]);
   const expected = { escrow: "OPEN", evidence: "SUBMITTED", "agent advice": "AGENT_REVIEWED", "rule decision": "blocked", "human signature": "APPROVED" };
   assert.deepEqual(targets.map((t) => t[0]), Object.keys(expected));
   for (const [label, id, n] of targets) {
     const row = caseSteps(data.cases.find((c) => c.id === id))[n];
     assert.equal(row.kind === "blocked" ? "blocked" : row.step.to, expected[label], label);
   }
-  assert.match(source, /label: "anchored"[^\n]*go\("#onchain"\)/);
+  assert.match(source, /key: "anchored"[^\n]*go\("#onchain"\)/);
 });
