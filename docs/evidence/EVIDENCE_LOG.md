@@ -342,3 +342,9 @@ Entry template:
 - Tests: web/verifier/test/i18n.test.mjs checks that every text of the page has a Portuguese version and none is left over, that each keeps its placeholders, that English stays as written, that the page opens in English unless a language was chosen, that the ten case stories are complete in Portuguese with Brazilian number format, that the Portuguese follows the glossary (masculine CoorRe, no "escrow") and that the Portuguese check names match the ones the WebAssembly verifier reports. Each was checked to fail on a planted fault (missing entry, feminine article, dropped placeholder, "Escrow", new untranslated text in the script and in the page, default language changed). The hero chain test now reads the step keys.
 - Result: web 45 tests pass (38 before); Rust 218, bridge 22 and preflight 12 pass; fmt and clippy -D warnings clean; live Playground preflight PASS.
 - Commit(s): feat(web): add Portuguese to the verifier with a language switch; test(web): keep both languages of the verifier complete; ci: publish the language module; docs: record the bilingual verifier
+
+### 2026-10-11 11:06 BRT — Live check of the bilingual verifier
+- Authors: Clarkson Bartalini and Ramon Porto.
+- Published: CI run on 94bd053 green on all four jobs; Pages deploy of 94bd053 dispatched with explicit approval and completed; the live i18n.js, app.js, views.js, charts.js, index.html and style.css are byte-identical to the commit.
+- Live check on https://catitodev.github.io/CoorRe/: SUP-002 verifies 7 of 7 in English and, with ?lang=pt, in Portuguese at 1280 and 375 px, light and dark, with no console error and no horizontal scroll; the switch turns an English result into Portuguese in place; #cases/SUP-002/step-5 focuses the human signature step in Portuguese.
+- Commit(s): docs: record the live check of the bilingual verifier
