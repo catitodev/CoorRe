@@ -348,3 +348,11 @@ Entry template:
 - Published: CI run on 94bd053 green on all four jobs; Pages deploy of 94bd053 dispatched with explicit approval and completed; the live i18n.js, app.js, views.js, charts.js, index.html and style.css are byte-identical to the commit.
 - Live check on https://catitodev.github.io/CoorRe/: SUP-002 verifies 7 of 7 in English and, with ?lang=pt, in Portuguese at 1280 and 375 px, light and dark, with no console error and no horizontal scroll; the switch turns an English result into Portuguese in place; #cases/SUP-002/step-5 focuses the human signature step in Portuguese.
 - Commit(s): docs: record the live check of the bilingual verifier
+
+### 2026-10-11 14:38 BRT — Final README for the submission
+- Authors: Clarkson Bartalini and Ramon Porto.
+- Approval: the final README text approved explicitly, kept outside the repository in out/README_final.md (sha256 d9199d79848a13aec7c679f3bca6b71af56b02f28d1b3ab78aad8ce14b2d4834, confirmed before copying).
+- Work: README.md replaced by a byte-for-byte copy of the approved file; both files hash to the value above. README.pt-BR.md, the code, web/, onchain/, LICENSE and NOTICE are unchanged.
+- Checks: 28 relative targets (links, pictures and badges), all present and tracked in git; 39 <details> and 39 </details>, the Portuguese block on lines 17 to 477; no occurrence of regenerativ, MVP, pilot, piloto, "A CoorRe" (as a phrase), "no operator", "nenhum operador", "publication date", "data de publicação", brand.md or InovaFri; no "escrow" in the Portuguese block. Both languages carry 20 sections, 7 tables, 2 Mermaid diagrams, 2 light/dark pictures and a 13-question FAQ.
+- Test: offchain/crates/coorre-cli/tests/readme_translations.rs passes 6 of 6 against the new text.
+- Commit(s): docs: replace the README with the final submission text; docs: record the final README
