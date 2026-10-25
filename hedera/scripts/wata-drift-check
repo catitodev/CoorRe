@@ -1,0 +1,24 @@
+#!/usr/bin/env node
+import { compareFiles, fetchBytes, fetchHeadCommit, hasDrift, rawUrl, readLock, sha256Hex } from "./wata-lock.mjs";
+
+try {
+  const lock = await readLock();
+  const head = await fetchHeadCommit(lock.repository);
+  const observed = new Map();
+  for (const file of lock.files) {
+    const bytes = await fetchBytes(rawUrl(lock.repository, head.sha, file.path));
+    if (bytes !== null) observed.set(file.path, sha256Hex(bytes));
+  }
+  const comparison = compareFiles(lock.files, observed);
+  console.log(`pinned ${lock.repository}@${lock.commit}`);
+  console.log(`head   ${lock.repository}@${head.sha} (${head.date})`);
+  for (const entry of comparison) console.log(`${entry.status.padEnd(7)} ${entry.use.padEnd(7)} ${entry.path}`);
+  if (hasDrift(comparison)) {
+    console.log("DRIFT: review the upstream change before updating hedera/reference/wata.lock.json");
+    process.exit(1);
+  }
+  console.log(head.sha === lock.commit ? "PASS: head is the pinned commit" : "PASS: head moved, pinned files unchanged");
+} catch (error) {
+  console.error(`wata-drift-check: ${error.message}`);
+  process.exit(2);
+}

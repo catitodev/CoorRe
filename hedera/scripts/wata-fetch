@@ -1,0 +1,12 @@
+#!/usr/bin/env node
+import { fetchPinned, readLock } from "./wata-lock.mjs";
+
+try {
+  const lock = await readLock();
+  const { root, files } = await fetchPinned(lock);
+  for (const file of files) console.log(`ok ${file.sha256} ${file.path}`);
+  console.log(`${files.length} files from ${lock.repository}@${lock.commit} in ${root}`);
+} catch (error) {
+  console.error(`wata-fetch: ${error.message}`);
+  process.exit(1);
+}

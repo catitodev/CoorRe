@@ -1,0 +1,36 @@
+{
+  "name": "coorre-hedera",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CoorRe on Hedera: reference fixtures and network probes",
+  "license": "Apache-2.0",
+  "contributors": [
+    {
+      "name": "Clarkson Bartalini",
+      "url": "https://github.com/catitodev"
+    },
+    {
+      "name": "Ramon Porto",
+      "url": "https://github.com/ramonzitus"
+    }
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "wata:fetch": "node scripts/wata-fetch",
+    "wata:drift": "node scripts/wata-drift-check",
+    "probes:compile": "node probes/compile.mjs",
+    "probes:run": "node probes/run.mjs"
+  },
+  "dependencies": {
+    "@hiero-ledger/sdk": "2.90.1",
+    "solc": "0.8.28"
+  },
+  "overrides": {
+    "ws": "8.21.3",
+    "tmp": "0.2.7"
+  }
+}

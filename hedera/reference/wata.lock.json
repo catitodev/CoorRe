@@ -1,0 +1,57 @@
+{
+  "host": "wata",
+  "repository": "vivipolli/wata",
+  "commit": "1462dfeb3d492893331dc5c0b0eae15d91ec807c",
+  "committedAt": "2026-10-25T21:42:20Z",
+  "access": "read-only",
+  "compiler": {
+    "solc": "0.8.28",
+    "optimizer": {
+      "enabled": true,
+      "runs": 200
+    },
+    "viaIR": true,
+    "evmVersion": "paris"
+  },
+  "files": [
+    {
+      "path": "contracts/contracts/PESEscrowV3.sol",
+      "sha256": "19d854cc96c342fc4a4e1ef39a7b5834f53873d327d3191fb86c4c783e67eba7",
+      "use": "compile",
+      "contract": "PESEscrowV3",
+      "bytecodeSha256": "14906b31073e4404147d0a918c95f85e2d63ec3f1d15d8071cb8cb1c0c352c51"
+    },
+    {
+      "path": "contracts/contracts/OracleManager.sol",
+      "sha256": "189f5d30376b999579018ed56f36979f370c970e2c48ec065b89bd337afc545b",
+      "use": "compile",
+      "contract": "OracleManager",
+      "bytecodeSha256": "137dde29716320bdf11bac8b03505bbcc757e72fbf14a7e817015c505d47f047"
+    },
+    {
+      "path": "contracts/hardhat.config.ts",
+      "sha256": "263e23ba41cce155531866eec85732c82b58566389ab9b9ff3b81b4577bad38a",
+      "use": "watch"
+    },
+    {
+      "path": "contracts/deployment.json",
+      "sha256": "0e5da85bd299272da3bc7555184e3f943f1377ef3d34709b4a4e0daeae99126d",
+      "use": "watch"
+    },
+    {
+      "path": "backend/src/routes/payments.ts",
+      "sha256": "444ff5d1bd4be5bf8f3f8c32ebb34e74b4b8f6a61242c9c11842df45db1cd25b",
+      "use": "watch"
+    },
+    {
+      "path": "backend/src/services/hcs.ts",
+      "sha256": "50d17ee90a4ae70e9392371a1367446abfdf98e4350c5ce7751bc2f1e90488fc",
+      "use": "watch"
+    },
+    {
+      "path": "backend/src/scripts/localEscrowCycle.ts",
+      "sha256": "0b2f397df0fae9e33d6a2133164a8547f7797c2055991fa8ac0b99fc012e97ca",
+      "use": "watch"
+    }
+  ]
+}
