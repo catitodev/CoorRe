@@ -393,3 +393,7 @@ Entry template:
 - Solo run 40366254725 on eab1279, success: probes P0-P7 verified, the full cycle 19 of 19 checks, the host integration 24 of 24 (path B, the switch, path A, a wallet over JSON-RPC, review recorded on-chain, resubmission), with CI run 40366254867 green on all four jobs. The log carries no host data.
 - Testnet: the contract deployed earlier is superseded by this version; a new deploy needs the maintainers' explicit approval of the HBAR spend.
 - Commit(s): feat(hedera): bind mandates to the escrow admin, enforce the deadline and record reviews; feat(hedera): adapter review call and scripts for the adjusted contract; docs(hedera): specification and threat model for the adjusted contract; feat(hedera): upload bytecode in small blocks and confirm the gate has no external admin; docs: record the adjusted mandate contract
+
+### 2026-10-26 14:24 BRT — Correction of the previous entry's time
+- The entry "Mandate contract adjusted after a review from a period escrow host's side" is headed 14:30 BRT; the clock read 14:24 BRT when it was written. No other content changes.
+- Commit(s): docs: correct the time of the previous evidence entry
