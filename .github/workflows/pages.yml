@@ -32,10 +32,11 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Rust with the wasm32 target
+      - name: Rust toolchain pinned by offchain/rust-toolchain.toml
+        working-directory: offchain
         run: |
-          rustup toolchain install stable --profile minimal --target wasm32-unknown-unknown
-          rustup default stable
+          rustup toolchain install
+          rustc --version
 
       - name: wasm-bindgen CLI (official release, checksum pinned)
         run: |
