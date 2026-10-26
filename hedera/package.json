@@ -26,7 +26,8 @@
     "probes:run": "node probes/run.mjs",
     "cycle:run": "node cycle/run.mjs",
     "integration:run": "node integration/run.mjs",
-    "testnet:deploy-gate": "node testnet/deploy-gate.mjs"
+    "testnet:deploy-gate": "node testnet/deploy-gate.mjs",
+    "testnet:complete-account": "node testnet/complete-account.mjs"
   },
   "dependencies": {
     "@hiero-ledger/sdk": "2.90.1"
