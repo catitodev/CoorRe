@@ -112,6 +112,9 @@ jobs:
       - name: Full cycle on Solo (mandate, decision, execution, release, log)
         run: node cycle/run.mjs
 
+      - name: W.A.T.A. integration on Solo through the adapter (path B, switch, path A, review)
+        run: node integration/run.mjs
+
       - name: Keep the probe report (actions/upload-artifact v7.0.2)
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -120,5 +123,6 @@ jobs:
           path: |
             hedera/.cache/probes/report.json
             hedera/.cache/cycle/report.json
+            hedera/.cache/integration/report.json
             hedera/.cache/build/contracts.json
           if-no-files-found: warn
