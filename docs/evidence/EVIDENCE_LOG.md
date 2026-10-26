@@ -397,3 +397,10 @@ Entry template:
 ### 2026-10-26 14:24 BRT — Correction of the previous entry's time
 - The entry "Mandate contract adjusted after a review from a period escrow host's side" is headed 14:30 BRT; the clock read 14:24 BRT when it was written. No other content changes.
 - Commit(s): docs: correct the time of the previous evidence entry
+
+### 2026-10-26 14:30 BRT — Testnet: the adjusted mandate contract redeployed
+- Authors: Clarkson Bartalini and Ramon Porto.
+- Approval: the redeploy approved explicitly, with a fee ceiling of 20 HBAR per transaction and 40 HBAR for the contract creation, after a dry run that showed the plan and the operator's balance (82.56 HBAR).
+- Result: the adjusted mandate contract is deployed on testnet through the operator separate from every host account, with the host escrow's address and a 90-day validity cap as immutable constructor arguments. Checked independently on the ledger: its runtime bytecode equals the local build byte for byte once both immutables are substituted; `escrow()` and `maxValidity()` return the expected values; its admin key is the contract itself, so nobody can change or delete it; Sourcify reports exact_match. The existing log topic was reused (submit key, no admin key); the previous deploy record was archived after the new deploy succeeded, and the previous contract is superseded. The host's admin has not registered any mandate and has not changed the escrow's financial manager, so nothing depended on the superseded contract.
+- Cost: 23.73 HBAR in 16 transactions (ContractCreate 14.59; 13 appends of 1000 characters 8.40 in total; file create 0.65; file delete 0.09), below the 27-32 HBAR estimated. The contract-creation fee did not grow with the bytecode: 14.24 HBAR for 5070 bytes before, 14.59 HBAR for 6734 bytes now. Uploading in 1000-character blocks cost 9.05 HBAR against 12.85 HBAR for a bytecode a third smaller through the SDK's 4096-byte blocks.
+- Commit(s): feat(hedera): redeploy the gate on testnet without a second log topic; docs: record the testnet redeploy
