@@ -35,6 +35,6 @@ The verifier reads one anchor source today, Solana accounts. Reading a second so
 
 | Host | Decision point | Status |
 |---|---|---|
-| W.A.T.A. ([vivipolli/wata](https://github.com/vivipolli/wata), read only) | Approve or reject a payment period of `PESEscrowV3` in HYBRID mode | Specification; the host profile and the integration are proposals for the W.A.T.A. team, nothing is applied in their repository |
+| W.A.T.A. ([vivipolli/wata](https://github.com/vivipolli/wata), read only) | Approve or reject a payment period of `PESEscrowV3` in HYBRID mode | The adapter and the full flow (path B, switch, path A, review) run against the host's own escrow on a local Solo network in CI; the integration is a proposal for the W.A.T.A. team ([integracao-wata.md](integracao-wata.md)), nothing is applied in their repository |
 
 A host keeps its own business rules (score, thresholds, amounts, deadlines). CoorRe reads them from the host profile and answers only for the decision under mandate.
