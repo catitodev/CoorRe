@@ -5,6 +5,7 @@ import {
   checkTestSource,
   countTestCallSites,
   diffReference,
+  parseLegacyTemplate,
   parseMochaGlobals,
   parseStringArray,
   parseTranspileOptions,
@@ -121,6 +122,44 @@ const BLACKLISTED_GLOBALS = [
   assert.deepEqual(parseMochaGlobals(source), ["describe", "it"]);
   assert.deepEqual(parseTranspileOptions(source), { target: "ES5", removeComments: true });
   assert.ok(parseWrapper(source).includes("async __run() {\n${code}\n}"));
+});
+
+test("reads the legacy template in the upstream form of 2026-10-15", () => {
+  const source = `
+pub const fn legacy() -> Template {
+    Template {
+        name: "legacy",
+        rust_version: "1.68.0",
+        solana_version: Some("1.17.25"),
+        cargo_build_sbf_version: None,
+        installation_command: Some(anchor_installation_command!("0.29.0")),
+        initial_build_command: "cargo-build-sbf -- --locked",
+    }
+}`;
+  assert.deepEqual(parseLegacyTemplate(source), {
+    rustVersion: "1.68.0",
+    solanaVersion: "1.17.25",
+    cargoBuildSbfVersion: null,
+    anchorInstallVersion: "0.29.0",
+  });
+});
+
+test("reads the legacy template in the earlier plain-string form", () => {
+  const source = `rust_version: "1.68.0",\n solana_version: "1.17.25",\n cargo_build_sbf_version: "2.1.0",\n installation_command: None,`;
+  assert.deepEqual(parseLegacyTemplate(source), {
+    rustVersion: "1.68.0",
+    solanaVersion: "1.17.25",
+    cargoBuildSbfVersion: "2.1.0",
+    anchorInstallVersion: null,
+  });
+});
+
+test("refuses a legacy template in an unknown form", () => {
+  const base = `rust_version: "1.68.0",\n cargo_build_sbf_version: None,\n installation_command: None,`;
+  assert.throws(() => parseLegacyTemplate(`${base}\n solana_version: version("1.17.25"),`), /solana_version not found/);
+  assert.throws(() => parseLegacyTemplate(`${base}\n solana_version: None,`), /neither solana_version nor cargo_build_sbf_version/);
+  assert.throws(() => parseLegacyTemplate(`rust_version: "1.68.0",\n solana_version: "1.17.25",\n cargo_build_sbf_version: None,\n installation_command: Some(custom()),`), /installation_command/);
+  assert.throws(() => parseLegacyTemplate(`rust_version: None,\n solana_version: "1.17.25",\n cargo_build_sbf_version: None,\n installation_command: None,`), /rust_version not found/);
 });
 
 test("reads the template program's own dependency versions from the lockfile", () => {
