@@ -420,3 +420,9 @@ Entry template:
 - Results, simulated on the Mirror Node from the delegate's account at the moment shown: before the deadline, a correct decision would succeed under either mandate; a wrong audit hash reverts with AuditHashMismatch; a caller outside the mandate with UnauthorizedActor; an unknown mandate id with UnknownMandate. After the approval deadline, the same decision under the long mandate reverts with DeadlinePassed; after the short mandate's end, under that mandate with MandateNotActive, which the contract checks before the deadline.
 - Not done: the revocation case was not run live; it stays covered by the Solidity tests. The second period was left undecided and has passed its deadline.
 - Commit(s): docs: record the testnet negative cases
+
+### 2026-10-26 16:31 BRT — Testnet: a 90-day mandate registered; Hedera module merged to main
+- Authors: Clarkson Bartalini and Ramon Porto.
+- Result: the host's admin registered a mandate valid for the full 90-day cap, with one human delegate, quorum one and no autonomy limit; the call data was prepared by CoorRe and simulated before it was handed over. Read back from the ledger: registered, not revoked, issued by the escrow's admin, valid from 2026-10-26 19:25:06 UTC to 2027-01-24 19:25:06 UTC. The earlier mandate stays valid until its own end.
+- Merge: the pull request with the Hedera module was merged into main after every check passed; the Solana program, bridge and verifier are unchanged.
+- Commit(s): docs: record the 90-day testnet mandate
