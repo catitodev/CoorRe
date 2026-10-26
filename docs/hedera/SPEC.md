@@ -1,6 +1,6 @@
 # CoorRe on Hedera — specification
 
-Status: specification and implementation of the mandate contract, the adapter and the network checks; what runs, and where, is recorded in [PHASE0.md](PHASE0.md) and in the evidence log. Integrations with real hosts run in their own private environments. The Hedera source of the verifier and testnet are next steps. Mainnet is out of scope.
+Status: the mandate contract, the decision adapter and the network probes run on a local Solo network in CI against a reference host escrow ([PHASE0.md](PHASE0.md), run 40326559898): mandate, decision, execution, a wallet over JSON-RPC, review and the HCS log. Integrations with real hosts run in their own private environments. The Hedera source of the verifier and testnet are next steps. Mainnet is out of scope.
 
 CoorRe on Hedera is one application of the CoorRe engine ([APPLICATIONS.md](../APPLICATIONS.md)). It answers for one moment of a host's process, the decision under mandate: who may decide what, under which mandate, with which evidence, and the public proof of it. The host keeps its business rules (scores, thresholds, amounts, deadlines, validity, tokenization); CoorRe reads them from a host profile and never sets or changes them.
 

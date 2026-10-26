@@ -29,7 +29,7 @@ Path A is assumed ([SPEC.md](SPEC.md#execution)); the last section says where pa
 | T16 | An off-chain role (for example a web session) used as authority | Only delegate accounts decide, checked on-chain | Documented boundary |
 | T17 | Read-path tampering (Mirror Node or relay) | The verifier recomputes hashes; anyone can repeat it against another mirror. Declared limitation | — |
 | T18 | One account holding several roles (host admin or oracle and CoorRe operator) | The deploy script refuses a CoorRe operator that is any host account | `the CoorRe operator must not be any host account` |
-| T19 | Host data published by CoorRe | The public repository carries the generic engine only; host profiles, addresses, accounts and records live in the host's private environment; local git hooks refuse client identifiers, secrets and attribution lines | Deploy script refuses private paths inside the repository |
+| T19 | Host data published by CoorRe | The public repository carries the generic engine and a fictitious example only; host profiles, addresses, accounts and records live in the host's private environment | The deploy script refuses configuration and record paths inside the repository |
 | T20 | Wallet transactions refused or misread on the relay | Price with the relay's `eth_gasPrice`; wait for the receipt by transaction hash (native transactions do not advance the EVM nonce) | Integration on Solo, JSON-RPC step |
 
 Path B: T1 to T6 and T15 become detection only (the financial manager's wallet signs; the verifier reports a call without a matching recorded decision), and T7 does not apply.

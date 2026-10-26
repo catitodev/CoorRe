@@ -6,7 +6,7 @@ As work is distributed across people, systems and AI agents, organizations must 
 2. Proof releases payment: escrowed payments are released only when an evidence-backed decision is anchored.
 3. Anyone can verify the whole trail without trusting the operator: evidence is portable (W3C Verifiable Credentials), data stays off-chain (only hashes go on-chain), and the verifier runs in any browser.
 Core flow: EVENT/DELIVERY → EVIDENCE → RULE/VALIDATION → DECISION → STATE → AUDITABLE TRAIL.
-Network neutrality: the anchoring interface is network-agnostic; Solana is the first implementation; Hedera/Regen are out of scope but must not be prevented.
+Network neutrality: the anchoring interface is network-agnostic; Solana is the first implementation; Hedera/Regen are out of scope but must not be prevented. CoorRe on Hedera is specified separately (docs/hedera/SPEC.md, docs/APPLICATIONS.md) and is not part of this build.
 
 ## 2. Demo case (synthetic data only): AI procurement agent with a mandate
 Actors per case (four distinct keys): submitter (supplier, human, also the payee), agent (pre-analysis AI agent, simulated, autonomy "recommend"), rule_engine (system, deterministic), approver (human with authority). Creator = operator who opens the case and funds the escrow.
