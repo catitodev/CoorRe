@@ -169,14 +169,15 @@ async function main() {
   check("JSON-RPC: the wallet key controls the delegate's address", rpcWallet.address.toLowerCase() === walletEvm, rpcWallet.address);
   await submitPeriod(5, auditOf(5));
   const viaRelay = prepareDecision(await hostInput(5), { network: "solo", escrow: escrowEvm, gate: gateEvm, mandateId: id, delegate: walletEvm, verdict: "approve", mode: "A" });
-  const relayTx = await rpcWallet.sendTransaction({ to: viaRelay.call.to, data: viaRelay.call.callData, value: 0n, gasLimit: 600_000n });
+  const relayGasPrice = BigInt(await provider.send("eth_gasPrice", []));
+  const relayTx = await rpcWallet.sendTransaction({ type: 0, to: viaRelay.call.to, data: viaRelay.call.callData, value: 0n, gasLimit: 600_000n, gasPrice: relayGasPrice });
   const relayReceipt = await relayTx.wait(1, 120_000);
   check("JSON-RPC: a wallet signs the adapter's call data and the relay accepts it", relayReceipt?.status === 1, relayReceipt?.status);
   check("JSON-RPC: period 5 approved", (await stateOf(5)) === "Approved");
   const relayAnchored = relayReceipt.logs.find((log) => log.address.toLowerCase() === gateEvm && log.topics.length === 4);
   check("JSON-RPC: the gate saw the wallet as the delegate", relayAnchored && decisionEventFields(Buffer.from(relayAnchored.data.slice(2), "hex")).delegate === walletEvm);
   await publish(jcs({ ...JSON.parse(viaRelay.logMessage), transactionHash: relayTx.hash }));
-  steps.push({ path: "A", via: "json-rpc", periodId: 5, transactionHash: relayTx.hash, evidenceHash: viaRelay.evidenceHash });
+  steps.push({ path: "A", via: "json-rpc", periodId: 5, transactionHash: relayTx.hash, gasPriceWeibar: relayGasPrice.toString(), evidenceHash: viaRelay.evidenceHash });
   provider.destroy();
 
   const shortened = await execute(admin, escrowId, "setApprovalWindow", new ContractFunctionParameters().addUint256(SHORT_WINDOW));
