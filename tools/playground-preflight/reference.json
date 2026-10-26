@@ -1,8 +1,8 @@
 {
   "_checked": {
-    "date": "2026-10-08",
+    "date": "2026-10-25",
     "repository": "https://github.com/solana-playground/solana-playground",
-    "commit": "3fb888f38961738635e6b971b3fd724fc86ce198"
+    "commit": "cf1417f26954b0d1e0bce6754e70d2170030ffad"
   },
   "jsRuntime": {
     "transpile": {
@@ -59,6 +59,8 @@
     "isDefault": true,
     "rustVersion": "1.68.0",
     "solanaVersion": "1.17.25",
+    "cargoBuildSbfVersion": null,
+    "anchorInstallVersion": "0.29.0",
     "anchorLangDependency": "anchor-lang = { version = \"*\", features = [\"anchor-debug\", \"allow-missing-optionals\", \"init-if-needed\"] }",
     "cargoLockSha256": "73496c34bdc76d1885f8f77f3a37c588cefc21227b73d83089c0a92d07e315cd",
     "programAnchorLang": "0.29.0",

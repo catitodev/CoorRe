@@ -164,7 +164,8 @@ test("input validation is strict", () => {
   for (const bad of ["18446744073709551616", "01", "-1", "1.5", "", 5]) {
     assert.throws(() => lib.parseU64(bad, "x"), { name: "InvalidInput" });
   }
-  const key = Keypair.generate().publicKey.toBase58();
+  const key = Keypair.fromSeed(new Uint8Array(32).fill(7)).publicKey.toBase58();
+  assert.equal(key.length, 44);
   assert.equal(lib.parsePubkey(key, "x").toBase58(), key);
   for (const bad of ["not-a-key", "", 7, `${key}x`]) {
     assert.throws(() => lib.parsePubkey(bad, "x"), { name: "InvalidInput" });
