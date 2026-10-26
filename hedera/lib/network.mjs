@@ -3,9 +3,12 @@ import {
   AccountId,
   Client,
   ContractCallQuery,
-  ContractCreateFlow,
+  ContractCreateTransaction,
   ContractExecuteTransaction,
   ContractFunctionParameters,
+  FileAppendTransaction,
+  FileCreateTransaction,
+  FileDeleteTransaction,
   Hbar,
   PrivateKey,
   Status,
@@ -138,13 +141,70 @@ export function hexBytecode(value) {
   return value;
 }
 
-export async function deploy(client, artifact, parameters, gas) {
-  const flow = new ContractCreateFlow().setBytecode(hexBytecode(artifact.bytecode)).setGas(gas);
-  if (parameters) flow.setConstructorParameters(parameters);
-  const response = await flow.execute(client);
+export const DEFAULT_UPLOAD_CHUNK_CHARS = 1000;
+
+export function selfAdminKeyNumber(adminKeyHex) {
+  if (typeof adminKeyHex !== "string" || !/^([0-9a-f]{2})+$/.test(adminKeyHex)) return null;
+  const bytes = Buffer.from(adminKeyHex, "hex");
+  if (bytes.length < 4 || bytes[0] !== 0x0a || bytes[1] !== bytes.length - 2 || bytes[2] !== 0x18) return null;
+  let number = 0n;
+  let shift = 0n;
+  for (let index = 3; index < bytes.length; index += 1) {
+    const value = BigInt(bytes[index]);
+    number |= (value & 0x7fn) << shift;
+    shift += 7n;
+    if ((value & 0x80n) === 0n) return index === bytes.length - 1 ? number : null;
+  }
+  return null;
+}
+
+export function hasNoExternalAdmin(contract) {
+  const number = selfAdminKeyNumber(contract?.admin_key?.key);
+  return number !== null && `0.0.${number}` === contract.contract_id;
+}
+
+export function splitChunks(text, size) {
+  if (typeof text !== "string" || text.length === 0) throw new Error("nothing to split");
+  if (!Number.isInteger(size) || size < 1) throw new Error("chunk size must be a positive integer");
+  const chunks = [];
+  for (let offset = 0; offset < text.length; offset += size) chunks.push(text.slice(offset, offset + size));
+  return chunks;
+}
+
+async function confirmed(transaction, client, what) {
+  const response = await transaction.execute(client);
   const receipt = await response.getReceipt(client);
-  if (receipt.status !== Status.Success) throw new Error(`deploy returned ${receipt.status}`);
-  return receipt.contractId;
+  if (receipt.status !== Status.Success) throw new Error(`${what} returned ${receipt.status}`);
+  return { response, receipt };
+}
+
+export async function deployDetailed(client, artifact, parameters, gas, options = {}) {
+  const chunks = splitChunks(hexBytecode(artifact.bytecode), options.chunkChars ?? DEFAULT_UPLOAD_CHUNK_CHARS);
+  const operatorKey = client.operatorPublicKey;
+  if (!operatorKey) throw new Error("the client has no operator");
+  const created = await confirmed(new FileCreateTransaction().setKeys([operatorKey]).setContents(chunks[0]), client, "file create");
+  const fileId = created.receipt.fileId;
+  const uploads = [created.response.transactionId.toString()];
+  try {
+    for (const chunk of chunks.slice(1)) {
+      const appended = await confirmed(new FileAppendTransaction().setFileId(fileId).setContents(chunk), client, "file append");
+      uploads.push(appended.response.transactionId.toString());
+    }
+    const contractCreate = new ContractCreateTransaction().setBytecodeFileId(fileId).setGas(gas);
+    if (parameters) contractCreate.setConstructorParameters(parameters);
+    const deployed = await confirmed(contractCreate, client, "contract create");
+    return { contractId: deployed.receipt.contractId, transactionId: deployed.response.transactionId.toString(), fileId: fileId.toString(), uploads, chunks: chunks.length };
+  } finally {
+    try {
+      await confirmed(new FileDeleteTransaction().setFileId(fileId), client, "file delete");
+    } catch {
+      uploads.push(`file ${fileId} was not deleted`);
+    }
+  }
+}
+
+export async function deploy(client, artifact, parameters, gas, options = {}) {
+  return (await deployDetailed(client, artifact, parameters, gas, options)).contractId;
 }
 
 export async function execute(client, contractId, name, parameters, options = {}) {

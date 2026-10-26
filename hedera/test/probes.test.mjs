@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { evmHex, hexBytecode, mirrorTransactionId, msgValueUnit, revertSelector, timestampSeconds } from "../lib/network.mjs";
+import { evmHex, hasNoExternalAdmin, hexBytecode, mirrorTransactionId, msgValueUnit, revertSelector, selfAdminKeyNumber, splitChunks, timestampSeconds } from "../lib/network.mjs";
 
 test("mirrorTransactionId converts the SDK form and pads the nanoseconds", () => {
   assert.equal(mirrorTransactionId("0.0.2@1700000000.000000123"), "0.0.2-1700000000-000000123");
@@ -39,4 +39,25 @@ test("bytecode goes to the SDK as hex text, never as raw bytes", () => {
   assert.throws(() => hexBytecode("0x6080"), /without 0x/);
   assert.throws(() => hexBytecode("608"), /whole bytes/);
   assert.throws(() => hexBytecode("60GG"), /hex/);
+});
+
+test("a long text is split into blocks that join back to the original", () => {
+  const text = "ab".repeat(1500);
+  const blocks = splitChunks(text, 1000);
+  assert.deepEqual(blocks.map((block) => block.length), [1000, 1000, 1000]);
+  assert.equal(blocks.join(""), text);
+  assert.deepEqual(splitChunks("abc", 1000), ["abc"]);
+  assert.throws(() => splitChunks("", 10), /nothing to split/);
+  assert.throws(() => splitChunks("abc", 0), /positive integer/);
+});
+
+test("a contract whose admin key is its own id has no external admin, and any other key does", () => {
+  assert.equal(selfAdminKeyNumber("0a051888b3aa05"), 11180424n);
+  assert.equal(hasNoExternalAdmin({ contract_id: "0.0.11180424", admin_key: { key: "0a051888b3aa05" } }), true);
+  assert.equal(hasNoExternalAdmin({ contract_id: "0.0.11180425", admin_key: { key: "0a051888b3aa05" } }), false);
+  assert.equal(hasNoExternalAdmin({ contract_id: "0.0.11180424", admin_key: null }), false);
+  assert.equal(hasNoExternalAdmin({ contract_id: "0.0.11180424" }), false);
+  assert.equal(selfAdminKeyNumber("2a" + "00".repeat(113)), null);
+  assert.equal(selfAdminKeyNumber("0a051888b3aa"), null);
+  assert.equal(selfAdminKeyNumber("zz"), null);
 });

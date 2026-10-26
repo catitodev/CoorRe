@@ -2,9 +2,9 @@
 import { access, chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { ContractCreateFlow, ContractFunctionParameters, PrivateKey, Status, TopicCreateTransaction } from "@hiero-ledger/sdk";
+import { ContractFunctionParameters, PrivateKey, Status, TopicCreateTransaction } from "@hiero-ledger/sdk";
 import { DEFAULT_MAX_VALIDITY_SECONDS, GATE_ARTIFACT, loadGate } from "../lib/gate.mjs";
-import { hexBytecode } from "../lib/network.mjs";
+import { deployDetailed, hasNoExternalAdmin } from "../lib/network.mjs";
 import { sha256Hex } from "../lib/canonical.mjs";
 import { ARTIFACTS_ROOT, REPO_ROOT, isInside } from "../lib/paths.mjs";
 import { TESTNET, loadOperator, mirrorCall, mirrorGet, testnetClient } from "./operator.mjs";
@@ -137,16 +137,25 @@ async function main() {
 
   await mkdir(config.recordDir, { recursive: true, mode: 0o700 });
   const client = testnetClient(operator);
-  const created = await new ContractCreateFlow()
-    .setBytecode(hexBytecode(gateBuild.bytecode))
-    .setGas(GATE_GAS)
-    .setConstructorParameters(new ContractFunctionParameters().addAddress(escrow.evm).addUint64(config.maxMandateValiditySeconds))
-    .execute(client);
-  const gateReceipt = await created.getReceipt(client);
-  if (gateReceipt.status !== Status.Success) throw new Error(`gate deploy returned ${gateReceipt.status}`);
-  const gateId = gateReceipt.contractId;
+  const deployed = await deployDetailed(
+    client,
+    gateBuild,
+    new ContractFunctionParameters().addAddress(escrow.evm).addUint64(config.maxMandateValiditySeconds),
+    GATE_GAS,
+  );
+  const gateId = deployed.contractId;
   const gateEvm = `0x${gateId.toEvmAddress()}`.toLowerCase();
-  console.log(`gate      ${gateId} (${created.transactionId})`);
+  console.log(`gate      ${gateId} (${deployed.transactionId}), bytecode sent in ${deployed.chunks} blocks of at most 1000 characters`);
+  let gateInfo = null;
+  for (let attempt = 0; attempt < 30 && gateInfo === null; attempt += 1) {
+    try {
+      gateInfo = await mirrorGet(`/api/v1/contracts/${gateId}`);
+    } catch {
+      await new Promise((done) => setTimeout(done, 2_000));
+    }
+  }
+  if (!gateInfo || !hasNoExternalAdmin(gateInfo)) throw new Error(`the gate ${gateId} is deployed but could not be confirmed to have no external admin key; do not use it`);
+  console.log("admin     the gate has no external admin key: its admin key is the contract itself");
 
   let logKey;
   if (await exists(logKeyFile)) {
@@ -174,9 +183,11 @@ async function main() {
     gate: {
       id: gateId.toString(),
       evm: gateEvm,
-      transactionId: created.transactionId.toString(),
+      transactionId: deployed.transactionId,
+      uploadTransactions: deployed.uploads,
       bytecodeSha256: sha256Hex(Buffer.from(gateBuild.bytecode, "hex")),
       maxMandateValiditySeconds: config.maxMandateValiditySeconds,
+      adminKey: "the contract itself, so there is no external administrator",
       hashscan: `${TESTNET.hashscan}/contract/${gateId}`,
       verification,
     },

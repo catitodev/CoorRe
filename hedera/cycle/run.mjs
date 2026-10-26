@@ -13,7 +13,7 @@ import {
 import { loadArtifact } from "../lib/artifacts.mjs";
 import { caseId, caseRef, jcs, jcsHash, mandateId } from "../lib/canonical.mjs";
 import { DEFAULT_MAX_VALIDITY_SECONDS, REGISTER_SIGNATURE, VERDICT, hexToBytes32, loadGate, registerMandateCallData } from "../lib/gate.mjs";
-import { accountEvmAddress, call, clientFor, deploy, evmHex, execute, loadAccounts, mirror, recordOf, settings, submit } from "../lib/network.mjs";
+import { accountEvmAddress, call, clientFor, deploy, evmHex, execute, hasNoExternalAdmin, loadAccounts, mirror, recordOf, settings, submit } from "../lib/network.mjs";
 import { HEDERA_ROOT } from "../lib/paths.mjs";
 
 const PERIOD_STATES = ["None", "PendingApproval", "Approved", "Released", "Rejected", "InReview", "ClosedNoPay"];
@@ -89,6 +89,8 @@ async function main() {
   check("oracle authorized", (await execute(admin, escrowId, "authorizeOracle", new ContractFunctionParameters().addAddress(oracleEvm))).status === "SUCCESS");
   const gateId = await deploy(admin, gateBuild, new ContractFunctionParameters().addAddress(escrowEvm).addUint64(DEFAULT_MAX_VALIDITY_SECONDS), 3_000_000);
   const gateEvm = evmHex(gateId.toEvmAddress());
+  const gateInfo = await mirror(config, `/api/v1/contracts/${gateId}`);
+  check("the gate has no external admin key: its admin key is the contract itself", hasNoExternalAdmin(gateInfo), gateInfo.admin_key);
   check("admin points the financial manager to the gate", (await execute(admin, escrowId, "setFinancialManager", new ContractFunctionParameters().addAddress(gateEvm))).status === "SUCCESS");
   const financialManager = evmHex((await call(admin, escrowId, "financialManager")).getAddress(0));
   check("escrow financial manager is the gate", financialManager === gateEvm, financialManager);
