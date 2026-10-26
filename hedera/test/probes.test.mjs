@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { checkReproduced, collectContracts, compilerInput } from "../probes/compile.mjs";
-import { evmHex, mirrorTransactionId, msgValueUnit, revertSelector, timestampSeconds } from "../probes/run.mjs";
+import { evmHex, mirrorTransactionId, msgValueUnit, revertSelector, timestampSeconds } from "../lib/network.mjs";
 import { readLock } from "../scripts/wata-lock.mjs";
 
 test("mirrorTransactionId converts the SDK form and pads the nanoseconds", () => {
