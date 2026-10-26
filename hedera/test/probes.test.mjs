@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { checkReproduced, collectContracts, compilerInput } from "../probes/compile.mjs";
-import { evmHex, mirrorTransactionId, msgValueUnit, revertSelector, timestampSeconds } from "../lib/network.mjs";
+import { evmHex, hexBytecode, mirrorTransactionId, msgValueUnit, revertSelector, timestampSeconds } from "../lib/network.mjs";
 import { readLock } from "../scripts/wata-lock.mjs";
 
 test("mirrorTransactionId converts the SDK form and pads the nanoseconds", () => {
@@ -62,4 +62,13 @@ test("checkReproduced fails when a pinned contract is missing or differs", async
   assert.doesNotThrow(() => checkReproduced(lock, expected));
   assert.throws(() => checkReproduced(lock, { ...expected, PESEscrowV3: { bytecodeSha256: "0".repeat(64) } }), /does not reproduce/);
   assert.throws(() => checkReproduced(lock, { OracleManager: expected.OracleManager }), /not produced/);
+});
+
+test("bytecode goes to the SDK as hex text, never as raw bytes", () => {
+  assert.equal(hexBytecode("6080"), "6080");
+  assert.throws(() => hexBytecode(Buffer.from("6080", "hex")), /not raw bytes/);
+  assert.throws(() => hexBytecode(new Uint8Array([0x60, 0x80])), /not raw bytes/);
+  assert.throws(() => hexBytecode("0x6080"), /without 0x/);
+  assert.throws(() => hexBytecode("608"), /whole bytes/);
+  assert.throws(() => hexBytecode("60GG"), /hex/);
 });

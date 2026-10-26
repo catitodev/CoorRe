@@ -132,8 +132,14 @@ export async function rpc(config, method, params = []) {
   return body.result;
 }
 
+export function hexBytecode(value) {
+  if (typeof value !== "string") throw new Error("bytecode must be a hex string, not raw bytes");
+  if (!/^([0-9a-f]{2})+$/.test(value)) throw new Error("bytecode must be lowercase hex without 0x and with whole bytes");
+  return value;
+}
+
 export async function deploy(client, artifact, parameters, gas) {
-  const flow = new ContractCreateFlow().setBytecode(artifact.bytecode).setGas(gas);
+  const flow = new ContractCreateFlow().setBytecode(hexBytecode(artifact.bytecode)).setGas(gas);
   if (parameters) flow.setConstructorParameters(parameters);
   const response = await flow.execute(client);
   const receipt = await response.getReceipt(client);

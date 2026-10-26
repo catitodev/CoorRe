@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { ContractCreateFlow, ContractFunctionParameters, PrivateKey, Status, TopicCreateTransaction } from "@hiero-ledger/sdk";
 import { BUILD_ROOT } from "../probes/compile.mjs";
+import { hexBytecode } from "../lib/network.mjs";
 import { GATE_ARTIFACT, loadGate } from "../lib/gate.mjs";
 import { sha256Hex } from "../lib/canonical.mjs";
 import { HEDERA_ROOT } from "../scripts/wata-lock.mjs";
@@ -101,7 +102,7 @@ async function main() {
 
   const client = testnetClient(operator);
   const created = await new ContractCreateFlow()
-    .setBytecode(gateBuild.bytecode)
+    .setBytecode(hexBytecode(gateBuild.bytecode))
     .setGas(GATE_GAS)
     .setConstructorParameters(new ContractFunctionParameters().addAddress(escrow.evm))
     .execute(client);
