@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { PrivateKey } from "@hiero-ledger/sdk";
 import { assertSeparateOperator, hostAccountIds, parseArgs, validateHostConfig, verificationInput, wordAddress } from "../testnet/deploy-gate.mjs";
-import { keyFromLedger } from "../testnet/operator.mjs";
+import { findAccountByKey, keyFromLedger, parsePrivateKey } from "../testnet/operator.mjs";
 import { REPO_ROOT } from "../lib/paths.mjs";
 
 const OUTSIDE = join(tmpdir(), "coorre-host", "host.json");
@@ -77,4 +77,48 @@ test("the operator key must control the account named in the file", () => {
   assert.throws(() => keyFromLedger(ed.toStringRaw(), { _type: "ED25519", key: PrivateKey.generateED25519().publicKey.toStringRaw() }), /does not control/);
   assert.throws(() => keyFromLedger("abcd", { _type: "ED25519", key: "00" }), /32 bytes/);
   assert.throws(() => keyFromLedger(ed.toStringRaw(), { _type: "ProtobufEncoded", key: "00" }), /unsupported/);
+});
+
+test("a private key is read as 32-byte hex with its type or as a DER key, and errors never echo it", () => {
+  const ed = PrivateKey.generateED25519();
+  const ec = PrivateKey.generateECDSA();
+  assert.equal(parsePrivateKey(ed.toStringRaw(), "ED25519").publicKey.toStringRaw(), ed.publicKey.toStringRaw());
+  assert.equal(parsePrivateKey(`0x${ec.toStringRaw()}`, "ECDSA").publicKey.toStringRaw(), ec.publicKey.toStringRaw());
+  assert.equal(parsePrivateKey(` ${ed.toStringDer()}\n`).publicKey.toStringRaw(), ed.publicKey.toStringRaw());
+  assert.equal(parsePrivateKey(ec.toStringDer()).publicKey.toStringRaw(), ec.publicKey.toStringRaw());
+  assert.throws(() => parsePrivateKey(ec.toStringRaw()), /unsupported key type/);
+  assert.throws(() => parsePrivateKey("not a key"), /neither 32 bytes of hex nor a DER key/);
+  const broken = `30${"ab".repeat(50)}`;
+  assert.throws(() => parsePrivateKey(broken), (error) => /not a valid DER key/.test(error.message) && !error.message.includes(broken));
+});
+
+test("a DER key controls the account whose ledger key it matches, and no other", () => {
+  const ec = PrivateKey.generateECDSA();
+  const ledger = { _type: "ECDSA_SECP256K1", key: ec.publicKey.toStringRaw() };
+  assert.equal(keyFromLedger(ec.toStringDer(), ledger).publicKey.toStringRaw(), ec.publicKey.toStringRaw());
+  assert.throws(() => keyFromLedger(PrivateKey.generateECDSA().toStringDer(), ledger), /does not control/);
+});
+
+test("an account is found by the public key and only when exactly one matches", async (t) => {
+  const key = PrivateKey.generateECDSA();
+  const raw = key.publicKey.toStringRaw();
+  const original = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = original;
+  });
+  const answer = (accounts) => async (url) => {
+    assert.match(String(url), new RegExp(`account\\.publickey=${raw}`));
+    return new Response(JSON.stringify({ accounts }), { status: 200 });
+  };
+  globalThis.fetch = answer([{ account: "0.0.2001", key: { _type: "ECDSA_SECP256K1", key: raw } }]);
+  assert.equal((await findAccountByKey(key)).account, "0.0.2001");
+  globalThis.fetch = answer([]);
+  await assert.rejects(findAccountByKey(key), /no testnet account/);
+  globalThis.fetch = answer([
+    { account: "0.0.2001", key: { _type: "ECDSA_SECP256K1", key: raw } },
+    { account: "0.0.2002", key: { _type: "ECDSA_SECP256K1", key: raw } },
+  ]);
+  await assert.rejects(findAccountByKey(key), /more than one account.*0\.0\.2001, 0\.0\.2002/);
+  globalThis.fetch = answer([{ account: "0.0.2003", key: { _type: "ECDSA_SECP256K1", key: PrivateKey.generateECDSA().publicKey.toStringRaw() } }]);
+  await assert.rejects(findAccountByKey(key), /no testnet account/);
 });
