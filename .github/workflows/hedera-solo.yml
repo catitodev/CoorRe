@@ -1,0 +1,108 @@
+name: Hedera probes on Solo
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - hedera-engine
+    paths:
+      - "hedera/**"
+      - ".github/workflows/hedera-solo.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probes:
+    name: hedera probes (Solo one-shot, single node)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    defaults:
+      run:
+        working-directory: hedera
+    env:
+      SOLO_VERSION: "0.94.0"
+      HARDHAT_DISABLE_TELEMETRY: "true"
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout (actions/checkout v7.0.1)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Node 24 (actions/setup-node v7.0.0)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "24"
+
+      - name: Runner resources before and after freeing disk
+        working-directory: ${{ github.workspace }}
+        run: |
+          nproc
+          free -h
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          df -h /
+          docker --version
+          kubectl version --client
+
+      - name: npm ci (install scripts disabled by hedera/.npmrc)
+        run: npm ci --no-fund
+
+      - name: npm audit of the runtime dependencies (fails on high or critical)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: npm audit of the dev tools (reported, see docs/SECURITY.md)
+        run: npm audit --audit-level=high || echo "::warning title=Dev tool advisories::accepted for dev tools only, see docs/SECURITY.md"
+
+      - name: Contract build (Hardhat 3, solc 0.8.28)
+        run: npm run build:contracts
+
+      - name: npm test (after the build, so selectors are checked)
+        run: npm test
+
+      - name: Contract tests (Solidity, with fuzzing)
+        run: npm run test:contracts
+
+      - name: Every protection of the mandate contract fails a test when removed
+        run: npm run check:protections
+
+      - name: Install Solo
+        run: |
+          npm install -g "@hiero-ledger/solo@${SOLO_VERSION}" --no-fund
+          solo --version
+
+      - name: Deploy a single-node network
+        run: solo one-shot single deploy
+
+      - name: Deployment and ports
+        run: |
+          solo one-shot show deployment
+          solo deployment config ports --deployment one-shot || true
+          accounts=$(ls "$HOME"/.solo/one-shot-*/accounts.json | head -n 1)
+          test -n "$accounts"
+          echo "SOLO_ACCOUNTS=$accounts" >> "$GITHUB_ENV"
+          curl -sSf http://localhost:38081/api/v1/network/nodes | head -c 400
+          echo
+
+      - name: Run the probes
+        run: node probes/run.mjs
+
+      - name: Full cycle on Solo (mandate, decision, execution, log)
+        run: node cycle/run.mjs
+
+      - name: Host integration on Solo through the adapter (path B, switch, path A, JSON-RPC wallet, review)
+        run: node integration/run.mjs
+
+      - name: Keep the probe report (actions/upload-artifact v7.0.2)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: hedera-probe-report
+          path: |
+            hedera/.cache/probes/report.json
+            hedera/.cache/cycle/report.json
+            hedera/.cache/integration/report.json
+            hedera/.cache/build/contracts.json
+          if-no-files-found: warn

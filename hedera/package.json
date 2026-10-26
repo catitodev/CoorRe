@@ -1,0 +1,42 @@
+{
+  "name": "coorre-hedera",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CoorRe on Hedera: mandate contract, adapter and network checks",
+  "license": "Apache-2.0",
+  "contributors": [
+    {
+      "name": "Clarkson Bartalini",
+      "url": "https://github.com/catitodev"
+    },
+    {
+      "name": "Ramon Porto",
+      "url": "https://github.com/ramonzitus"
+    }
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "build:contracts": "HARDHAT_DISABLE_TELEMETRY=true hardhat build",
+    "test:contracts": "HARDHAT_DISABLE_TELEMETRY=true hardhat test solidity",
+    "check:protections": "node scripts/protection-check.mjs",
+    "probes:run": "node probes/run.mjs",
+    "cycle:run": "node cycle/run.mjs",
+    "integration:run": "node integration/run.mjs",
+    "testnet:deploy-gate": "node testnet/deploy-gate.mjs",
+    "testnet:complete-account": "node testnet/complete-account.mjs"
+  },
+  "dependencies": {
+    "@hiero-ledger/sdk": "2.90.1"
+  },
+  "overrides": {
+    "ws": "8.21.3"
+  },
+  "devDependencies": {
+    "ethers": "6.16.0",
+    "hardhat": "3.21.0"
+  }
+}
