@@ -6,6 +6,7 @@ import {
   countTestCallSites,
   diffReference,
   parseLegacyTemplate,
+  parseTemplatePackage,
   parseMochaGlobals,
   parseStringArray,
   parseTranspileOptions,
@@ -163,8 +164,17 @@ test("refuses a legacy template in an unknown form", () => {
 });
 
 test("reads the template program's own dependency versions from the lockfile", () => {
-  assert.equal(programDependencyVersion(lock, "anchor-lang"), reference.legacyTemplate.programAnchorLang);
-  assert.equal(programDependencyVersion(lock, "solana-program"), reference.legacyTemplate.programSolanaProgram);
+  const name = reference.legacyTemplate.templatePackage.name;
+  assert.equal(programDependencyVersion(lock, "anchor-lang", name), reference.legacyTemplate.programAnchorLang);
+  assert.equal(programDependencyVersion(lock, "solana-program", name), reference.legacyTemplate.programSolanaProgram);
+  assert.throws(() => programDependencyVersion(lock, "anchor-lang", "renamed"), /template package renamed not found/);
+});
+
+test("reads the template package name and version from the upstream manifest", () => {
+  const manifest = '[package]\nname = "legacy"\nversion = "0.0.0"\nedition = "2021"\n\n[lib]\ncrate-type = ["cdylib", "lib"]\n\n[dependencies]\nname = "not-this"\n';
+  assert.deepEqual(parseTemplatePackage(manifest), { name: "legacy", version: "0.0.0" });
+  assert.throws(() => parseTemplatePackage("[lib]\n"), /\[package\] section/);
+  assert.throws(() => parseTemplatePackage('[package]\nedition = "2021"\n'), /name or version/);
 });
 
 test("reports any change in the official Playground facts", () => {
