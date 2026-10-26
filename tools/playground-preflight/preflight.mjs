@@ -94,9 +94,18 @@ export function lockVersions(lock, crate) {
   return [...lock.matchAll(new RegExp(`name = "${crate}"\\nversion = "([^"]+)"`, "g"))].map((m) => m[1]);
 }
 
-export function programDependencyVersion(lock, crate) {
-  const block = lock.split("[[package]]").find((b) => /\nname = "program"\n/.test(b));
-  if (!block) throw new Error("template program package not found in lockfile");
+export function parseTemplatePackage(manifest) {
+  const section = /\[package\]([\s\S]*?)(?:\n\[|$)/.exec(manifest)?.[1];
+  if (!section) throw new Error("[package] section not found in the template manifest");
+  const name = /^name\s*=\s*"([^"]+)"/m.exec(section)?.[1];
+  const version = /^version\s*=\s*"([^"]+)"/m.exec(section)?.[1];
+  if (!name || !version) throw new Error("template package name or version not found");
+  return { name, version };
+}
+
+export function programDependencyVersion(lock, crate, packageName) {
+  const block = lock.split("[[package]]").find((b) => b.includes(`\nname = "${packageName}"\n`));
+  if (!block) throw new Error(`template package ${packageName} not found in lockfile`);
   const entry = [...block.matchAll(/^ "([^"]+)",?$/gm)].map((m) => m[1]).find((d) => d === crate || d.startsWith(`${crate} `));
   if (!entry) throw new Error(`template program does not depend on ${crate}`);
   const pinned = entry.split(" ")[1];
@@ -133,9 +142,10 @@ export function buildReference(files) {
     legacyTemplate: {
       isDefault: /find\(\|t\| t\.name == legacy\.name\)/.test(files.templatesMod),
       ...parseLegacyTemplate(files.legacyTemplate),
+      templatePackage: parseTemplatePackage(files.legacyManifest),
       anchorLangDependency: parseAnchorLangLine(files.legacyManifest),
-      programAnchorLang: programDependencyVersion(files.legacyLock, "anchor-lang"),
-      programSolanaProgram: programDependencyVersion(files.legacyLock, "solana-program"),
+      programAnchorLang: programDependencyVersion(files.legacyLock, "anchor-lang", parseTemplatePackage(files.legacyManifest).name),
+      programSolanaProgram: programDependencyVersion(files.legacyLock, "solana-program", parseTemplatePackage(files.legacyManifest).name),
       cargoLockSha256: sha256(files.legacyLock),
     },
   };
@@ -305,8 +315,8 @@ export function checkProgram(name, sourceFile, reference, lockFile) {
     path.join(work, "Cargo.toml"),
     [
       "[package]",
-      'name = "program"',
-      'version = "0.1.0"',
+      `name = "${reference.legacyTemplate.templatePackage.name}"`,
+      `version = "${reference.legacyTemplate.templatePackage.version}"`,
       'edition = "2021"',
       "",
       "[lib]",
