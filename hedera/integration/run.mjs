@@ -171,10 +171,14 @@ async function main() {
   const viaRelay = prepareDecision(await hostInput(5), { network: "solo", escrow: escrowEvm, gate: gateEvm, mandateId: id, delegate: walletEvm, verdict: "approve", mode: "A" });
   const relayGasPrice = BigInt(await provider.send("eth_gasPrice", []));
   const relayTx = await rpcWallet.sendTransaction({ type: 0, to: viaRelay.call.to, data: viaRelay.call.callData, value: 0n, gasLimit: 600_000n, gasPrice: relayGasPrice });
-  const relayReceipt = await relayTx.wait(1, 120_000);
-  check("JSON-RPC: a wallet signs the adapter's call data and the relay accepts it", relayReceipt?.status === 1, relayReceipt?.status);
+  let relayReceipt = null;
+  for (let attempt = 0; attempt < 60 && relayReceipt === null; attempt += 1) {
+    relayReceipt = await provider.getTransactionReceipt(relayTx.hash);
+    if (relayReceipt === null) await new Promise((resolve) => setTimeout(resolve, 2_000));
+  }
+  check("JSON-RPC: a wallet signs the adapter's call data and the relay accepts it", relayReceipt?.status === 1 && relayReceipt.hash === relayTx.hash, relayReceipt?.status);
   check("JSON-RPC: period 5 approved", (await stateOf(5)) === "Approved");
-  const relayAnchored = relayReceipt.logs.find((log) => log.address.toLowerCase() === gateEvm && log.topics.length === 4);
+  const relayAnchored = (relayReceipt?.logs ?? []).find((log) => log.address.toLowerCase() === gateEvm && log.topics.length === 4);
   check("JSON-RPC: the gate saw the wallet as the delegate", relayAnchored && decisionEventFields(Buffer.from(relayAnchored.data.slice(2), "hex")).delegate === walletEvm);
   await publish(jcs({ ...JSON.parse(viaRelay.logMessage), transactionHash: relayTx.hash }));
   steps.push({ path: "A", via: "json-rpc", periodId: 5, transactionHash: relayTx.hash, gasPriceWeibar: relayGasPrice.toString(), evidenceHash: viaRelay.evidenceHash });
