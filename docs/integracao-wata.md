@@ -1,5 +1,7 @@
 # Integração CoorRe on Hedera ↔ W.A.T.A. (proposta)
 
+Versão em inglês: [integration-wata.md](integration-wata.md).
+
 Este documento é uma **proposta** para o time da W.A.T.A. Nada aqui foi aplicado no repositório [vivipolli/wata](https://github.com/vivipolli/wata), nas contas ou nos contratos da W.A.T.A. O CoorRe leu o código da W.A.T.A. só para consulta, no commit `1462dfeb3d492893331dc5c0b0eae15d91ec807c`, fixado em [wata.lock.json](../hedera/reference/wata.lock.json).
 
 O que roda hoje: o fluxo completo abaixo, numa rede Solo local na CI, contra o PESEscrowV3 compilado a partir desse commit com as configurações de compilação da W.A.T.A. (bytecode idêntico ao artefato versionado por ela). Nada roda na testnet ainda.
@@ -94,13 +96,14 @@ Observação: o adapter usa internamente `@hiero-ledger/sdk` 2.90.1 para montar 
 
 - **Separação de funções:** hoje o papel `MANAGER` dispara o score (`backend/src/routes/oracle.ts:50,368,424`) e também pede a aprovação. Quem dispara o score não deve ser o delegado que aprova o pagamento.
 - **Prazo:** a rota de approval-call compara o prazo com o relógio do servidor (`payments.ts:540`). Quem decide é o `block.timestamp`; no instante exato do prazo, `approve` ainda passa (`PESEscrowV3.sol:236`).
-- **Unidade:** pelo SDK, o escrow registra valores em tinybar (verificado no Solo, provas P5). Isso resolve a nota "MUST be verified" de `PESEscrowV3.sol:14-16` para esse caminho. O caminho JSON-RPC das carteiras não foi testado aqui.
+- **Unidade:** pelo SDK, o escrow registra valores em tinybar (verificado no Solo, provas P5). Isso resolve a nota "MUST be verified" de `PESEscrowV3.sol:14-16` para esse caminho.
+- **Carteiras EVM pelo relay:** dois cuidados verificados no Solo. (1) A taxa estimada pelo `ethers` (142 wei) ficou abaixo do mínimo do relay (710000000000 weibar) e a transação foi recusada; usar o valor de `eth_gasPrice` do relay. (2) Transações nativas da Hedera não avançam o nonce EVM da conta, e o Mirror Node as mostra em formato EVM com nonce 0; se a mesma conta também usa o SDK, `tx.wait()` do `ethers` pode acusar "transaction was replaced". Esperar o recibo pelo hash da própria transação.
 
 ## Limites declarados
 
 - Dois dos três admins podem tirar o CoorRe do papel de financial manager a qualquer momento. O CoorRe detecta isso (evento `FinancialManagerChanged`), mas não impede.
 - O documento de auditoria fica no banco da W.A.T.A. O CoorRe prova qual documento a decisão nomeou, não que as medições sejam verdadeiras.
-- As carteiras dos delegados foram simuladas no Solo com contas ECDSA assinando pelo SDK. O `msg.sender` é o mesmo de uma carteira EVM (prova P7), mas o envio por carteira via JSON-RPC (por exemplo, MetaMask pelo relay) não foi testado.
+- O envio por carteira via JSON-RPC foi verificado no Solo: uma carteira com a chave ECDSA do delegado assina o `callData` do adapter com `ethers` e envia pelo relay; o contrato do mandato registra essa carteira como delegada e o escrow aprova. Carteiras de navegador (por exemplo, MetaMask) não foram testadas.
 
 ## Como conferir
 
