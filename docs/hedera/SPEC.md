@@ -38,17 +38,17 @@ A mandate is a document the issuer signs and registers on-chain before any decis
 |---|---|
 | `mandateId` | SHA-256 of the JCS form of the mandate document (RFC 8785, as every CoorRe hash) |
 | `hostId` | The host's identifier |
-| `issuer` | The account that registers the mandate: the escrow's current `admin()`, read on every call, normally a threshold key chosen by the host |
-| `delegates` | Accounts that may decide, each with its kind (`human` or `agent`) |
+| `issuer` | The account that registers the mandate: the escrow's current `admin()`, normally a threshold key chosen by the host. A mandate is valid only while its issuer is still the escrow's admin; after a change of admin it authorizes nothing, and the new admin registers a new one |
+| `delegates` | At most 20 accounts that may decide, each with its kind (`human` or `agent`) |
 | `quorum` | Number of distinct delegates whose decisions are needed before CoorRe executes; default 1, the issuer may set more |
-| `scope` | Escrow address, agreement ids (a list, or all agreements of that escrow), modes (`HYBRID`), verdicts (`approve`, `reject`, `review`) |
-| `validFrom`, `validUntil` | Unix seconds, compared with `block.timestamp`; set by the issuer for each mandate, no default |
+| `scope` | Escrow address, agreement ids (a list of at most 100, or all agreements of that escrow), modes (`HYBRID`), verdicts (`approve`, `reject`, `review`) |
+| `validFrom`, `validUntil` | Unix seconds, compared with `block.timestamp`; set by the issuer for each mandate, no default. Registration refuses a duration above the cap fixed when the contract is deployed (a constructor parameter, 90 days by default), a mandate already expired and a start date more than one day in the past |
 | `autonomyLimit` | Optional, see below |
 | `evidenceRule` | The host document a decision must name |
 
 Issuing: the issuer's account calls the CoorRe contract to register `mandateId` and the fields the contract enforces. The registration is the proof of issue, signed by the issuer's own keys and visible on the Mirror Node. The topic carries only `mandateId` and the registration's transaction id; the mandate document stays with the parties.
 
-Revocation: only the issuer revokes. A revoked mandate authorizes nothing from the block of its revocation on; earlier decisions stay valid and keep pointing to it.
+Revocation: the escrow's current admin or the original issuer revokes. Revoking only reduces authority, so the original issuer can always take down a mandate it created. A revoked mandate authorizes nothing from the block of its revocation on; earlier decisions stay valid and keep pointing to it. Replacing a delegate means revoking the mandate and registering a new one.
 
 ### Autonomy limit
 
@@ -81,14 +81,14 @@ Path A, reached through path B ([ADR-007](../decisions/ADR-007-hedera-execution-
 
 **A.** [CoorReMandateGate.sol](../../hedera/contracts/CoorReMandateGate.sol) is the escrow's `financialManager`. For each decision it checks, in order:
 
-1. the mandate is registered, not revoked, and `validFrom ≤ block.timestamp ≤ validUntil`;
+1. the mandate is registered, not revoked, `validFrom ≤ block.timestamp ≤ validUntil`, and its issuer is still the escrow's admin;
 2. the caller is a delegate of the mandate and is not the account that submitted the period;
 3. the agreement, the HYBRID mode and the verdict are in the mandate's scope;
-4. the period is `PendingApproval` and its `auditHash` equals the decision's;
+4. the period is `PendingApproval`, its `auditHash` equals the decision's, and `block.timestamp` is not past its approval deadline (for approvals and for rejections alike);
 5. an agent delegate approves only within the autonomy limit (`MandateExceeded`);
 6. this delegate has not decided this period before, and the quorum is reached;
 
-then it calls `approve` or `reject` and emits `DecisionAnchored` with `mandateId` and `evidenceHash`. Its errors are `NotIssuer`, `InvalidTerms`, `MandateExists`, `UnknownMandate`, `MandateNotActive`, `UnauthorizedActor`, `OutOfScope`, `PeriodNotPending`, `AuditHashMismatch`, `SubmitterCannotDecide`, `MandateExceeded`, `AlreadyDecided` and `InvalidVerdict`. It is not upgradeable and has no payable function. The escrow keeps all its own checks. Probe P1 shows that an escrow sees the calling contract as `msg.sender`.
+then it calls `approve` or `reject` and emits `DecisionAnchored` with `mandateId` and `evidenceHash`. Its errors are `NotIssuer`, `IssuerNotAdmin`, `InvalidTerms`, `MandateExists`, `UnknownMandate`, `MandateNotActive`, `UnauthorizedActor`, `OutOfScope`, `PeriodNotPending`, `PeriodNotInReview`, `AuditHashMismatch`, `DeadlinePassed`, `SubmitterCannotDecide`, `MandateExceeded`, `AlreadyDecided` and `InvalidVerdict`. Votes are counted per verdict; a quorum that is not reached, for example two delegates who disagree with a quorum of 2, leaves the period to its deadline, where `expire` sends it to review and nothing is paid. Partial votes are tied to the period and to the batch's `auditHash`, so they end with the deadline or with a resubmission. It is not upgradeable and has no payable function. The escrow keeps all its own checks. Probe P1 shows that an escrow sees the calling contract as `msg.sender`.
 
 **B.** The financial manager's wallet keeps signing `approve`/`reject`; CoorRe records the mandate and the decision (hashes on the topic) and the verifier checks that the on-chain call matches a recorded decision by a delegate in scope. B proves; A proves and enforces.
 
@@ -102,9 +102,9 @@ The escrow's admin can replace the financial manager at any time. CoorRe does no
 
 After the deadline, anyone can call `expire`, which moves the period to `InReview`. Without changing the escrow:
 
-1. a delegate under a mandate whose scope includes the verdict `review` records a review decision (`resubmit`, or any exit the host's escrow offers);
-2. the host executes it, for example its oracle submits a new batch with another `auditHash`;
-3. the verifier checks that the next on-chain event of the period matches the recorded verdict.
+1. a human delegate under a mandate whose scope allows review calls `recordReview` with an outcome (`resubmit` or `close-no-pay`) and the evidence hash of a review document that carries the reason. The gate checks the same things as for a decision (valid mandate bound to the current admin, delegate, agreement in scope, HYBRID mode, the batch's hash, a delegate who did not submit it, the quorum), requires the period to be `InReview`, **does not call the escrow** and emits `ReviewRecorded`. Agents cannot record a review;
+2. the host executes the outcome with its own roles: its oracle submits a new batch with another `auditHash`, or its admin closes the period without payment;
+3. the verifier checks that the next on-chain event of the period matches the recorded outcome. A resubmission needs a new decision on the new hash.
 
 ## Administration
 
