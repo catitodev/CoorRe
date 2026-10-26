@@ -7,8 +7,15 @@ contract CoorReMandateGate {
     uint8 public constant KIND_AGENT = 2;
     uint8 public constant VERDICT_APPROVE = 1;
     uint8 public constant VERDICT_REJECT = 2;
+    uint8 public constant REVIEW_RESUBMIT = 1;
+    uint8 public constant REVIEW_CLOSE_NO_PAY = 2;
+    uint256 public constant MAX_DELEGATES = 20;
+    uint256 public constant MAX_AGREEMENTS = 100;
+    uint64 public constant MAX_BACKDATE = 1 days;
     uint8 private constant PERIOD_PENDING_APPROVAL = 1;
+    uint8 private constant PERIOD_IN_REVIEW = 5;
     uint8 private constant MODE_HYBRID = 1;
+    bytes32 private constant REVIEW_DOMAIN = keccak256("coorre.review");
 
     struct MandateTerms {
         uint64 validFrom;
@@ -17,6 +24,7 @@ contract CoorReMandateGate {
         bool allAgreements;
         bool allowApprove;
         bool allowReject;
+        bool allowReview;
         bool hasAutonomyLimit;
         uint256 autonomyLimit;
     }
@@ -30,6 +38,7 @@ contract CoorReMandateGate {
     }
 
     IPeriodEscrow public immutable escrow;
+    uint64 public immutable maxValidity;
 
     mapping(bytes32 => Mandate) private mandates;
     mapping(bytes32 => mapping(address => uint8)) public delegateKind;
@@ -40,6 +49,7 @@ contract CoorReMandateGate {
 
     error ZeroAddress();
     error NotIssuer();
+    error IssuerNotAdmin();
     error InvalidTerms();
     error MandateExists();
     error UnknownMandate();
@@ -47,14 +57,16 @@ contract CoorReMandateGate {
     error UnauthorizedActor();
     error OutOfScope();
     error PeriodNotPending();
+    error PeriodNotInReview();
     error AuditHashMismatch();
+    error DeadlinePassed();
     error SubmitterCannotDecide();
     error MandateExceeded();
     error AlreadyDecided();
     error InvalidVerdict();
 
     event MandateRegistered(bytes32 indexed mandateId, address indexed issuer, uint64 validFrom, uint64 validUntil, uint8 quorum);
-    event MandateRevoked(bytes32 indexed mandateId, address indexed issuer, uint64 revokedAt);
+    event MandateRevoked(bytes32 indexed mandateId, address indexed revoker, uint64 revokedAt);
     event DecisionAnchored(
         bytes32 indexed mandateId,
         uint256 indexed agreementId,
@@ -67,10 +79,23 @@ contract CoorReMandateGate {
         uint64 blockTimestamp,
         bool executedOnEscrow
     );
+    event ReviewRecorded(
+        bytes32 indexed mandateId,
+        uint256 indexed agreementId,
+        uint256 indexed periodId,
+        bytes32 auditHash,
+        uint8 outcome,
+        address delegate,
+        bytes32 evidenceHash,
+        uint64 blockTimestamp,
+        bool concluded
+    );
 
-    constructor(address escrow_) {
+    constructor(address escrow_, uint64 maxValidity_) {
         if (escrow_ == address(0)) revert ZeroAddress();
+        if (maxValidity_ == 0) revert InvalidTerms();
         escrow = IPeriodEscrow(escrow_);
+        maxValidity = maxValidity_;
     }
 
     function registerMandate(
@@ -84,8 +109,13 @@ contract CoorReMandateGate {
         if (mandates[mandateId].registered) revert MandateExists();
         if (mandateId == bytes32(0)) revert InvalidTerms();
         if (terms.validFrom >= terms.validUntil) revert InvalidTerms();
-        if (!terms.allowApprove && !terms.allowReject) revert InvalidTerms();
+        if (terms.validUntil <= block.timestamp) revert InvalidTerms();
+        if (uint256(terms.validFrom) + MAX_BACKDATE < block.timestamp) revert InvalidTerms();
+        if (terms.validUntil - terms.validFrom > maxValidity) revert InvalidTerms();
+        if (!terms.allowApprove && !terms.allowReject && !terms.allowReview) revert InvalidTerms();
         if (delegates.length == 0 || delegates.length != kinds.length) revert InvalidTerms();
+        if (delegates.length > MAX_DELEGATES) revert InvalidTerms();
+        if (agreementIds.length > MAX_AGREEMENTS) revert InvalidTerms();
         if (terms.quorum == 0 || terms.quorum > delegates.length) revert InvalidTerms();
         if (terms.allAgreements == (agreementIds.length > 0)) revert InvalidTerms();
         if (!terms.hasAutonomyLimit && terms.autonomyLimit != 0) revert InvalidTerms();
@@ -110,7 +140,7 @@ contract CoorReMandateGate {
     function revokeMandate(bytes32 mandateId) external {
         Mandate storage m = mandates[mandateId];
         if (!m.registered) revert UnknownMandate();
-        if (msg.sender != escrow.admin()) revert NotIssuer();
+        if (msg.sender != escrow.admin() && msg.sender != m.issuer) revert NotIssuer();
         if (m.revoked) revert MandateNotActive();
         m.revoked = true;
         m.revokedAt = uint64(block.timestamp);
@@ -125,9 +155,7 @@ contract CoorReMandateGate {
         uint8 verdict,
         bytes32 evidenceHash
     ) external returns (bool executedOnEscrow) {
-        Mandate storage m = mandates[mandateId];
-        if (!m.registered) revert UnknownMandate();
-        if (m.revoked || block.timestamp < m.terms.validFrom || block.timestamp > m.terms.validUntil) revert MandateNotActive();
+        Mandate storage m = _active(mandateId);
 
         uint8 kind = delegateKind[mandateId][msg.sender];
         if (kind == 0) revert UnauthorizedActor();
@@ -143,22 +171,14 @@ contract CoorReMandateGate {
         IPeriodEscrow.Period memory period = escrow.getPeriod(agreementId, periodId);
         if (period.state != PERIOD_PENDING_APPROVAL) revert PeriodNotPending();
         if (period.auditHash != auditHash) revert AuditHashMismatch();
+        if (block.timestamp > period.approvalDeadline) revert DeadlinePassed();
         if (period.submitter == msg.sender) revert SubmitterCannotDecide();
 
         if (kind == KIND_AGENT && (!m.terms.hasAutonomyLimit || agreement.periodAmount > m.terms.autonomyLimit)) {
             revert MandateExceeded();
         }
 
-        bytes32 periodKey = keccak256(abi.encode(agreementId, periodId, auditHash));
-        bytes32 ballotKey = keccak256(abi.encode(mandateId, periodKey));
-        bytes32 voteKey = keccak256(abi.encode(ballotKey, verdict));
-        if (hasDecided[ballotKey][msg.sender] || executed[periodKey]) revert AlreadyDecided();
-
-        hasDecided[ballotKey][msg.sender] = true;
-        uint8 count = votes[voteKey] + 1;
-        votes[voteKey] = count;
-        executedOnEscrow = count >= m.terms.quorum;
-        if (executedOnEscrow) executed[periodKey] = true;
+        executedOnEscrow = _vote(mandateId, keccak256(abi.encode(agreementId, periodId, auditHash)), verdict, m.terms.quorum);
 
         emit DecisionAnchored(
             mandateId, agreementId, periodId, auditHash, verdict, msg.sender, kind, evidenceHash, uint64(block.timestamp), executedOnEscrow
@@ -173,7 +193,54 @@ contract CoorReMandateGate {
         }
     }
 
+    function recordReview(
+        bytes32 mandateId,
+        uint256 agreementId,
+        uint256 periodId,
+        bytes32 auditHash,
+        uint8 outcome,
+        bytes32 evidenceHash
+    ) external returns (bool concluded) {
+        Mandate storage m = _active(mandateId);
+
+        if (delegateKind[mandateId][msg.sender] != KIND_HUMAN) revert UnauthorizedActor();
+        if (!m.terms.allowReview) revert OutOfScope();
+        if (outcome != REVIEW_RESUBMIT && outcome != REVIEW_CLOSE_NO_PAY) revert InvalidVerdict();
+        if (!m.terms.allAgreements && !agreementInScope[mandateId][agreementId]) revert OutOfScope();
+
+        IPeriodEscrow.Agreement memory agreement = escrow.getAgreement(agreementId);
+        if (agreement.mode != MODE_HYBRID) revert OutOfScope();
+
+        IPeriodEscrow.Period memory period = escrow.getPeriod(agreementId, periodId);
+        if (period.state != PERIOD_IN_REVIEW) revert PeriodNotInReview();
+        if (period.auditHash != auditHash) revert AuditHashMismatch();
+        if (period.submitter == msg.sender) revert SubmitterCannotDecide();
+
+        concluded = _vote(mandateId, keccak256(abi.encode(REVIEW_DOMAIN, agreementId, periodId, auditHash)), outcome, m.terms.quorum);
+
+        emit ReviewRecorded(mandateId, agreementId, periodId, auditHash, outcome, msg.sender, evidenceHash, uint64(block.timestamp), concluded);
+    }
+
     function getMandate(bytes32 mandateId) external view returns (Mandate memory) {
         return mandates[mandateId];
+    }
+
+    function _active(bytes32 mandateId) private view returns (Mandate storage m) {
+        m = mandates[mandateId];
+        if (!m.registered) revert UnknownMandate();
+        if (m.revoked || block.timestamp < m.terms.validFrom || block.timestamp > m.terms.validUntil) revert MandateNotActive();
+        if (m.issuer != escrow.admin()) revert IssuerNotAdmin();
+    }
+
+    function _vote(bytes32 mandateId, bytes32 periodKey, uint8 choice, uint8 quorum) private returns (bool reached) {
+        bytes32 ballotKey = keccak256(abi.encode(mandateId, periodKey));
+        bytes32 voteKey = keccak256(abi.encode(ballotKey, choice));
+        if (hasDecided[ballotKey][msg.sender] || executed[periodKey]) revert AlreadyDecided();
+
+        hasDecided[ballotKey][msg.sender] = true;
+        uint8 count = votes[voteKey] + 1;
+        votes[voteKey] = count;
+        reached = count >= quorum;
+        if (reached) executed[periodKey] = true;
     }
 }

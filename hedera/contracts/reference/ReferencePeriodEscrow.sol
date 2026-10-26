@@ -10,10 +10,13 @@ contract ReferencePeriodEscrow is IPeriodEscrow {
     uint8 public constant STATE_APPROVED = 2;
     uint8 public constant STATE_REJECTED = 4;
     uint8 public constant STATE_IN_REVIEW = 5;
+    uint8 public constant STATE_CLOSED_NO_PAY = 6;
 
     address public admin;
+    address public pendingAdmin;
     address public financialManager;
     uint256 public approvalWindow;
+    bool public paused;
     uint256 public agreementCount;
 
     mapping(address => bool) public isOracle;
@@ -24,7 +27,9 @@ contract ReferencePeriodEscrow is IPeriodEscrow {
     error NotAdmin();
     error NotOracle();
     error NotFinancialManager();
+    error NotPendingAdmin();
     error ZeroAddress();
+    error ZeroValue();
     error InvalidParams();
     error AgreementNotFound();
     error AuditHashUsed();
@@ -32,12 +37,20 @@ contract ReferencePeriodEscrow is IPeriodEscrow {
     error SameAccount();
     error DeadlinePassed();
     error DeadlineNotReached();
+    error ContractPaused();
+    error InsufficientFreeBalance();
 
     event FinancialManagerChanged(address indexed previousManager, address indexed newManager);
     event PeriodSubmitted(uint256 indexed agreementId, uint256 indexed periodId, bytes32 auditHash, uint8 score, uint8 state);
     event PeriodApproved(uint256 indexed agreementId, uint256 indexed periodId, address indexed approver);
     event PeriodRejected(uint256 indexed agreementId, uint256 indexed periodId, address indexed by);
     event PeriodExpired(uint256 indexed agreementId, uint256 indexed periodId);
+    event ClosedNoPay(uint256 indexed agreementId, uint256 indexed periodId);
+    event Deposited(uint256 indexed agreementId, address indexed from, uint256 amount);
+    event Paused(address indexed by);
+    event Unpaused(address indexed by);
+    event AdminProposed(address indexed current, address indexed proposed);
+    event AdminChanged(address indexed previousAdmin, address indexed newAdmin);
 
     modifier onlyAdmin() {
         if (msg.sender != admin) revert NotAdmin();
@@ -46,6 +59,11 @@ contract ReferencePeriodEscrow is IPeriodEscrow {
 
     modifier onlyFinancialManager() {
         if (msg.sender != financialManager) revert NotFinancialManager();
+        _;
+    }
+
+    modifier whenNotPaused() {
+        if (paused) revert ContractPaused();
         _;
     }
 
@@ -74,6 +92,13 @@ contract ReferencePeriodEscrow is IPeriodEscrow {
         a.active = true;
     }
 
+    function deposit(uint256 agreementId) external payable whenNotPaused {
+        Agreement storage a = _agreement(agreementId);
+        if (msg.value == 0) revert ZeroValue();
+        a.deposited += msg.value;
+        emit Deposited(agreementId, msg.sender, msg.value);
+    }
+
     function setFinancialManager(address newManager) external onlyAdmin {
         if (newManager == address(0)) revert ZeroAddress();
         emit FinancialManagerChanged(financialManager, newManager);
@@ -85,7 +110,30 @@ contract ReferencePeriodEscrow is IPeriodEscrow {
         approvalWindow = newWindow;
     }
 
-    function submitBatch(uint256 agreementId, uint256 periodId, bytes32 auditHash, uint8 score, uint16 scoreVersion) external {
+    function pause() external onlyAdmin {
+        paused = true;
+        emit Paused(msg.sender);
+    }
+
+    function unpause() external onlyAdmin {
+        paused = false;
+        emit Unpaused(msg.sender);
+    }
+
+    function proposeAdmin(address newAdmin) external onlyAdmin {
+        if (newAdmin == address(0)) revert ZeroAddress();
+        pendingAdmin = newAdmin;
+        emit AdminProposed(msg.sender, newAdmin);
+    }
+
+    function acceptAdmin() external {
+        if (msg.sender != pendingAdmin) revert NotPendingAdmin();
+        emit AdminChanged(admin, msg.sender);
+        admin = msg.sender;
+        pendingAdmin = address(0);
+    }
+
+    function submitBatch(uint256 agreementId, uint256 periodId, bytes32 auditHash, uint8 score, uint16 scoreVersion) external whenNotPaused {
         if (!isOracle[msg.sender]) revert NotOracle();
         Agreement storage a = _agreement(agreementId);
         if (score > 100) revert InvalidParams();
@@ -100,6 +148,7 @@ contract ReferencePeriodEscrow is IPeriodEscrow {
         if (score < a.scoreThreshold) {
             p.state = STATE_REJECTED;
         } else if (a.mode == MODE_AUTO) {
+            _commit(a);
             p.state = STATE_APPROVED;
         } else {
             p.state = STATE_PENDING_APPROVAL;
@@ -108,12 +157,13 @@ contract ReferencePeriodEscrow is IPeriodEscrow {
         emit PeriodSubmitted(agreementId, periodId, auditHash, score, p.state);
     }
 
-    function approve(uint256 agreementId, uint256 periodId) external onlyFinancialManager {
-        _agreement(agreementId);
+    function approve(uint256 agreementId, uint256 periodId) external onlyFinancialManager whenNotPaused {
+        Agreement storage a = _agreement(agreementId);
         Period storage p = periods[agreementId][periodId];
         if (p.state != STATE_PENDING_APPROVAL) revert InvalidState();
         if (msg.sender == p.submitter) revert SameAccount();
         if (block.timestamp > p.approvalDeadline) revert DeadlinePassed();
+        _commit(a);
         p.state = STATE_APPROVED;
         emit PeriodApproved(agreementId, periodId, msg.sender);
     }
@@ -135,6 +185,18 @@ contract ReferencePeriodEscrow is IPeriodEscrow {
         emit PeriodExpired(agreementId, periodId);
     }
 
+    function closeNoPay(uint256 agreementId, uint256 periodId) external onlyAdmin {
+        _agreement(agreementId);
+        Period storage p = periods[agreementId][periodId];
+        if (p.state != STATE_REJECTED && p.state != STATE_IN_REVIEW) revert InvalidState();
+        p.state = STATE_CLOSED_NO_PAY;
+        emit ClosedNoPay(agreementId, periodId);
+    }
+
+    function freeBalance(uint256 agreementId) external view returns (uint256) {
+        return _free(_agreement(agreementId));
+    }
+
     function getAgreement(uint256 agreementId) external view returns (Agreement memory) {
         return _agreement(agreementId);
     }
@@ -147,5 +209,14 @@ contract ReferencePeriodEscrow is IPeriodEscrow {
     function _agreement(uint256 agreementId) private view returns (Agreement storage a) {
         if (agreementId >= agreementCount) revert AgreementNotFound();
         a = agreements[agreementId];
+    }
+
+    function _free(Agreement storage a) private view returns (uint256) {
+        return a.deposited - a.released - a.refunded - a.committed;
+    }
+
+    function _commit(Agreement storage a) private {
+        if (_free(a) < a.periodAmount) revert InsufficientFreeBalance();
+        a.committed += a.periodAmount;
     }
 }
