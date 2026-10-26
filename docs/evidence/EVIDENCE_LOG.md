@@ -413,3 +413,10 @@ Entry template:
 - Negative cases simulated on the Mirror Node after the decision: a second approve and a reject of the same period revert with PeriodNotPending; a caller outside the mandate reverts with UnauthorizedActor. A wrong audit hash on a decided period reverts with PeriodNotPending, because the state is checked first; the audit-hash, deadline, revocation and expiry cases need a new pending period and stay covered by the Solidity tests.
 - Not done: no new pending period existed, so deadline, revocation and expiry were not exercised live on testnet.
 - Commit(s): docs: record the first testnet decision through the gate
+
+### 2026-10-26 16:19 BRT — Testnet: negative cases on a second pending period
+- Authors: Clarkson Bartalini and Ramon Porto.
+- Setup: the host's admin registered a second mandate valid for twenty minutes, shortened the approval window to ten minutes and the host's oracle submitted a new batch, so a second period was pending. The call data for the first two steps was prepared by CoorRe and simulated before it was handed over; all three transactions succeeded.
+- Results, simulated on the Mirror Node from the delegate's account at the moment shown: before the deadline, a correct decision would succeed under either mandate; a wrong audit hash reverts with AuditHashMismatch; a caller outside the mandate with UnauthorizedActor; an unknown mandate id with UnknownMandate. After the approval deadline, the same decision under the long mandate reverts with DeadlinePassed; after the short mandate's end, under that mandate with MandateNotActive, which the contract checks before the deadline.
+- Not done: the revocation case was not run live; it stays covered by the Solidity tests. The second period was left undecided and has passed its deadline.
+- Commit(s): docs: record the testnet negative cases
