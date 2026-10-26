@@ -1,0 +1,130 @@
+{
+  "profileFormat": "coorre-host-profile/1",
+  "hostId": "wata",
+  "hostRef": {
+    "repository": "vivipolli/wata",
+    "commit": "1462dfeb3d492893331dc5c0b0eae15d91ec807c",
+    "access": "read-only"
+  },
+  "targets": [
+    {
+      "network": "solo",
+      "chainId": 298,
+      "contract": "PESEscrowV3",
+      "address": null,
+      "source": { "kind": "coorre-proposal", "ref": "docs/hedera/SPEC.md#targets" }
+    },
+    {
+      "network": "testnet",
+      "chainId": 296,
+      "contract": "PESEscrowV3",
+      "address": null,
+      "source": { "kind": "host-code", "ref": "backend/.env.example:11-12" }
+    }
+  ],
+  "decisionPoints": [
+    {
+      "name": "approve-or-reject-period",
+      "trigger": {
+        "description": "A period of a HYBRID agreement whose score met the threshold waits for the financial manager",
+        "state": "PendingApproval"
+      },
+      "inputs": [
+        { "name": "agreementId", "type": "uint256" },
+        { "name": "periodId", "type": "uint256" },
+        { "name": "auditHash", "type": "bytes32" },
+        { "name": "score", "type": "uint8" },
+        { "name": "scoreVersion", "type": "uint16" }
+      ],
+      "actions": [
+        { "verdict": "approve", "signature": "approve(uint256,uint256)", "selector": "0x5d35a3d9" },
+        { "verdict": "reject", "signature": "reject(uint256,uint256)", "selector": "0x86b2375c" }
+      ],
+      "hostActor": "financialManager",
+      "modes": ["HYBRID"],
+      "deadline": {
+        "kind": "onchain-call",
+        "call": "approvalWindow()",
+        "clock": "block.timestamp",
+        "source": { "kind": "host-code", "ref": "contracts/contracts/PESEscrowV3.sol:222-225" }
+      },
+      "source": { "kind": "host-code", "ref": "contracts/contracts/PESEscrowV3.sol:192-249" }
+    }
+  ],
+  "mandate": {
+    "issuer": {
+      "description": "The W.A.T.A. admin account of the escrow",
+      "keyPolicy": "2-of-3 threshold key, as the host decided (D5)",
+      "source": { "kind": "host-code", "ref": "backend/src/scripts/localEscrowCycle.ts:89-97" }
+    },
+    "delegates": {
+      "description": "Keys of the human financial manager named in each mandate",
+      "kinds": ["human"],
+      "source": { "kind": "coorre-proposal", "ref": "docs/hedera/SPEC.md#mandate" }
+    },
+    "quorum": {
+      "default": 1,
+      "issuerMayRaise": true,
+      "source": { "kind": "coorre-proposal", "ref": "docs/hedera/SPEC.md#mandate" }
+    },
+    "validity": {
+      "fields": ["validFrom", "validUntil"],
+      "clock": "block.timestamp",
+      "default": null,
+      "source": { "kind": "coorre-proposal", "ref": "docs/hedera/SPEC.md#mandate" }
+    },
+    "autonomyLimit": {
+      "appliesTo": "periodAmount of the agreement, approved by an automated delegate",
+      "value": null,
+      "unit": "tinybar",
+      "error": "MandateExceeded",
+      "source": { "kind": "coorre-proposal", "ref": "docs/hedera/SPEC.md#autonomy-limit" }
+    },
+    "revocation": {
+      "by": "the issuer",
+      "effect": "a revoked mandate authorizes nothing from the block of its revocation on",
+      "source": { "kind": "coorre-proposal", "ref": "docs/hedera/SPEC.md#mandate" }
+    }
+  },
+  "evidence": {
+    "hostDocument": "auditDocument of type wata-score-period: JSON with sorted keys listing the measurements, the rule and the result",
+    "hostDigest": "auditHash = SHA-256 of the auditDocument bytes, the bytes32 submitted on-chain",
+    "decisionDocument": "CoorRe decision credential (W3C VC, eddsa-jcs-2022) that names the auditDocument as an artifact by the SHA-256 of its raw bytes",
+    "source": { "kind": "host-code", "ref": "backend/src/services/scorePeriod.ts:73-83" }
+  },
+  "review": {
+    "entersWhen": "expire() moves a PendingApproval period past its deadline to InReview",
+    "verdicts": [
+      { "verdict": "resubmit", "executedBy": "the host oracle, with a new auditHash", "signature": "submitBatch(uint256,uint256,bytes32,uint8,uint16)", "selector": "0x88314121" },
+      { "verdict": "close-no-pay", "executedBy": "the host admin (2-of-3)", "signature": "closeNoPay(uint256,uint256)", "selector": "0x37e9b64c" }
+    ],
+    "execution": "CoorRe records the review decision; the host executes it; the verifier checks that the on-chain outcome matches the recorded verdict",
+    "source": { "kind": "host-code", "ref": "contracts/contracts/PESEscrowV3.sol:251-267" }
+  },
+  "administration": {
+    "policy": "recorded",
+    "actions": [
+      { "signature": "setFinancialManager(address)", "selector": "0xd8a21847" },
+      { "signature": "setApprovalWindow(uint256)", "selector": "0xebe9a660" },
+      { "signature": "createAgreement(address,uint256,uint8,uint8)", "selector": "0x13e78824" },
+      { "signature": "deactivateAgreement(uint256)", "selector": "0x63431788" },
+      { "signature": "closeNoPay(uint256,uint256)", "selector": "0x37e9b64c" },
+      { "signature": "refund(uint256,uint256)", "selector": "0x5af36e3e" },
+      { "signature": "withdrawExcess(uint256)", "selector": "0xe755ddd7" },
+      { "signature": "pause()", "selector": "0x8456cb59" },
+      { "signature": "unpause()", "selector": "0x3f4ba83a" },
+      { "signature": "proposeAdmin(address)", "selector": "0x147bf6c4" },
+      { "signature": "acceptAdmin()", "selector": "0x0e18b681" }
+    ],
+    "source": { "kind": "coorre-proposal", "ref": "docs/hedera/SPEC.md#administration" }
+  },
+  "log": {
+    "kind": "hcs-topic",
+    "ownership": "coorre",
+    "submitKey": "the CoorRe log operator key",
+    "adminKey": null,
+    "maxMessageBytes": 1024,
+    "rotation": "a new topic, announced by a final message in the old one",
+    "source": { "kind": "coorre-proposal", "ref": "docs/hedera/SPEC.md#log" }
+  }
+}
