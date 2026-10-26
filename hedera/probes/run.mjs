@@ -113,6 +113,7 @@ async function probeEscrow(config, ctx) {
   const steps = {};
   steps.authorizeOracle = (await execute(ctx.operatorClient, escrowId, "authorizeOracle", new ContractFunctionParameters().addAddress(oracleEvm))).status;
   steps.createAgreement = (await execute(ctx.operatorClient, escrowId, "createAgreement", new ContractFunctionParameters().addAddress(producerEvm).addUint256(100_000_000).addUint8(50).addUint8(HYBRID))).status;
+  steps.deposit = (await execute(ctx.operatorClient, escrowId, "deposit", new ContractFunctionParameters().addUint256(0), { hbar: 2 })).status;
   const oracleClient = ctx.ecdsaClients[0];
   const submitPeriod = async (periodId) =>
     (await execute(oracleClient, escrowId, "submitBatch", new ContractFunctionParameters().addUint256(0).addUint256(periodId).addBytes32(randomBytes(32)).addUint8(80).addUint16(1))).status;

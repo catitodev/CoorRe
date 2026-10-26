@@ -39,6 +39,14 @@ test("the host configuration is checked and its records stay outside the reposit
   assert.throws(() => validateHostConfig({ ...CONFIG, otherHostAccounts: ["1004"] }), /bad host account id/);
 });
 
+test("the mandate validity cap defaults to 90 days and stays within its bounds", () => {
+  assert.equal(validateHostConfig(CONFIG).maxMandateValiditySeconds, 90 * 24 * 3600);
+  assert.equal(validateHostConfig({ ...CONFIG, maxMandateValiditySeconds: 7200 }).maxMandateValiditySeconds, 7200);
+  for (const bad of [0, 3599, 365 * 24 * 3600 + 1, 1.5, "7200"]) {
+    assert.throws(() => validateHostConfig({ ...CONFIG, maxMandateValiditySeconds: bad }), /maxMandateValiditySeconds/);
+  }
+});
+
 test("the CoorRe operator must not be any host account", () => {
   assert.deepEqual(hostAccountIds(CONFIG), ["0.0.1001", "0.0.1002", "0.0.1003", "0.0.1004"]);
   assert.doesNotThrow(() => assertSeparateOperator("0.0.2000", CONFIG));

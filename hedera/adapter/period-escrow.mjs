@@ -17,7 +17,25 @@ export const DECIDE_ABI = {
   ],
   outputs: [{ name: "executedOnEscrow", type: "bool" }],
 };
+export const REVIEW_SIGNATURE = "recordReview(bytes32,uint256,uint256,bytes32,uint8,bytes32)";
+export const REVIEW_SELECTOR = "0x7749304e";
+export const REVIEW_ABI = {
+  type: "function",
+  name: "recordReview",
+  stateMutability: "nonpayable",
+  inputs: [
+    { name: "mandateId", type: "bytes32" },
+    { name: "agreementId", type: "uint256" },
+    { name: "periodId", type: "uint256" },
+    { name: "auditHash", type: "bytes32" },
+    { name: "outcome", type: "uint8" },
+    { name: "evidenceHash", type: "bytes32" },
+  ],
+  outputs: [{ name: "concluded", type: "bool" }],
+};
 const VERDICT_CODES = { approve: 1, reject: 2 };
+const REVIEW_OUTCOMES = { resubmit: 1, "close-no-pay": 2 };
+const MAX_REASON_CHARS = 500;
 const UINT_LIMITS = { uint8: 2n ** 8n, uint16: 2n ** 16n, uint64: 2n ** 64n, uint256: 2n ** 256n };
 
 function decisionPoint(profile, name) {
@@ -131,4 +149,56 @@ export function prepareDecision(profile, input, context) {
   if (Buffer.byteLength(logMessage, "utf8") > maxLogBytes) throw new Error(`log message exceeds ${maxLogBytes} bytes`);
 
   return { case_ref: ref, case_id: caseId(ref), decisionDocument, evidenceHash, call, logMessage };
+}
+
+export function prepareReview(profile, input, context) {
+  const read = readInput(profile, input);
+  const declared = profile.review.verdicts.map((entry) => entry.verdict);
+  if (!declared.includes(context.outcome)) throw new Error(`outcome must be one of ${declared.join(", ")}`);
+  const outcome = REVIEW_OUTCOMES[context.outcome];
+  if (!outcome) throw new Error(`outcome ${context.outcome} is not one the gate records`);
+  const target = profile.targets.find((entry) => entry.network === context.network);
+  if (!target) throw new Error(`no target for network ${context.network}`);
+  const escrow = address(context.escrow, "escrow");
+  const gate = address(context.gate, "gate");
+  const mandateId = hex32(context.mandateId, "mandateId");
+  const delegate = address(context.delegate, "delegate");
+  const reason = String(context.reason ?? "").trim();
+  if (reason.length === 0 || reason.length > MAX_REASON_CHARS) throw new Error(`reason must have between 1 and ${MAX_REASON_CHARS} characters`);
+  const ref = caseRef(profile.hostId, target.chainId, escrow, read.agreementId, read.periodId);
+
+  const reviewDocument = {
+    format: "coorre-review/1",
+    hostId: profile.hostId,
+    decisionPoint: read.decisionPoint,
+    case_ref: ref,
+    case_id: caseId(ref),
+    chainId: target.chainId,
+    escrow,
+    agreementId: read.agreementId,
+    periodId: read.periodId,
+    auditHash: read.auditHash,
+    outcome: context.outcome,
+    reason,
+    mandateId,
+    delegate,
+  };
+  const evidenceHash = jcsHash(reviewDocument);
+  const data = new ContractFunctionParameters()
+    .addBytes32(Buffer.from(mandateId, "hex"))
+    .addUint256(read.agreementId)
+    .addUint256(read.periodId)
+    .addBytes32(Buffer.from(read.auditHash, "hex"))
+    .addUint8(outcome)
+    .addBytes32(Buffer.from(evidenceHash, "hex"))
+    ._build("recordReview");
+  const call = { to: gate, function: REVIEW_SIGNATURE, selector: REVIEW_SELECTOR, abi: [REVIEW_ABI], callData: hexOf(data), value: "0" };
+  if (!call.callData.startsWith(call.selector)) throw new Error(`call data does not start with ${call.selector}`);
+
+  const logEntry = { kind: "review", case_ref: ref, mandateId, evidenceHash, auditHash: read.auditHash, outcome: context.outcome, delegate };
+  const logMessage = jcs(logEntry);
+  const maxLogBytes = profile.log.maxMessageBytes;
+  if (Buffer.byteLength(logMessage, "utf8") > maxLogBytes) throw new Error(`log message exceeds ${maxLogBytes} bytes`);
+
+  return { case_ref: ref, case_id: caseId(ref), reviewDocument, evidenceHash, call, logMessage };
 }

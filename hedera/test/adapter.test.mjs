@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { DECIDE_SELECTOR, DECIDE_SIGNATURE, prepareDecision as prepare, readInput as read } from "../adapter/period-escrow.mjs";
+import { DECIDE_SELECTOR, DECIDE_SIGNATURE, REVIEW_SELECTOR, REVIEW_SIGNATURE, prepareDecision as prepare, prepareReview as prepareReviewWith, readInput as read } from "../adapter/period-escrow.mjs";
 import { HEDERA_ROOT } from "../lib/paths.mjs";
 import { caseId, jcsHash } from "../lib/canonical.mjs";
 import { GATE_ARTIFACT, loadGate } from "../lib/gate.mjs";
@@ -10,6 +10,7 @@ import { GATE_ARTIFACT, loadGate } from "../lib/gate.mjs";
 const PROFILE = JSON.parse(readFileSync(join(HEDERA_ROOT, "host-profiles", "example.json"), "utf8"));
 const prepareDecision = (input, context) => prepare(PROFILE, input, context);
 const readInput = (input) => read(PROFILE, input);
+const prepareReview = (input, context) => prepareReviewWith(PROFILE, input, context);
 const AUDIT = "60e923175e060c671d4191c337ba6a6936e3c6120aa9a304e5918c51f33cdd8b";
 const INPUT = { hostId: "example-host", decisionPoint: "approve-or-reject-period", agreementId: "0", periodId: "1", auditHash: `0x${AUDIT}`, score: 80, scoreVersion: 1 };
 const ESCROW = "0x00000000000000000000000000000000000003FF";
@@ -91,4 +92,39 @@ test("the decide selector matches the compiled gate when a build is present", as
   }
   const gate = await loadGate();
   assert.equal(`0x${gate.identifiers[DECIDE_SIGNATURE]}`, DECIDE_SELECTOR);
+  assert.equal(`0x${gate.identifiers[REVIEW_SIGNATURE]}`, REVIEW_SELECTOR);
+});
+
+const REVIEW_CONTEXT = { network: "solo", escrow: ESCROW, gate: GATE, mandateId: MANDATE, delegate: DELEGATE, outcome: "resubmit", reason: "new measurements for the same period" };
+
+test("a review is a call to recordReview with the evidence hash of the review document", () => {
+  const out = prepareReview(INPUT, REVIEW_CONTEXT);
+  assert.equal(out.call.to, GATE);
+  assert.equal(out.call.function, REVIEW_SIGNATURE);
+  assert.equal(out.call.callData.slice(0, 10), REVIEW_SELECTOR);
+  const w = words(out.call.callData);
+  assert.equal(w.length, 6);
+  assert.equal(w[0], MANDATE);
+  assert.equal(BigInt(`0x${w[1]}`), 0n);
+  assert.equal(BigInt(`0x${w[2]}`), 1n);
+  assert.equal(w[3], AUDIT);
+  assert.equal(BigInt(`0x${w[4]}`), 1n);
+  assert.equal(w[5], out.evidenceHash);
+  assert.equal(out.evidenceHash, jcsHash(out.reviewDocument));
+  assert.equal(out.reviewDocument.reason, REVIEW_CONTEXT.reason);
+  assert.equal(prepareReview(INPUT, { ...REVIEW_CONTEXT, outcome: "close-no-pay" }).call.callData.slice(-128, -64).replace(/^0+/, ""), "2");
+});
+
+test("the review log message carries ids and hashes only, never the reason", () => {
+  const out = prepareReview(INPUT, REVIEW_CONTEXT);
+  assert.ok(!out.logMessage.includes(REVIEW_CONTEXT.reason));
+  assert.equal(JSON.parse(out.logMessage).evidenceHash, out.evidenceHash);
+  assert.ok(Buffer.byteLength(out.logMessage, "utf8") <= 1024);
+});
+
+test("a review needs an outcome the profile declares and a reason", () => {
+  assert.throws(() => prepareReview(INPUT, { ...REVIEW_CONTEXT, outcome: "pay" }), /outcome must be one of/);
+  assert.throws(() => prepareReview(INPUT, { ...REVIEW_CONTEXT, reason: "  " }), /reason must have/);
+  assert.throws(() => prepareReview(INPUT, { ...REVIEW_CONTEXT, reason: "x".repeat(501) }), /reason must have/);
+  assert.throws(() => prepareReview(INPUT, { ...REVIEW_CONTEXT, gate: "0x1" }), /gate/);
 });

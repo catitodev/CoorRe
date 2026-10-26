@@ -3,7 +3,7 @@ import { access, chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { ContractCreateFlow, ContractFunctionParameters, PrivateKey, Status, TopicCreateTransaction } from "@hiero-ledger/sdk";
-import { GATE_ARTIFACT, loadGate } from "../lib/gate.mjs";
+import { DEFAULT_MAX_VALIDITY_SECONDS, GATE_ARTIFACT, loadGate } from "../lib/gate.mjs";
 import { hexBytecode } from "../lib/network.mjs";
 import { sha256Hex } from "../lib/canonical.mjs";
 import { ARTIFACTS_ROOT, REPO_ROOT, isInside } from "../lib/paths.mjs";
@@ -13,6 +13,8 @@ const GATE_GAS = 3_000_000;
 const ESCROW_VIEWS = { admin: "0xf851a440", financialManager: "0x4eef3f31", approvalWindow: "0x737b68dd" };
 const EVM = /^0x[0-9a-fA-F]{40}$/;
 const ACCOUNT = /^0\.0\.\d+$/;
+const MIN_VALIDITY_SECONDS = 3600;
+const MAX_VALIDITY_SECONDS = 365 * 24 * 3600;
 
 export function parseArgs(argv) {
   const args = { hostConfig: null, confirmSpend: false };
@@ -42,7 +44,11 @@ export function validateHostConfig(config) {
   const accounts = hostAccountIds(config);
   if (accounts.length === 0) throw new Error("the host configuration must list the host's accounts");
   for (const id of accounts) if (!ACCOUNT.test(id)) throw new Error(`bad host account id ${id}`);
-  return { ...config, escrow: { ...config.escrow, evm: config.escrow.evm.toLowerCase() }, recordDir: resolve(config.recordDir) };
+  const maxMandateValiditySeconds = config.maxMandateValiditySeconds ?? DEFAULT_MAX_VALIDITY_SECONDS;
+  if (!Number.isInteger(maxMandateValiditySeconds) || maxMandateValiditySeconds < MIN_VALIDITY_SECONDS || maxMandateValiditySeconds > MAX_VALIDITY_SECONDS) {
+    throw new Error(`maxMandateValiditySeconds must be an integer between ${MIN_VALIDITY_SECONDS} and ${MAX_VALIDITY_SECONDS}`);
+  }
+  return { ...config, maxMandateValiditySeconds, escrow: { ...config.escrow, evm: config.escrow.evm.toLowerCase() }, recordDir: resolve(config.recordDir) };
 }
 
 export function assertSeparateOperator(operatorId, config) {
@@ -119,7 +125,7 @@ async function main() {
   const logKeyFile = join(config.recordDir, "testnet-log-key.json");
   console.log(`operator  ${operator.id} (${operator.keyType}), balance ${(operator.balanceTinybar / 1e8).toFixed(8)} HBAR, separate from the host's accounts`);
   console.log(`escrow    ${escrow.id}: expected runtime (sha256 ${escrow.runtimeSha256}), approvalWindow ${escrow.approvalWindow} s`);
-  console.log("plan      1. deploy CoorReMandateGate(escrow), gas limit " + GATE_GAS);
+  console.log(`plan      1. deploy CoorReMandateGate(escrow, mandate validity cap ${config.maxMandateValiditySeconds} s), gas limit ${GATE_GAS}`);
   console.log("          2. create the CoorRe log topic: new ED25519 submit key kept in the private record directory, no admin key");
   console.log("          3. verify the gate on Sourcify (chain 296) with the CoorRe sources only");
   console.log("          4. write the deploy record to the private record directory");
@@ -134,7 +140,7 @@ async function main() {
   const created = await new ContractCreateFlow()
     .setBytecode(hexBytecode(gateBuild.bytecode))
     .setGas(GATE_GAS)
-    .setConstructorParameters(new ContractFunctionParameters().addAddress(escrow.evm))
+    .setConstructorParameters(new ContractFunctionParameters().addAddress(escrow.evm).addUint64(config.maxMandateValiditySeconds))
     .execute(client);
   const gateReceipt = await created.getReceipt(client);
   if (gateReceipt.status !== Status.Success) throw new Error(`gate deploy returned ${gateReceipt.status}`);
@@ -170,6 +176,7 @@ async function main() {
       evm: gateEvm,
       transactionId: created.transactionId.toString(),
       bytecodeSha256: sha256Hex(Buffer.from(gateBuild.bytecode, "hex")),
+      maxMandateValiditySeconds: config.maxMandateValiditySeconds,
       hashscan: `${TESTNET.hashscan}/contract/${gateId}`,
       verification,
     },

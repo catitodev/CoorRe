@@ -3,11 +3,11 @@ import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { ContractExecuteTransaction, ContractFunctionParameters, PrivateKey, TopicCreateTransaction, TopicMessageSubmitTransaction } from "@hiero-ledger/sdk";
 import { JsonRpcProvider, Wallet } from "ethers";
-import { prepareDecision as prepare } from "../adapter/period-escrow.mjs";
-import { decisionEventFields } from "../cycle/run.mjs";
+import { prepareDecision as prepare, prepareReview as prepareReviewWith } from "../adapter/period-escrow.mjs";
+import { decisionEventFields, reviewEventFields } from "../cycle/run.mjs";
 import { loadArtifact } from "../lib/artifacts.mjs";
 import { jcs, jcsHash, mandateId } from "../lib/canonical.mjs";
-import { REGISTER_SIGNATURE, loadGate, registerMandateCallData } from "../lib/gate.mjs";
+import { DEFAULT_MAX_VALIDITY_SECONDS, REGISTER_SIGNATURE, loadGate, registerMandateCallData } from "../lib/gate.mjs";
 import { accountEvmAddress, call, clientFor, deploy, evmHex, execute, loadAccounts, mirror, recordOf, settings, submit } from "../lib/network.mjs";
 import { HEDERA_ROOT } from "../lib/paths.mjs";
 
@@ -32,6 +32,7 @@ async function main() {
   const escrowArtifact = await loadArtifact("reference/ReferencePeriodEscrow.sol", "ReferencePeriodEscrow");
   const profile = JSON.parse(await readFile(join(HEDERA_ROOT, "host-profiles", "example.json"), "utf8"));
   const prepareDecision = (input, context) => prepare(profile, input, context);
+  const prepareReview = (input, context) => prepareReviewWith(profile, input, context);
   const gateBuild = await loadGate();
   const admin = clientFor(config, accounts.operator.id, accounts.operator.key);
   const [oracleAccount, producerAccount, walletAccount] = accounts.ecdsa;
@@ -50,6 +51,7 @@ async function main() {
   const escrowEvm = evmHex(escrowId.toEvmAddress());
   await execute(admin, escrowId, "authorizeOracle", new ContractFunctionParameters().addAddress(oracleEvm));
   await execute(admin, escrowId, "createAgreement", new ContractFunctionParameters().addAddress(producerEvm).addUint256(100_000_000).addUint8(50).addUint8(HYBRID));
+  await execute(admin, escrowId, "deposit", new ContractFunctionParameters().addUint256(0), { hbar: 6 });
 
   const logKey = PrivateKey.generateED25519();
   const topicId = (await submit(admin, new TopicCreateTransaction().setTopicMemo("coorre-log").setSubmitKey(logKey.publicKey))).receipt.topicId;
@@ -111,7 +113,7 @@ async function main() {
   await publish(jcs({ ...JSON.parse(decisionB.logMessage), transactionId: sentB.transactionId }));
   steps.push({ path: "B", periodId: 1, transactionId: sentB.transactionId, evidenceHash: decisionB.evidenceHash });
 
-  const gateId = await deploy(admin, { bytecode: gateBuild.bytecode }, new ContractFunctionParameters().addAddress(escrowEvm), 3_000_000);
+  const gateId = await deploy(admin, gateBuild, new ContractFunctionParameters().addAddress(escrowEvm).addUint64(DEFAULT_MAX_VALIDITY_SECONDS), 3_000_000);
   gateIdRef.id = gateId;
   const gateEvm = evmHex(gateId.toEvmAddress());
   const switched = await execute(admin, escrowId, "setFinancialManager", new ContractFunctionParameters().addAddress(gateEvm));
@@ -128,7 +130,7 @@ async function main() {
       .setFunctionParameters(
         registerMandateCallData(gateBuild.identifiers[REGISTER_SIGNATURE], {
           id,
-          terms: { validFrom: mandateDocument.validFrom, validUntil: mandateDocument.validUntil, quorum: 1, allAgreements: true, allowApprove: true, allowReject: true, hasAutonomyLimit: false, autonomyLimit: 0 },
+          terms: { validFrom: mandateDocument.validFrom, validUntil: mandateDocument.validUntil, quorum: 1, allAgreements: true, allowApprove: true, allowReject: true, allowReview: true, hasAutonomyLimit: false, autonomyLimit: 0 },
           delegates: [{ address: walletEvm, kind: "human" }],
           agreementIds: [],
         }),
@@ -193,9 +195,15 @@ async function main() {
   const late = prepareDecision({ ...(await hostInput(4)) }, { network: "solo", escrow: escrowEvm, gate: gateEvm, mandateId: id, delegate: walletEvm, verdict: "approve", mode: "A" });
   const lateSent = await send(wallet, late);
   check("review: the gate refuses a decision on a period in review", lateSent.status === "CONTRACT_REVERT_EXECUTED", lateSent.status);
-  const review = { kind: "review", verdict: "resubmit", case_ref: late.case_ref, mandateId: id, delegate: walletEvm, auditHash: audit4, reason: "new measurements for the same period" };
-  const reviewEvidence = jcsHash(review);
-  await publish(jcs({ ...review, evidenceHash: reviewEvidence }));
+  const review = prepareReview(await hostInput(4), { network: "solo", escrow: escrowEvm, gate: gateEvm, mandateId: id, delegate: walletEvm, outcome: "resubmit", reason: "new measurements for the same period" });
+  const reviewSent = await send(wallet, review);
+  check("review: the delegate records the verdict on-chain through the gate", reviewSent.status === "SUCCESS", reviewSent.status);
+  const reviewRecord = await recordOf(admin, reviewSent.transactionId);
+  const reviewLog = reviewRecord.contractFunctionResult.logs.find((log) => log.topics.length === 4);
+  const reviewFields = reviewLog ? reviewEventFields(reviewLog.data) : null;
+  check("review: ReviewRecorded carries the outcome, the delegate and the evidence hash", reviewFields?.outcome === 1 && reviewFields.delegate === walletEvm && reviewFields.evidenceHash === review.evidenceHash && reviewFields.concluded === true, reviewFields);
+  check("review: recording it does not move the period", (await stateOf(4)) === "InReview");
+  await publish(jcs({ ...JSON.parse(review.logMessage), transactionId: reviewSent.transactionId }));
   const audit4b = auditOf(41);
   check("review: the oracle resubmits with a new audit hash", (await submitPeriod(4, audit4b)) === "SUCCESS" && (await stateOf(4)) === "PendingApproval");
   const restored = await execute(admin, escrowId, "setApprovalWindow", new ContractFunctionParameters().addUint256(3600));

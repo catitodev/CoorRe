@@ -2,7 +2,11 @@ import { ContractFunctionParameters } from "@hiero-ledger/sdk";
 import { artifactPath, loadArtifact } from "./artifacts.mjs";
 
 export const GATE_ARTIFACT = artifactPath("CoorReMandateGate.sol", "CoorReMandateGate");
-export const REGISTER_SIGNATURE = "registerMandate(bytes32,(uint64,uint64,uint8,bool,bool,bool,bool,uint256),address[],uint8[],uint256[])";
+export const REGISTER_SIGNATURE = "registerMandate(bytes32,(uint64,uint64,uint8,bool,bool,bool,bool,bool,uint256),address[],uint8[],uint256[])";
+export const REVIEW_SIGNATURE = "recordReview(bytes32,uint256,uint256,bytes32,uint8,bytes32)";
+export const DECIDE_SIGNATURE = "decide(bytes32,uint256,uint256,bytes32,uint8,bytes32)";
+export const REVIEW_OUTCOME = { resubmit: 1, "close-no-pay": 2 };
+export const DEFAULT_MAX_VALIDITY_SECONDS = 90 * 24 * 3600;
 export const KIND = { human: 1, agent: 2 };
 export const VERDICT = { approve: 1, reject: 2 };
 
@@ -33,6 +37,7 @@ export function registerMandateCallData(selectorHex, mandate) {
     .addBool(terms.allAgreements)
     .addBool(terms.allowApprove)
     .addBool(terms.allowReject)
+    .addBool(terms.allowReview)
     .addBool(terms.hasAutonomyLimit)
     .addUint256(terms.autonomyLimit)
     .addAddressArray(delegates.map((delegate) => delegate.address))

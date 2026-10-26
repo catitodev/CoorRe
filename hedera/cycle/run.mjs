@@ -12,7 +12,7 @@ import {
 } from "@hiero-ledger/sdk";
 import { loadArtifact } from "../lib/artifacts.mjs";
 import { caseId, caseRef, jcs, jcsHash, mandateId } from "../lib/canonical.mjs";
-import { REGISTER_SIGNATURE, VERDICT, hexToBytes32, loadGate, registerMandateCallData } from "../lib/gate.mjs";
+import { DEFAULT_MAX_VALIDITY_SECONDS, REGISTER_SIGNATURE, VERDICT, hexToBytes32, loadGate, registerMandateCallData } from "../lib/gate.mjs";
 import { accountEvmAddress, call, clientFor, deploy, evmHex, execute, loadAccounts, mirror, recordOf, settings, submit } from "../lib/network.mjs";
 import { HEDERA_ROOT } from "../lib/paths.mjs";
 
@@ -26,6 +26,20 @@ export function logMessage(entry) {
   const size = Buffer.byteLength(text, "utf8");
   if (size > MAX_MESSAGE_BYTES) throw new Error(`log message of ${size} bytes exceeds ${MAX_MESSAGE_BYTES}`);
   return text;
+}
+
+export function reviewEventFields(data) {
+  const bytes = Buffer.from(data);
+  if (bytes.length !== 6 * 32) throw new Error(`ReviewRecorded data has ${bytes.length} bytes, expected 192`);
+  const word = (index) => bytes.subarray(index * 32, index * 32 + 32);
+  return {
+    auditHash: word(0).toString("hex"),
+    outcome: word(1).readUInt8(31),
+    delegate: `0x${word(2).subarray(12).toString("hex")}`,
+    evidenceHash: word(3).toString("hex"),
+    blockTimestamp: Number(word(4).readBigUInt64BE(24)),
+    concluded: word(5).readUInt8(31) === 1,
+  };
 }
 
 export function decisionEventFields(data) {
@@ -73,13 +87,14 @@ async function main() {
   const escrowId = await deploy(admin, escrowArtifact, new ContractFunctionParameters().addAddress(adminEvm).addAddress(adminEvm).addUint256(3600), 3_000_000);
   const escrowEvm = evmHex(escrowId.toEvmAddress());
   check("oracle authorized", (await execute(admin, escrowId, "authorizeOracle", new ContractFunctionParameters().addAddress(oracleEvm))).status === "SUCCESS");
-  const gateId = await deploy(admin, gateBuild, new ContractFunctionParameters().addAddress(escrowEvm), 3_000_000);
+  const gateId = await deploy(admin, gateBuild, new ContractFunctionParameters().addAddress(escrowEvm).addUint64(DEFAULT_MAX_VALIDITY_SECONDS), 3_000_000);
   const gateEvm = evmHex(gateId.toEvmAddress());
   check("admin points the financial manager to the gate", (await execute(admin, escrowId, "setFinancialManager", new ContractFunctionParameters().addAddress(gateEvm))).status === "SUCCESS");
   const financialManager = evmHex((await call(admin, escrowId, "financialManager")).getAddress(0));
   check("escrow financial manager is the gate", financialManager === gateEvm, financialManager);
 
   check("HYBRID agreement created", (await execute(admin, escrowId, "createAgreement", new ContractFunctionParameters().addAddress(producerEvm).addUint256(PERIOD_AMOUNT).addUint8(50).addUint8(HYBRID))).status === "SUCCESS");
+  check("agreement funded with 6 HBAR", (await execute(admin, escrowId, "deposit", new ContractFunctionParameters().addUint256(0), { hbar: 6 })).status === "SUCCESS");
 
   const auditDocument = { type: "coorre-cycle-synthetic-audit", agreement: 0, period: 1, measurements: [{ parameter: "turbidity", value: "3.1", unit: "NTU" }], score: 80 };
   const auditHash = jcsHash(auditDocument);
@@ -129,6 +144,7 @@ async function main() {
             allAgreements: true,
             allowApprove: true,
             allowReject: true,
+            allowReview: false,
             hasAutonomyLimit: false,
             autonomyLimit: 0,
           },
