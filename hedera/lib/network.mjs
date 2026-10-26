@@ -142,6 +142,7 @@ export function hexBytecode(value) {
 }
 
 export const DEFAULT_UPLOAD_CHUNK_CHARS = 1000;
+export const CONTRACT_CREATE_MAX_FEE_HBAR = 40;
 
 export function selfAdminKeyNumber(adminKeyHex) {
   if (typeof adminKeyHex !== "string" || !/^([0-9a-f]{2})+$/.test(adminKeyHex)) return null;
@@ -190,7 +191,7 @@ export async function deployDetailed(client, artifact, parameters, gas, options 
       const appended = await confirmed(new FileAppendTransaction().setFileId(fileId).setContents(chunk), client, "file append");
       uploads.push(appended.response.transactionId.toString());
     }
-    const contractCreate = new ContractCreateTransaction().setBytecodeFileId(fileId).setGas(gas);
+    const contractCreate = new ContractCreateTransaction().setBytecodeFileId(fileId).setGas(gas).setMaxTransactionFee(new Hbar(options.contractMaxFeeHbar ?? CONTRACT_CREATE_MAX_FEE_HBAR));
     if (parameters) contractCreate.setConstructorParameters(parameters);
     const deployed = await confirmed(contractCreate, client, "contract create");
     return { contractId: deployed.receipt.contractId, transactionId: deployed.response.transactionId.toString(), fileId: fileId.toString(), uploads, chunks: chunks.length };
