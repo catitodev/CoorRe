@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { AccountId, Client, PrivateKey } from "@hiero-ledger/sdk";
+import { AccountId, Client, Hbar, PrivateKey } from "@hiero-ledger/sdk";
 import { HEDERA_ROOT } from "../scripts/wata-lock.mjs";
 
 export const TESTNET = {
@@ -11,6 +11,7 @@ export const TESTNET = {
   hashscan: "https://hashscan.io/testnet",
   sourcify: "https://sourcify.dev/server",
 };
+export const MAX_FEE_HBAR = 20;
 export const LOCAL_DIR = join(HEDERA_ROOT, "..", ".local");
 export const OPERATOR_FILE = join(LOCAL_DIR, "hedera-testnet.json");
 
@@ -61,5 +62,6 @@ export async function loadOperator(file = OPERATOR_FILE) {
 export function testnetClient(operator) {
   const client = Client.forTestnet();
   client.setOperator(operator.id, operator.key);
+  client.setDefaultMaxTransactionFee(new Hbar(MAX_FEE_HBAR));
   return client;
 }
