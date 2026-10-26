@@ -27,7 +27,8 @@
     "wata:drift": "node scripts/wata-drift-check",
     "probes:compile": "node probes/compile.mjs",
     "probes:run": "node probes/run.mjs",
-    "cycle:run": "node cycle/run.mjs"
+    "cycle:run": "node cycle/run.mjs",
+    "testnet:deploy-gate": "node testnet/deploy-gate.mjs"
   },
   "dependencies": {
     "@hiero-ledger/sdk": "2.90.1",
