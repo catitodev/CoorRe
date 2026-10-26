@@ -1,6 +1,6 @@
 # ADR-007: Execution path of CoorRe on Hedera for W.A.T.A.
 
-- Status: proposed (needs the maintainers' approval of A, B or C)
+- Status: accepted (A reached through B; C discarded), approved by the maintainers on 2026-10-25
 - Date: 2026-10-25
 
 ## Context

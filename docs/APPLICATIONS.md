@@ -25,7 +25,7 @@ All five run on the same engine and the same anchor; only the rule changes ([ADR
 | Anchor | Where it lives | Status |
 |---|---|---|
 | CoorRe on Solana | [onchain/](../onchain) (Anchor program) and [bridge/](../bridge) (the only component that sends Solana transactions) | Runs on devnet; recorded accounts in [docs/evidence/devnet-snapshot](evidence/devnet-snapshot) |
-| CoorRe on Hedera | [hedera/](../hedera) | In development: reference fixtures and network probes only. Contract, bridge and verifier support are next steps, tested first on a local Solo network, then on testnet |
+| CoorRe on Hedera | [hedera/](../hedera) | In development: the mandate contract and its full cycle run on a local Solo network in CI ([docs/hedera/SPEC.md](hedera/SPEC.md)). Verifier support and testnet are next steps |
 | Web2 witness log | [docs/design/WEB2_MODE.md](design/WEB2_MODE.md) | Design only |
 | Zcash memo | [docs/design/ZCASH_READINESS.md](design/ZCASH_READINESS.md) | Roadmap; the memo is prepared and checked offline |
 

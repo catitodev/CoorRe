@@ -1,6 +1,6 @@
 # CoorRe on Hedera — specification
 
-Status: specification. On Hedera, only the phase 0 probes run today, on a local Solo network ([PHASE0.md](PHASE0.md)). The contract, the bridge and the Hedera source of the verifier are next steps, tested first on Solo and then on testnet. Mainnet is out of scope.
+Status: the mandate contract (path A) runs on a local Solo network in CI, together with the phase 0 probes ([PHASE0.md](PHASE0.md)): mandate, decision, execution on the host's escrow, release and the HCS log. The Hedera source of the verifier, the integration package for the host and testnet are next steps. Mainnet is out of scope.
 
 CoorRe on Hedera is one application of the CoorRe engine ([APPLICATIONS.md](../APPLICATIONS.md)). It answers for one moment of a host's process, the decision under mandate: who may decide what, under which mandate, with which evidence, and the public proof of it. The host keeps its business rules (score, thresholds, amounts, deadlines, validity, tokenization); CoorRe reads them from a host profile and never sets or changes them. The first host is W.A.T.A. ([vivipolli/wata](https://github.com/vivipolli/wata), read only, pinned at 1462dfeb in [wata.lock.json](../../hedera/reference/wata.lock.json)).
 
@@ -96,6 +96,8 @@ Path A, with path B as the step before it ([ADR-007](../decisions/ADR-007-hedera
 6. this delegate has not decided this period before, and the quorum is reached;
 
 then it calls `approve` or `reject` and emits the decision with `mandateId` and `evidenceHash`. PESEscrowV3 does not change. Probe P1 shows that the escrow sees the CoorRe contract as `msg.sender` and that a direct call by any other account reverts with `NotFinancialManager`. The escrow still enforces its own checks (`SameAccount`, the deadline, `whenNotPaused` on `approve`).
+
+The contract is [CoorReMandateGate.sol](../../hedera/contracts/CoorReMandateGate.sol). Its errors are `NotIssuer`, `InvalidTerms`, `MandateExists`, `UnknownMandate`, `MandateNotActive`, `UnauthorizedActor`, `OutOfScope`, `PeriodNotPending`, `AuditHashMismatch`, `SubmitterCannotDecide`, `MandateExceeded`, `AlreadyDecided` and `InvalidVerdict`. The issuer is read from the escrow on every call (`admin()`), so a change of admin needs no change here. An agent delegate may only approve. The tests run against the host's own PESEscrowV3, built from the pinned commit with the host's compiler settings ([CoorReMandateGate.t.sol](../../hedera/contracts/test/CoorReMandateGate.t.sol)), and `npm run check:protections` shows that removing any protection fails a test.
 
 **B.** The financial manager's wallet keeps signing `approve`/`reject` (the host's approval-call route, `payments.ts:514-560`). CoorRe registers the mandate and the decision (HCS message and hash) and the verifier checks that the on-chain call matches a recorded decision by a delegate in scope. B proves; A proves and enforces.
 
