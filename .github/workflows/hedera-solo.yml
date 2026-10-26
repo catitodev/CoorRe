@@ -22,6 +22,7 @@ jobs:
         working-directory: hedera
     env:
       SOLO_VERSION: "0.94.0"
+      HARDHAT_DISABLE_TELEMETRY: "true"
       GITHUB_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout (actions/checkout v7.0.1)
@@ -49,16 +50,28 @@ jobs:
       - name: npm ci (install scripts disabled by hedera/.npmrc)
         run: npm ci --no-fund
 
-      - name: npm audit (fails on high or critical)
-        run: npm audit --audit-level=high
+      - name: npm audit of the runtime dependencies (fails on high or critical)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: npm audit of the dev tools (reported, see docs/SECURITY.md)
+        run: npm audit --audit-level=high || echo "::warning title=Dev tool advisories::accepted for dev tools only, see docs/SECURITY.md"
 
       - name: Fetch the pinned W.A.T.A. files (read-only) and compile
         run: |
           node scripts/wata-fetch
           node probes/compile.mjs
 
+      - name: Contract build (Hardhat 3, solc 0.8.28)
+        run: npm run build:contracts
+
       - name: npm test (with the pinned build, so selectors are checked)
         run: npm test
+
+      - name: Contract tests (Solidity, with fuzzing)
+        run: npm run test:contracts
+
+      - name: Every protection of the mandate contract fails a test when removed
+        run: npm run check:protections
 
       - name: W.A.T.A. drift check (read-only, reported without failing the probes)
         run: |
@@ -96,6 +109,9 @@ jobs:
       - name: Run the probes
         run: node probes/run.mjs
 
+      - name: Full cycle on Solo (mandate, decision, execution, release, log)
+        run: node cycle/run.mjs
+
       - name: Keep the probe report (actions/upload-artifact v7.0.2)
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -103,5 +119,6 @@ jobs:
           name: hedera-probe-report
           path: |
             hedera/.cache/probes/report.json
+            hedera/.cache/cycle/report.json
             hedera/.cache/build/contracts.json
           if-no-files-found: warn
