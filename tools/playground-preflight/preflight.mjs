@@ -62,11 +62,26 @@ export function parsePackageGlobals(supportedPackagesJson) {
     .sort();
 }
 
+export function parseOptionalString(source, field) {
+  const match = new RegExp(`\\b${field}:\\s*(?:"([^"]+)"|Some\\(\\s*"([^"]+)"\\s*\\)|(None))\\s*,`).exec(source);
+  if (!match) throw new Error(`${field} not found in a known form`);
+  return match[1] ?? match[2] ?? null;
+}
+
+export function parseAnchorInstall(source) {
+  const match = /\binstallation_command:\s*(?:Some\(\s*anchor_installation_command!\(\s*"([^"]+)"\s*\)\s*\)|(None))\s*,/.exec(source);
+  if (!match) throw new Error("installation_command not found in a known form");
+  return match[1] ?? null;
+}
+
 export function parseLegacyTemplate(source) {
-  const rustVersion = /rust_version:\s*"([^"]+)"/.exec(source)?.[1];
-  const solanaVersion = /solana_version:\s*"([^"]+)"/.exec(source)?.[1];
-  if (!rustVersion || !solanaVersion) throw new Error("legacy template versions not found");
-  return { rustVersion, solanaVersion };
+  const rustVersion = parseOptionalString(source, "rust_version");
+  const solanaVersion = parseOptionalString(source, "solana_version");
+  const cargoBuildSbfVersion = parseOptionalString(source, "cargo_build_sbf_version");
+  const anchorInstallVersion = parseAnchorInstall(source);
+  if (!rustVersion) throw new Error("legacy template rust_version not found");
+  if (!solanaVersion && !cargoBuildSbfVersion) throw new Error("legacy template names neither solana_version nor cargo_build_sbf_version");
+  return { rustVersion, solanaVersion, cargoBuildSbfVersion, anchorInstallVersion };
 }
 
 export function parseAnchorLangLine(manifest) {
