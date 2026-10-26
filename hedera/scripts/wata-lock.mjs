@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 export const HEDERA_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const LOCK_PATH = join(HEDERA_ROOT, "reference", "wata.lock.json");
 export const CACHE_ROOT = join(HEDERA_ROOT, ".cache", "wata");
+export const PINNED_DIR = "pinned";
 
 const COMMIT_PATTERN = /^[0-9a-f]{40}$/;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/;
@@ -91,9 +92,13 @@ export async function fetchPinned(lock, cacheRoot = CACHE_ROOT, fetchImpl = fetc
     const sha256 = sha256Hex(bytes);
     if (sha256 !== file.sha256) throw new Error(`${file.path}: sha256 ${sha256} does not match the pinned ${file.sha256}`);
     const target = join(root, file.path);
-    await mkdir(dirname(target), { recursive: true });
-    await writeFile(target, bytes);
-    results.push({ path: file.path, sha256, target });
+    const pinned = join(cacheRoot, PINNED_DIR, file.path);
+    for (const path of [target, pinned]) {
+      await mkdir(dirname(path), { recursive: true });
+      await writeFile(path, bytes);
+    }
+    results.push({ path: file.path, sha256, target, pinned });
   }
+  await writeFile(join(cacheRoot, PINNED_DIR, "COMMIT"), `${lock.commit}\n`);
   return { root, files: results };
 }

@@ -20,10 +20,14 @@
   },
   "scripts": {
     "test": "node --test test/*.test.mjs",
+    "build:contracts": "HARDHAT_DISABLE_TELEMETRY=true hardhat build",
+    "test:contracts": "HARDHAT_DISABLE_TELEMETRY=true hardhat test solidity",
+    "check:protections": "node scripts/protection-check.mjs",
     "wata:fetch": "node scripts/wata-fetch",
     "wata:drift": "node scripts/wata-drift-check",
     "probes:compile": "node probes/compile.mjs",
-    "probes:run": "node probes/run.mjs"
+    "probes:run": "node probes/run.mjs",
+    "cycle:run": "node cycle/run.mjs"
   },
   "dependencies": {
     "@hiero-ledger/sdk": "2.90.1",
@@ -32,5 +36,8 @@
   "overrides": {
     "ws": "8.21.3",
     "tmp": "0.2.7"
+  },
+  "devDependencies": {
+    "hardhat": "3.21.0"
   }
 }

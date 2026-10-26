@@ -86,6 +86,8 @@ test("fetchPinned writes files whose hash matches and refuses a tampered file", 
     const url = rawUrl(lock.repository, lock.commit, "contracts/A.sol");
     const { files } = await fetchPinned(lock, root, fakeFetch(new Map([[url, content]])));
     assert.deepEqual(await readFile(files[0].target), content);
+    assert.deepEqual(await readFile(files[0].pinned), content);
+    assert.equal(await readFile(join(root, "pinned", "COMMIT"), "utf8"), `${lock.commit}\n`);
     await assert.rejects(fetchPinned(lock, root, fakeFetch(new Map([[url, Buffer.from("contract B {}\n")]]))), /does not match the pinned/);
     await assert.rejects(fetchPinned(lock, root, fakeFetch(new Map())), /missing/);
   } finally {
