@@ -21,8 +21,9 @@ const CONFIG = {
 };
 
 test("arguments need a host configuration outside the repository and spend only with --confirm-spend", () => {
-  assert.deepEqual(parseArgs(["--host-config", OUTSIDE]), { hostConfig: OUTSIDE, confirmSpend: false });
+  assert.deepEqual(parseArgs(["--host-config", OUTSIDE]), { hostConfig: OUTSIDE, confirmSpend: false, supersede: false });
   assert.equal(parseArgs(["--host-config", OUTSIDE, "--confirm-spend"]).confirmSpend, true);
+  assert.equal(parseArgs(["--host-config", OUTSIDE, "--supersede"]).supersede, true);
   assert.throws(() => parseArgs([]), /--host-config/);
   assert.throws(() => parseArgs(["--host-config", join(REPO_ROOT, ".local", "host.json")]), /outside the repository/);
   assert.throws(() => parseArgs(["--host-config", OUTSIDE, "--yes"]), /unknown argument/);
