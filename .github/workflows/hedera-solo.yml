@@ -60,8 +60,20 @@ jobs:
           node scripts/wata-fetch
           node probes/compile.mjs
 
-      - name: W.A.T.A. drift check (read-only)
-        run: node scripts/wata-drift-check
+      - name: W.A.T.A. drift check (read-only, reported without failing the probes)
+        run: |
+          status=0
+          node scripts/wata-drift-check > "$RUNNER_TEMP/drift.txt" 2>&1 || status=$?
+          cat "$RUNNER_TEMP/drift.txt"
+          {
+            echo "### W.A.T.A. drift check"
+            echo '```'
+            cat "$RUNNER_TEMP/drift.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" -ne 0 ]; then
+            echo "::warning title=W.A.T.A. drift::wata-drift-check exited with $status; the probes keep using the pinned commit"
+          fi
 
       - name: Install Solo
         run: |
