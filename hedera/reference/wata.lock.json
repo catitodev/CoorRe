@@ -52,6 +52,26 @@
       "path": "backend/src/scripts/localEscrowCycle.ts",
       "sha256": "0b2f397df0fae9e33d6a2133164a8547f7797c2055991fa8ac0b99fc012e97ca",
       "use": "watch"
+    },
+    {
+      "path": "backend/.env.example",
+      "sha256": "80505412363ef8d30c9f5427b1f0916a28478f387050dc456e0ea78f680d17bb",
+      "use": "watch"
+    },
+    {
+      "path": "backend/src/services/scorePeriod.ts",
+      "sha256": "ba35fcad78a2842c228db5f6b45dbec677b98ce408f30a0bb956b77c93bdad6c",
+      "use": "watch"
+    },
+    {
+      "path": "backend/src/services/certificate.ts",
+      "sha256": "69850af02e34f54f71385c7dc725cf13bef3eda202ebcbc36e287f6924caf5b7",
+      "use": "watch"
+    },
+    {
+      "path": "backend/src/routes/oracle.ts",
+      "sha256": "6a819461d0b483253eec10f4e44e228e21191c543053fc55cfa262b26dd497bb",
+      "use": "watch"
     }
   ]
 }

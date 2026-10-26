@@ -15,7 +15,7 @@ export function compilerInput(lock, sources) {
       optimizer: lock.compiler.optimizer,
       viaIR: lock.compiler.viaIR,
       evmVersion: lock.compiler.evmVersion,
-      outputSelection: { "*": { "*": ["abi", "evm.bytecode.object", "evm.deployedBytecode.object"] } },
+      outputSelection: { "*": { "*": ["abi", "evm.bytecode.object", "evm.deployedBytecode.object", "evm.methodIdentifiers"] } },
     },
   };
 }
@@ -31,6 +31,7 @@ export function collectContracts(output) {
       contracts[name] = {
         source,
         abi: artifact.abi,
+        methodIdentifiers: artifact.evm.methodIdentifiers ?? {},
         bytecode,
         bytecodeSha256: sha256Hex(Buffer.from(bytecode, "hex")),
         deployedBytecodeSha256: sha256Hex(Buffer.from(artifact.evm.deployedBytecode.object, "hex")),

@@ -387,8 +387,8 @@ async function probeRelay(config) {
     {
       id: "P5-jsonrpc",
       question: "Which unit does msg.value carry for a value sent through eth_sendRawTransaction?",
-      status: "not-verified",
-      result: { reason: "signing a raw Ethereum transaction needs a library outside the approved dependencies" },
+      status: "out-of-scope",
+      result: { reason: "CoorRe never sends value: approve and reject carry none, and deposits belong to the host" },
     },
   ];
 }
