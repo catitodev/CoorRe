@@ -36,5 +36,10 @@ Creator/operator (opens and funds cases), submitter/payee, agent, rule_engine, a
 - uuid < 11.1.1 (GHSA-w5hq-g745-h8pq, via jayson): only `uuid.v4` is used, which the advisory does not cover; still overridden to 11.1.1, which keeps the CommonJS `v4` export jayson needs.
 - stream-json <= 3.5.0 (GHSA-528h-pc64-c93x, GHSA-hqr4-qq8f-hg3x, GHSA-mjw6-4jj6-33hc, via jayson): no compatible patched release exists (3.x changed its module layout). The code is unreachable: @solana/web3.js imports only `jayson/lib/client/browser`, and stream-json is loaded only by `jayson/lib/utils.js`. A runtime test (bridge/test/deps.test.mjs) fails if stream-json is ever loaded. CI fails on any high or critical advisory.
 
+## CoorRe on Hedera (specified; only network probes run)
+- Threat model, controls and the test that will prove each control: docs/hedera/THREAT_MODEL.md. The specification is docs/hedera/SPEC.md and the execution path is ADR-007.
+- Dependencies of hedera/ (checked 2026-10-25): @hiero-ledger/sdk 2.90.1 and solc 0.8.28, pinned; lockfile committed; install scripts disabled (hedera/.npmrc). ws overridden to 8.21.3 (GHSA-58qx-3vcg-4xpx, GHSA-96hv-2xvq-fx4p, via ethers in the SDK) and tmp to 0.2.7 (GHSA-52f5-9888-hmc6, GHSA-ph9p-34f9-6g65, via solc, used only by its SMT solver path). CI fails on any high or critical advisory.
+- No code from the host is committed: hedera/reference/wata.lock.json pins its commit and the SHA-256 of each file read; files are fetched into an ignored cache and checked before use.
+
 ## Declared limitations
 Devnet only; custodial demo keys; no verifiable build; no fuzzing; simulated agent (no LLM); public RPC rate limits.
