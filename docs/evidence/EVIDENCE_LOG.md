@@ -426,3 +426,9 @@ Entry template:
 - Result: the host's admin registered a mandate valid for the full 90-day cap, with one human delegate, quorum one and no autonomy limit; the call data was prepared by CoorRe and simulated before it was handed over. Read back from the ledger: registered, not revoked, issued by the escrow's admin, valid from 2026-10-26 19:25:06 UTC to 2027-01-24 19:25:06 UTC. The earlier mandate stays valid until its own end.
 - Merge: the pull request with the Hedera module was merged into main after every check passed; the Solana program, bridge and verifier are unchanged.
 - Commit(s): docs: record the 90-day testnet mandate
+
+### 2026-11-01 01:23 BRT — Hedera status in the specification and the applications map
+- Authors: Clarkson Bartalini.
+- Found: the status line of docs/hedera/SPEC.md and the CoorRe on Hedera row of docs/APPLICATIONS.md still named testnet as a next step, while the entries of 2026-10-26 above record the deploy, the first decision through the gate, the negative cases and the 90-day mandate.
+- Work: both now state what runs on testnet and point to this log; the Hedera source of the verifier stays the next step. No code changes.
+- Commit(s): docs: state the Hedera testnet status in the specification and the applications map
