@@ -173,6 +173,23 @@ export function diffReference(pinned, live, prefix = "") {
   return out;
 }
 
+export function checkTypescriptVersion(installed, pinned) {
+  if (installed === pinned?.typescriptVersion) return { status: "PASS", detail: `TypeScript ${installed}, as in Playground` };
+  return {
+    status: "FAIL",
+    detail: `installed TypeScript ${installed} but Playground uses ${pinned?.typescriptVersion}; run npm ci in tools/playground-preflight`,
+  };
+}
+
+export function verdict(results) {
+  const failed = results.filter((r) => r.status === "FAIL").length;
+  const skipped = results.filter((r) => r.status === "WARN").length;
+  if (failed) return { code: 1, line: `${failed} check(s) failed: do not paste into Playground yet.` };
+  if (skipped) return { code: 1, line: `${skipped} check(s) skipped: not cleared for Playground.` };
+  if (!results.length) return { code: 1, line: "no checks ran: not cleared for Playground." };
+  return { code: 0, line: "All checks passed: safe to paste into Playground." };
+}
+
 function lineOf(source, index) {
   return source.slice(0, index).split("\n").length;
 }
@@ -376,6 +393,8 @@ async function main(argv) {
   const results = [];
   const report = (status, check, detail = "") => results.push({ status, check, detail });
 
+  const typescript = checkTypescriptVersion(ts.version, pinned);
+  report(typescript.status, "installed TypeScript", typescript.detail);
   if (sha256(readFileSync(pinnedLock, "utf8")) !== pinned.legacyTemplate.cargoLockSha256) {
     report("FAIL", "pinned Playground lockfile", "playground-legacy.Cargo.lock does not match reference.json");
   }
@@ -421,9 +440,9 @@ async function main(argv) {
   for (const { status, check, detail } of results) {
     process.stdout.write(`${status.padEnd(4)}  ${check}${detail ? `\n      ${detail.replace(/\n/g, "\n      ")}` : ""}\n`);
   }
-  const failed = results.filter((r) => r.status === "FAIL").length;
-  process.stdout.write(failed ? `\n${failed} check(s) failed: do not paste into Playground yet.\n` : "\nAll checks passed: safe to paste into Playground.\n");
-  return failed ? 1 : 0;
+  const { code, line } = verdict(results);
+  process.stdout.write(`\n${line}\n`);
+  return code;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

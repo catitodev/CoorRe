@@ -181,3 +181,48 @@ test("input validation is strict", () => {
   assert.throws(() => lib.requireMembers({ a: 1, c: 3 }, ["a"]), { name: "InvalidInput" });
   assert.throws(() => lib.requireMembers([], []), { name: "InvalidInput" });
 });
+
+test("parsePubkey keeps the reason a key was refused", () => {
+  assert.throws(() => lib.parsePubkey("0OIl", "x"), (err) => err.name === "InvalidInput" && typeof err.details.reason === "string" && err.details.reason.length > 0);
+  assert.throws(() => lib.parsePubkey(7, "x"), (err) => err.details.reason === "got number");
+});
+
+test("parseWalletKey refuses program-derived addresses and the program id", () => {
+  const wallet = Keypair.generate().publicKey;
+  assert.ok(lib.parseWalletKey(wallet.toBase58(), "x", PROGRAM_ID).equals(wallet));
+  const pda = lib.caseRecordAddress(PROGRAM_ID, wallet, hex32(1));
+  assert.throws(() => lib.parseWalletKey(pda.toBase58(), "x", PROGRAM_ID), { name: "InvalidInput" });
+  assert.throws(() => lib.parseWalletKey(PROGRAM_ID.toBase58(), "x", PROGRAM_ID), { name: "InvalidInput" });
+});
+
+test("parseRpcUrl requires https except on loopback", () => {
+  for (const ok of ["https://api.devnet.solana.com", "http://127.0.0.1:8899", "http://[::1]:8899", "http://localhost:8899/x"]) {
+    assert.equal(lib.parseRpcUrl(ok, "u"), ok);
+  }
+  for (const bad of ["http://api.devnet.solana.com", "http://127.0.0.2", "http://localhost.example.org", "ws://127.0.0.1", "file:///etc/hosts"]) {
+    assert.throws(() => lib.parseRpcUrl(bad, "u"), { name: "InsecureRpc" }, bad);
+  }
+  assert.throws(() => lib.parseRpcUrl("nope", "u"), (err) => err.name === "InvalidConfig" && err.details.cause_code === "ERR_INVALID_URL");
+});
+
+test("parseTimeoutMs takes the default or a bounded positive integer", () => {
+  assert.equal(lib.parseTimeoutMs(undefined), lib.DEFAULT_TIMEOUT_MS);
+  assert.equal(lib.parseTimeoutMs(""), lib.DEFAULT_TIMEOUT_MS);
+  assert.equal(lib.parseTimeoutMs("1500"), 1500);
+  for (const bad of ["0", "-5", "1e3", "01", "3600001", " 5"]) {
+    assert.throws(() => lib.parseTimeoutMs(bad), { name: "InvalidConfig" }, bad);
+  }
+});
+
+test("redactRpcUrls leaves only the origin of configured URLs", () => {
+  const url = "https://rpc.example.org/v1/SEGREDO?api-key=SEGREDO&x=1";
+  const text = lib.redactRpcUrls(JSON.stringify({ message: `failed at ${url}` }), [url, undefined]);
+  assert.ok(!text.includes("SEGREDO"), text);
+  assert.ok(text.includes("https://rpc.example.org"));
+  assert.equal(lib.rpcOrigin("not a url"), "<invalid URL: ERR_INVALID_URL>");
+});
+
+test("parseProgramError reads the Custom code of a landed InstructionError", () => {
+  assert.deepEqual(lib.parseProgramError([], JSON.stringify({ InstructionError: [0, { Custom: 6006 }] })), { name: "MandateExceeded", code: 6006 });
+  assert.equal(lib.parseProgramError([], JSON.stringify({ InstructionError: [0, { Custom: 1 }] })), null);
+});

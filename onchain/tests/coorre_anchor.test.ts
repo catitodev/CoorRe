@@ -259,6 +259,38 @@ describe("coorre_anchor", () => {
     assert.equal(await stateOf(c), APPROVED);
     const a = await program.account.evidenceAnchor.fetch(approved.evidenceAnchor);
     assert.equal(a.actorKind, HUMAN);
+
+    await expectError(() => transition(c, REJECTED, c.roles.approver), "CaseClosed");
+    await expectError(() => transition(c, APPROVED, c.roles.approver), "CaseClosed");
+    assert.equal(await stateOf(c), APPROVED);
+    assert.equal(await balanceOf(c.roles.submitter.publicKey), ABOVE, "nothing paid twice");
+  });
+
+  it("amount equal to the limit: AUTO_APPROVED releases it, and the closed case refuses any further transition", async () => {
+    const c = await openCase(LIMIT);
+    await transition(c, SUBMITTED, c.roles.submitter);
+    await transition(c, AGENT_REVIEWED, c.roles.agent);
+    await transition(c, AUTO_APPROVED, c.roles.ruleEngine);
+
+    assert.equal(await stateOf(c), AUTO_APPROVED);
+    assert.equal(await balanceOf(c.roles.submitter.publicKey), LIMIT);
+    assert.equal(await balanceOf(c.caseRecord), await rentFor(c.caseRecord));
+
+    await expectError(() => transition(c, ESCALATED, c.roles.ruleEngine), "CaseClosed");
+    await expectError(() => transition(c, APPROVED, c.roles.approver), "CaseClosed");
+    await expectError(() => transition(c, REJECTED, c.roles.approver), "CaseClosed");
+    assert.equal(await stateOf(c), AUTO_APPROVED);
+    assert.equal(await balanceOf(c.roles.submitter.publicKey), LIMIT, "nothing paid twice");
+  });
+
+  it("one lamport above the limit: AUTO_APPROVED fails with MandateExceeded", async () => {
+    const c = await openCase(LIMIT + 1);
+    await transition(c, SUBMITTED, c.roles.submitter);
+    await transition(c, AGENT_REVIEWED, c.roles.agent);
+
+    await expectError(() => transition(c, AUTO_APPROVED, c.roles.ruleEngine), "MandateExceeded");
+    assert.equal(await stateOf(c), AGENT_REVIEWED);
+    assert.equal(await balanceOf(c.roles.submitter.publicKey), 0);
   });
 
   it("REJECTED refunds exactly the amount to the creator", async () => {

@@ -11,8 +11,9 @@ if ! command -v rustup >/dev/null 2>&1 && [ -s "$HOME/.cargo/env" ]; then
   . "$HOME/.cargo/env"
 fi
 
-if [ ! -d "$tool/node_modules" ]; then
+if ! node "$tool/lockfile-sync.mjs" "$tool"; then
   (cd "$tool" && npm ci --no-fund --silent)
+  node "$tool/lockfile-sync.mjs" "$tool"
 fi
 
 exec node "$tool/preflight.mjs" "$@"

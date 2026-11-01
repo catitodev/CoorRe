@@ -8,7 +8,7 @@ import { Connection } from "@solana/web3.js";
 const require = createRequire(import.meta.url);
 
 test("the RPC client path never loads stream-json", async () => {
-  await new Connection("http://127.0.0.1:9", "confirmed").getGenesisHash().catch(() => {});
+  await assert.rejects(new Connection("http://127.0.0.1:9", "confirmed").getGenesisHash(), /fetch failed/);
   const loaded = Object.keys(require.cache).filter((file) => file.includes(`${path.sep}stream-json${path.sep}`));
   assert.deepEqual(loaded, []);
   const jayson = Object.keys(require.cache).filter((file) => file.includes(`${path.sep}jayson${path.sep}`));

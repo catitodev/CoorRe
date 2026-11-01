@@ -5,6 +5,9 @@ export const NETWORK_ID = "solana:devnet";
 export const DEVNET_GENESIS_HASH = "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG";
 export const DEFAULT_RPC_URL = "https://api.devnet.solana.com";
 export const DEFAULT_KEYS_DIR = ".local/keys";
+export const DEFAULT_TIMEOUT_MS = 180_000;
+export const MAX_TIMEOUT_MS = 3_600_000;
+export const LOOPBACK_HOSTS = ["127.0.0.1", "[::1]", "localhost"];
 export const ACTOR_ROLES = ["submitter", "agent", "rule_engine", "approver"];
 export const PROGRAM_ERRORS = [
   "InvalidTransition",
@@ -51,14 +54,70 @@ export function parseU64(value, field) {
 }
 
 export function parsePubkey(value, field) {
-  if (typeof value === "string") {
-    try {
-      const key = new PublicKey(value);
-      if (key.toBase58() === value) return key;
-    } catch {
-    }
+  const message = `${field} must be a base58 public key`;
+  if (typeof value !== "string") throw new BridgeError("InvalidInput", message, { reason: `got ${typeof value}` });
+  let key;
+  try {
+    key = new PublicKey(value);
+  } catch (err) {
+    throw new BridgeError("InvalidInput", message, { reason: String(err?.message ?? err) });
   }
-  throw new BridgeError("InvalidInput", `${field} must be a base58 public key`);
+  if (key.toBase58() !== value) throw new BridgeError("InvalidInput", message, { reason: "not in canonical base58 form" });
+  return key;
+}
+
+export function parseWalletKey(value, field, programId) {
+  const key = parsePubkey(value, field);
+  if (!PublicKey.isOnCurve(key.toBytes())) {
+    throw new BridgeError("InvalidInput", `${field} must be a wallet key on the ed25519 curve; a program-derived address cannot sign or receive the payout`);
+  }
+  if (key.equals(programId)) {
+    throw new BridgeError("InvalidInput", `${field} cannot be the program id`);
+  }
+  return key;
+}
+
+export function rpcOrigin(value) {
+  try {
+    return new URL(value).origin;
+  } catch (err) {
+    return `<invalid URL: ${err?.code ?? "unparsable"}>`;
+  }
+}
+
+export function parseRpcUrl(value, field) {
+  let url;
+  try {
+    url = new URL(value);
+  } catch (err) {
+    throw new BridgeError("InvalidConfig", `${field} is not a valid URL`, { cause_code: err?.code ?? "unparsable" });
+  }
+  if (url.protocol === "https:") return value;
+  if (url.protocol === "http:" && LOOPBACK_HOSTS.includes(url.hostname)) return value;
+  throw new BridgeError(
+    "InsecureRpc",
+    `${field} must use https; plain http is accepted only for ${LOOPBACK_HOSTS.join(", ")}`,
+    { rpc: url.origin }
+  );
+}
+
+export function parseTimeoutMs(value) {
+  if (value === undefined || value === "") return DEFAULT_TIMEOUT_MS;
+  if (typeof value !== "string" || !/^[1-9][0-9]*$/.test(value) || Number(value) > MAX_TIMEOUT_MS) {
+    throw new BridgeError("InvalidConfig", `COORRE_BRIDGE_TIMEOUT_MS must be an integer from 1 to ${MAX_TIMEOUT_MS}`);
+  }
+  return Number(value);
+}
+
+export function redactRpcUrls(text, urls) {
+  let out = text;
+  for (const url of [...urls].filter(Boolean).sort((a, b) => b.length - a.length)) {
+    const origin = rpcOrigin(url);
+    out = out.split(url).join(origin);
+    const escaped = JSON.stringify(url).slice(1, -1);
+    if (escaped !== url) out = out.split(escaped).join(origin);
+  }
+  return out;
 }
 
 export function parseStateCode(value, field) {
@@ -199,6 +258,12 @@ export function parseProgramError(logs = [], message = "") {
   const custom = /custom program error: 0x([0-9a-f]+)/i.exec(text);
   if (custom) {
     const code = parseInt(custom[1], 16);
+    const name = PROGRAM_ERRORS[code - 6000];
+    if (name) return { name, code };
+  }
+  const instruction = /"Custom":(\d+)/.exec(text);
+  if (instruction) {
+    const code = Number(instruction[1]);
     const name = PROGRAM_ERRORS[code - 6000];
     if (name) return { name, code };
   }

@@ -10,6 +10,7 @@ const PROGRAM_ID = "9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv";
 const DEVNET_GENESIS_HASH = "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG";
 const DEFAULT_RPC_URL = "https://api.devnet.solana.com";
 const READ_METHODS = new Set(["getGenesisHash", "getMultipleAccounts", "getSignatureStatuses"]);
+const DEFAULT_TIMEOUT_MS = 30_000;
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
@@ -52,24 +53,57 @@ function caseFrom(dir) {
   };
 }
 
-async function rpc(url, method, params) {
+function timeoutFrom(value) {
+  if (value === undefined || value === "") return DEFAULT_TIMEOUT_MS;
+  if (!/^[1-9][0-9]*$/.test(value) || Number(value) > 600_000) throw new Error("COORRE_RPC_TIMEOUT_MS must be an integer from 1 to 600000");
+  return Number(value);
+}
+
+async function rpc(url, method, params, timeoutMs) {
   if (!READ_METHODS.has(method)) throw new Error(`${method} is not a read method`);
   const request = { jsonrpc: "2.0", id: 1, method, params };
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(request),
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(request),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (err) {
+    const reason = err.name === "TimeoutError" ? `timeout after ${timeoutMs} ms` : `${err.message}${err.cause?.code ? ` (${err.cause.code})` : ""}`;
+    throw new Error(`${method}: ${reason}`);
+  }
   if (!response.ok) throw new Error(`${method}: HTTP ${response.status}`);
   const body = await response.json();
   if (body.error) throw new Error(`${method}: ${JSON.stringify(body.error)}`);
   return { request, response: body };
 }
 
+const LOOPBACK_HOSTS = ["127.0.0.1", "[::1]", "localhost"];
+
+function rpcUrl(value) {
+  let url;
+  try {
+    url = new URL(value);
+  } catch (err) {
+    throw new Error(`COORRE_RPC_URL is not a valid URL (${err.code ?? "unparsable"})`);
+  }
+  if (url.protocol === "https:" || (url.protocol === "http:" && LOOPBACK_HOSTS.includes(url.hostname))) return url;
+  throw new Error(`the RPC URL must use https (plain http only for ${LOOPBACK_HOSTS.join(", ")}): ${url.origin}`);
+}
+
+function outDirFrom(argv) {
+  if (argv.length === 0) return path.join(root, "docs/evidence/devnet-snapshot");
+  if (argv.length === 2 && argv[0] === "--out") return path.resolve(argv[1]);
+  throw new Error("usage: scripts/capture-devnet-snapshot [--out <dir>]");
+}
+
 async function main() {
-  const url = process.env.COORRE_RPC_URL || DEFAULT_RPC_URL;
-  if (new URL(url).protocol !== "https:") throw new Error("the RPC URL must use https");
-  const outDir = path.join(root, "docs/evidence/devnet-snapshot");
+  const outDir = outDirFrom(process.argv.slice(2));
+  const parsed = rpcUrl(process.env.COORRE_RPC_URL || DEFAULT_RPC_URL);
+  const url = parsed.href;
+  const origin = parsed.origin;
   const cases = bundleDirs().map(caseFrom);
   const addresses = cases.flatMap((c) => c.addresses);
   const signatures = cases.flatMap((c) => c.transactions.map((t) => t.signature));
@@ -77,36 +111,69 @@ async function main() {
   if (addresses.length > 100) throw new Error("getMultipleAccounts accepts at most 100 addresses");
   if (signatures.length > 256) throw new Error("getSignatureStatuses accepts at most 256 signatures");
 
-  const genesis = await rpc(url, "getGenesisHash", []);
-  if (genesis.response.result !== DEVNET_GENESIS_HASH) throw new Error(`${url} is not Solana devnet`);
-  const capturedAt = new Date().toISOString();
-  const accounts = await rpc(url, "getMultipleAccounts", [addresses, { encoding: "base64", commitment: "finalized" }]);
-  const statuses = await rpc(url, "getSignatureStatuses", [signatures, { searchTransactionHistory: true }]);
+  const timeoutMs = timeoutFrom(process.env.COORRE_RPC_TIMEOUT_MS);
 
-  const values = accounts.response.result.value;
+  const genesis = await rpc(url, "getGenesisHash", [], timeoutMs);
+  if (genesis.response.result !== DEVNET_GENESIS_HASH) throw new Error(`${origin} is not Solana devnet`);
+  const capturedAt = new Date().toISOString();
+  const accounts = await rpc(url, "getMultipleAccounts", [addresses, { encoding: "base64", commitment: "finalized" }], timeoutMs);
+  const statuses = await rpc(url, "getSignatureStatuses", [signatures, { searchTransactionHistory: true }], timeoutMs);
+
+  const values = accounts.response.result?.value;
+  const statusValues = statuses.response.result?.value;
+  if (!Array.isArray(values) || values.length !== addresses.length) {
+    throw new Error(`getMultipleAccounts returned ${Array.isArray(values) ? values.length : "no"} values for ${addresses.length} addresses`);
+  }
+  if (!Array.isArray(statusValues) || statusValues.length !== signatures.length) {
+    throw new Error(`getSignatureStatuses returned ${Array.isArray(statusValues) ? statusValues.length : "no"} values for ${signatures.length} signatures`);
+  }
   const missing = addresses.filter((_, i) => values[i] === null);
   const foreign = addresses.filter((_, i) => values[i] !== null && values[i].owner !== PROGRAM_ID);
   const unconfirmed = signatures.filter((_, i) => {
-    const s = statuses.response.result.value[i];
+    const s = statusValues[i];
     return s === null || s.err !== null || s.confirmationStatus !== "finalized";
   });
 
-  fs.mkdirSync(outDir, { recursive: true });
-  const common = { network_id: NETWORK_ID, program_id: PROGRAM_ID, rpc_url: new URL(url).origin, genesis_hash: genesis.response.result, captured_at_utc: capturedAt };
-  fs.writeFileSync(
-    path.join(outDir, "accounts.json"),
-    `${JSON.stringify({ format: "coorre-devnet-snapshot/1", ...common, slot: accounts.response.result.context.slot, cases: cases.map(({ transactions, ...c }) => c), addresses, request: accounts.request, response: accounts.response }, null, 1)}\n`,
-  );
-  fs.writeFileSync(
-    path.join(outDir, "signatures.json"),
-    `${JSON.stringify({ format: "coorre-devnet-signatures/1", ...common, slot: statuses.response.result.context.slot, cases: cases.map((c) => ({ id: c.id, case_ref: c.case_ref, transactions: c.transactions })), signatures, request: statuses.request, response: statuses.response }, null, 1)}\n`,
-  );
-  console.log(`captured ${addresses.length} accounts of ${cases.length} cases at slot ${accounts.response.result.context.slot} (${capturedAt})`);
+  console.log(`read ${addresses.length} accounts of ${cases.length} cases at slot ${accounts.response.result.context.slot} (${capturedAt})`);
   console.log(`statuses of ${signatures.length} transactions at slot ${statuses.response.result.context.slot}`);
   console.log(`missing accounts: ${missing.length}; accounts not owned by the program: ${foreign.length}; transactions not finalized or failed: ${unconfirmed.length}`);
   for (const a of [...missing, ...foreign]) console.log(`  account ${a}`);
   for (const s of unconfirmed) console.log(`  transaction ${s}`);
-  if (missing.length || foreign.length || unconfirmed.length) process.exitCode = 1;
+  if (missing.length || foreign.length || unconfirmed.length) {
+    console.error(`refusing to write: the snapshot in ${path.relative(process.cwd(), outDir) || "."} is kept unchanged`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const common = { network_id: NETWORK_ID, program_id: PROGRAM_ID, rpc_url: origin, genesis_hash: genesis.response.result, captured_at_utc: capturedAt };
+  const outputs = {
+    "accounts.json": `${JSON.stringify({ format: "coorre-devnet-snapshot/1", ...common, slot: accounts.response.result.context.slot, cases: cases.map(({ transactions, ...c }) => c), addresses, request: accounts.request, response: accounts.response }, null, 1)}\n`,
+    "signatures.json": `${JSON.stringify({ format: "coorre-devnet-signatures/1", ...common, slot: statuses.response.result.context.slot, cases: cases.map((c) => ({ id: c.id, case_ref: c.case_ref, transactions: c.transactions })), signatures, request: statuses.request, response: statuses.response }, null, 1)}\n`,
+  };
+  writeAtomically(outDir, outputs);
+  console.log(`wrote ${Object.keys(outputs).join(" and ")}`);
+}
+
+function writeAtomically(outDir, outputs) {
+  fs.mkdirSync(outDir, { recursive: true });
+  const staged = [];
+  try {
+    for (const [name, text] of Object.entries(outputs)) {
+      const tmp = path.join(outDir, `.${name}.${process.pid}.tmp`);
+      staged.push([tmp, path.join(outDir, name)]);
+      const fd = fs.openSync(tmp, "wx", 0o644);
+      try {
+        fs.writeFileSync(fd, text);
+        fs.fsyncSync(fd);
+      } finally {
+        fs.closeSync(fd);
+      }
+    }
+  } catch (err) {
+    for (const [tmp] of staged) fs.rmSync(tmp, { force: true });
+    throw err;
+  }
+  for (const [tmp, target] of staged) fs.renameSync(tmp, target);
 }
 
 main().catch((e) => {

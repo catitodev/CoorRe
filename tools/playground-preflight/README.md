@@ -12,12 +12,15 @@ on anything that would break there.
 
 | Check | What it catches |
 |---|---|
+| Installed TypeScript | The `typescript` loaded by the tool must be the version in `reference.json` (5.0.4); `scripts/playground-preflight` runs `npm ci` whenever `node_modules` does not match `package-lock.json`. |
 | Official reference | Reads the live Playground sources and compares them with `reference.json`: test transpile target and wrapper, blocked words, globals, TypeScript version, default template, Rust/Solana versions, `anchor-lang` line and the template `Cargo.lock` hash. Any change fails until the pin is reviewed. |
 | Test files (`onchain/tests/*.ts`, `spike/*.test.ts`) | Blocked words anywhere (Playground does a plain substring check, comments included); missing `describe`; names Playground does not provide; ES5 transpile errors with TypeScript 5.0.4; and the number of tests that actually register after the ES5 transpile versus the `it()` calls written in the file. |
 | Programs (`onchain/programs/*/src/lib.rs`, `spike/*.rs`) | `cargo check` with Playground's Rust (1.68.0) and the template's own `Cargo.lock`, with warnings as errors, confirming the same `anchor-lang` and `solana-program` versions Playground builds with. |
 
-Options: `--offline` skips the live comparison (reported as WARN), `--skip-programs`
-skips the Rust build, `--print-live` prints the live reference for review.
+Options: `--offline` skips the live comparison, `--skip-programs` skips the Rust build
+(each reported as WARN), `--print-live` prints the live reference for review. A run
+with any WARN ends with `N check(s) skipped: not cleared for Playground.` and exits
+non-zero: only a run with every check passed clears a file for Playground.
 
 ## When Playground changes
 

@@ -16,14 +16,29 @@ exits with status 1.
 | Variable | Default | Notes |
 |---|---|---|
 | `COORRE_PROGRAM_ID` | (required) | `coorre_anchor` program id on devnet |
-| `COORRE_RPC_URL` | `https://api.devnet.solana.com` | |
-| `COORRE_RPC_FALLBACK_URL` | (none) | used when the first RPC is unreachable |
+| `COORRE_RPC_URL` | `https://api.devnet.solana.com` | https only; plain http only for 127.0.0.1, ::1 and localhost (`InsecureRpc` otherwise) |
+| `COORRE_RPC_FALLBACK_URL` | (none) | used when the first RPC is unreachable; same https rule |
+| `COORRE_BRIDGE_TIMEOUT_MS` | `180000` | deadline for the whole command, 1 to 3600000; past it the bridge prints `{"error": {"name": "Timeout", ...}}` (with `tx_signatures` if anything was sent) and exits 1 |
 | `COORRE_KEYS_DIR` | `.local/keys` | `creator.json`, `submitter.json`, `agent.json`, `rule_engine.json`, `approver.json` (Solana keypair format, mode 600) |
 
 The bridge refuses to send anything unless the RPC reports the devnet genesis hash
-(`EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG`). Commitment is `confirmed`; an
-expired blockhash is retried once with a fresh one after checking that the first
-attempt did not land.
+(`EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG`). Output and errors carry only the
+origin of an RPC URL, never its path or query, so an API key in the URL is not printed.
+
+Commitment is `confirmed`. Confirmation polls `getSignatureStatuses` and the block
+height over HTTP (no websocket). An expired blockhash is retried once with a fresh one
+after checking that the first attempt did not land; if the retry finds its account
+already in use and the first attempt is now confirmed, the receipt of the first
+attempt is returned. A transaction that lands with an error is reported with the
+program error name and code and its `tx_signature`.
+
+`open-case` checks the role keys before any network call: each must be a wallet key
+on the ed25519 curve and none can be the program id. It then reads the submitter
+account and refuses one that is executable or not owned by the System Program,
+because the program pays out only to a system account.
+
+Errors from the file system carry the system code in `cause_code` (for example
+`UnreadableKey` with `EACCES`); errors about a key file never include its content.
 
 ## Inputs
 
@@ -60,5 +75,5 @@ Receipts are hints only; the verifier never trusts them.
 
 ```
 npm ci        # install scripts are disabled by .npmrc
-npm test      # offline: encodings, PDAs, input validation, network guard, key files
+npm test      # offline: encodings, PDAs, input validation, network guard, key files, and a local fake RPC for send, confirm, retry and timeout
 ```
