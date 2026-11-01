@@ -1,0 +1,9 @@
+{
+  "synthetic": true,
+  "kind": "tax_certificate",
+  "supplier": "Fornecedor Demo B Ltda",
+  "issuer": "Synthetic Registry (demo data)",
+  "number": "TC-2026-0002",
+  "valid_from": "2026-01-01",
+  "valid_until": "2026-12-31"
+}
