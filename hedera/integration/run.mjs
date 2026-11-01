@@ -6,19 +6,15 @@ import { JsonRpcProvider, Wallet } from "ethers";
 import { prepareDecision as prepare, prepareReview as prepareReviewWith } from "../adapter/period-escrow.mjs";
 import { decisionEventFields, reviewEventFields } from "../cycle/run.mjs";
 import { loadArtifact } from "../lib/artifacts.mjs";
-import { jcs, jcsHash, mandateId } from "../lib/canonical.mjs";
-import { DEFAULT_MAX_VALIDITY_SECONDS, REGISTER_SIGNATURE, loadGate, registerMandateCallData } from "../lib/gate.mjs";
-import { accountEvmAddress, call, clientFor, deploy, evmHex, execute, loadAccounts, mirror, recordOf, settings, submit } from "../lib/network.mjs";
+import { jcsHash, mandateId } from "../lib/canonical.mjs";
+import { DEFAULT_MAX_VALIDITY_SECONDS, REGISTER_SIGNATURE, loadGate, registerMandateCallData, termsFromMandate } from "../lib/gate.mjs";
+import { logMessage } from "../lib/log.mjs";
+import { accountEvmAddress, call, callDataBytes, clientFor, deploy, evmHex, execute, loadAccounts, mirror, recordOf, requireSuccess, settings, submit } from "../lib/network.mjs";
 import { HEDERA_ROOT } from "../lib/paths.mjs";
 
 const PERIOD_STATES = ["None", "PendingApproval", "Approved", "Released", "Rejected", "InReview", "ClosedNoPay"];
 const HYBRID = 1;
 const SHORT_WINDOW = 5;
-
-export function callDataBytes(callData) {
-  if (!/^0x([0-9a-f]{2})+$/.test(callData)) throw new Error("call data must be lowercase 0x-prefixed hex");
-  return Buffer.from(callData.slice(2), "hex");
-}
 
 export function indexedAddress(topic) {
   const bytes = Buffer.from(topic);
@@ -49,14 +45,15 @@ async function main() {
 
   const escrowId = await deploy(admin, escrowArtifact, new ContractFunctionParameters().addAddress(adminEvm).addAddress(walletEvm).addUint256(3600), 3_000_000);
   const escrowEvm = evmHex(escrowId.toEvmAddress());
-  await execute(admin, escrowId, "authorizeOracle", new ContractFunctionParameters().addAddress(oracleEvm));
-  await execute(admin, escrowId, "createAgreement", new ContractFunctionParameters().addAddress(producerEvm).addUint256(100_000_000).addUint8(50).addUint8(HYBRID));
-  await execute(admin, escrowId, "deposit", new ContractFunctionParameters().addUint256(0), { hbar: 6 });
+  requireSuccess(await execute(admin, escrowId, "authorizeOracle", new ContractFunctionParameters().addAddress(oracleEvm)), "authorizeOracle");
+  requireSuccess(await execute(admin, escrowId, "createAgreement", new ContractFunctionParameters().addAddress(producerEvm).addUint256(100_000_000).addUint8(50).addUint8(HYBRID)), "createAgreement");
+  requireSuccess(await execute(admin, escrowId, "deposit", new ContractFunctionParameters().addUint256(0), { hbar: 6 }), "deposit");
 
   const logKey = PrivateKey.generateED25519();
-  const topicId = (await submit(admin, new TopicCreateTransaction().setTopicMemo("coorre-log").setSubmitKey(logKey.publicKey))).receipt.topicId;
+  const topicId = requireSuccess(await submit(admin, new TopicCreateTransaction().setTopicMemo("coorre-log").setSubmitKey(logKey.publicKey)), "topic create").receipt.topicId;
   const published = [];
-  const publish = async (text) => {
+  const publish = async (fields) => {
+    const text = logMessage(fields, profile.log.maxMessageBytes);
     const sent = await submit(admin, new TopicMessageSubmitTransaction().setTopicId(topicId).setMessage(text).setMaxChunks(1), [logKey]);
     if (sent.status !== "SUCCESS") throw new Error(`topic message returned ${sent.status}`);
     published.push({ sequence: Number(sent.receipt.topicSequenceNumber.toString()), text });
@@ -99,7 +96,7 @@ async function main() {
     evidenceRule: "the decision names the audit document whose SHA-256 is the period auditHash",
   };
   const id = mandateId(mandateDocument);
-  await publish(jcs({ kind: "mandate", path: "B", hostId: "example-host", mandateId: id, escrow: escrowEvm }));
+  await publish({ kind: "mandate", path: "B", hostId: profile.hostId, mandateId: id, escrow: escrowEvm });
 
   const audit1 = auditOf(1);
   check("B: oracle submitted period 1", (await submitPeriod(1, audit1)) === "SUCCESS");
@@ -110,7 +107,7 @@ async function main() {
   const recordB = await recordOf(admin, sentB.transactionId);
   const approvedB = recordB.contractFunctionResult.logs.find((log) => log.topics.length === 4);
   check("B: the on-chain approver is the delegate named in the decision", approvedB && indexedAddress(approvedB.topics[3]) === decisionB.decisionDocument.delegate);
-  await publish(jcs({ ...JSON.parse(decisionB.logMessage), transactionId: sentB.transactionId }));
+  await publish({ ...decisionB.logFields, transactionId: sentB.transactionId });
   steps.push({ path: "B", periodId: 1, transactionId: sentB.transactionId, evidenceHash: decisionB.evidenceHash });
 
   const gateId = await deploy(admin, gateBuild, new ContractFunctionParameters().addAddress(escrowEvm).addUint64(DEFAULT_MAX_VALIDITY_SECONDS), 3_000_000);
@@ -120,7 +117,7 @@ async function main() {
   check("switch: the admin points the financial manager to the gate", switched.status === "SUCCESS");
   const changed = switched.functionResult.logs.find((log) => log.topics.length === 3);
   check("switch: FinancialManagerChanged names the wallet and the gate", changed && indexedAddress(changed.topics[1]) === walletEvm && indexedAddress(changed.topics[2]) === gateEvm);
-  await publish(jcs({ kind: "admin", action: "setFinancialManager(address)", escrow: escrowEvm, from: walletEvm, to: gateEvm, transactionId: switched.transactionId }));
+  await publish({ kind: "admin", hostId: profile.hostId, action: "setFinancialManager(address)", escrow: escrowEvm, from: walletEvm, to: gateEvm, transactionId: switched.transactionId });
 
   const registered = await submit(
     admin,
@@ -128,16 +125,11 @@ async function main() {
       .setContractId(gateId)
       .setGas(600_000)
       .setFunctionParameters(
-        registerMandateCallData(gateBuild.identifiers[REGISTER_SIGNATURE], {
-          id,
-          terms: { validFrom: mandateDocument.validFrom, validUntil: mandateDocument.validUntil, quorum: 1, allAgreements: true, allowApprove: true, allowReject: true, allowReview: true, hasAutonomyLimit: false, autonomyLimit: 0 },
-          delegates: [{ address: walletEvm, kind: "human" }],
-          agreementIds: [],
-        }),
+        registerMandateCallData(gateBuild.identifiers[REGISTER_SIGNATURE], { id, ...termsFromMandate(mandateDocument) }),
       ),
   );
   check("A: the issuer registers the same mandate in the gate", registered.status === "SUCCESS", registered.status);
-  await publish(jcs({ kind: "mandate", path: "A", hostId: "example-host", mandateId: id, gate: gateEvm, transactionId: registered.transactionId }));
+  await publish({ kind: "mandate", path: "A", hostId: profile.hostId, mandateId: id, gate: gateEvm, transactionId: registered.transactionId });
 
   const audit2 = auditOf(2);
   check("A: oracle submitted period 2", (await submitPeriod(2, audit2)) === "SUCCESS");
@@ -151,20 +143,20 @@ async function main() {
   const recordA = await recordOf(admin, sentA.transactionId);
   const approvedA = recordA.contractFunctionResult.logs.find((log) => log.topics.length === 4 && indexedAddress(log.topics[3]) === gateEvm);
   check("A: the on-chain approver is the gate", Boolean(approvedA));
-  await publish(jcs({ ...JSON.parse(decisionA.logMessage), transactionId: sentA.transactionId }));
+  await publish({ ...decisionA.logFields, transactionId: sentA.transactionId });
   steps.push({ path: "A", periodId: 2, transactionId: sentA.transactionId, evidenceHash: decisionA.evidenceHash });
 
   const audit3 = auditOf(3);
-  await submitPeriod(3, audit3);
+  check("A: oracle submitted period 3", (await submitPeriod(3, audit3)) === "SUCCESS");
   const rejectA = prepareDecision(await hostInput(3), { network: "solo", escrow: escrowEvm, gate: gateEvm, mandateId: id, delegate: walletEvm, verdict: "reject", mode: "A" });
   const sentReject = await send(wallet, rejectA);
   check("A: the delegate rejects period 3 through the gate", sentReject.status === "SUCCESS" && (await stateOf(3)) === "Rejected", sentReject.status);
-  await publish(jcs({ ...JSON.parse(rejectA.logMessage), transactionId: sentReject.transactionId }));
+  await publish({ ...rejectA.logFields, transactionId: sentReject.transactionId });
 
   const provider = new JsonRpcProvider(config.relay, 298, { staticNetwork: true });
   const rpcWallet = new Wallet(`0x${walletAccount.key.toStringRaw()}`, provider);
   check("JSON-RPC: the wallet key controls the delegate's address", rpcWallet.address.toLowerCase() === walletEvm, rpcWallet.address);
-  await submitPeriod(5, auditOf(5));
+  check("JSON-RPC: oracle submitted period 5", (await submitPeriod(5, auditOf(5))) === "SUCCESS");
   const viaRelay = prepareDecision(await hostInput(5), { network: "solo", escrow: escrowEvm, gate: gateEvm, mandateId: id, delegate: walletEvm, verdict: "approve", mode: "A" });
   const relayGasPrice = BigInt(await provider.send("eth_gasPrice", []));
   const relayTx = await rpcWallet.sendTransaction({ type: 0, to: viaRelay.call.to, data: viaRelay.call.callData, value: 0n, gasLimit: 600_000n, gasPrice: relayGasPrice });
@@ -177,14 +169,14 @@ async function main() {
   check("JSON-RPC: period 5 approved", (await stateOf(5)) === "Approved");
   const relayAnchored = (relayReceipt?.logs ?? []).find((log) => log.address.toLowerCase() === gateEvm && log.topics.length === 4);
   check("JSON-RPC: the gate saw the wallet as the delegate", relayAnchored && decisionEventFields(Buffer.from(relayAnchored.data.slice(2), "hex")).delegate === walletEvm);
-  await publish(jcs({ ...JSON.parse(viaRelay.logMessage), transactionHash: relayTx.hash }));
+  await publish({ ...viaRelay.logFields, transactionHash: relayTx.hash });
   steps.push({ path: "A", via: "json-rpc", periodId: 5, transactionHash: relayTx.hash, gasPriceWeibar: relayGasPrice.toString(), evidenceHash: viaRelay.evidenceHash });
   provider.destroy();
 
-  const shortened = await execute(admin, escrowId, "setApprovalWindow", new ContractFunctionParameters().addUint256(SHORT_WINDOW));
-  await publish(jcs({ kind: "admin", action: "setApprovalWindow(uint256)", escrow: escrowEvm, value: SHORT_WINDOW, transactionId: shortened.transactionId }));
+  const shortened = requireSuccess(await execute(admin, escrowId, "setApprovalWindow", new ContractFunctionParameters().addUint256(SHORT_WINDOW)), "setApprovalWindow");
+  await publish({ kind: "admin", hostId: profile.hostId, action: "setApprovalWindow(uint256)", escrow: escrowEvm, value: SHORT_WINDOW, transactionId: shortened.transactionId });
   const audit4 = auditOf(4);
-  await submitPeriod(4, audit4);
+  check("review: oracle submitted period 4", (await submitPeriod(4, audit4)) === "SUCCESS");
   const deadline = Number((await call(admin, escrowId, "getPeriod", new ContractFunctionParameters().addUint256(0).addUint256(4))).getUint64(5).toString());
   let expired = null;
   for (let attempt = 0; attempt < 30 && expired?.status !== "SUCCESS"; attempt += 1) {
@@ -203,11 +195,11 @@ async function main() {
   const reviewFields = reviewLog ? reviewEventFields(reviewLog.data) : null;
   check("review: ReviewRecorded carries the outcome, the delegate and the evidence hash", reviewFields?.outcome === 1 && reviewFields.delegate === walletEvm && reviewFields.evidenceHash === review.evidenceHash && reviewFields.concluded === true, reviewFields);
   check("review: recording it does not move the period", (await stateOf(4)) === "InReview");
-  await publish(jcs({ ...JSON.parse(review.logMessage), transactionId: reviewSent.transactionId }));
+  await publish({ ...review.logFields, transactionId: reviewSent.transactionId });
   const audit4b = auditOf(41);
   check("review: the oracle resubmits with a new audit hash", (await submitPeriod(4, audit4b)) === "SUCCESS" && (await stateOf(4)) === "PendingApproval");
-  const restored = await execute(admin, escrowId, "setApprovalWindow", new ContractFunctionParameters().addUint256(3600));
-  await publish(jcs({ kind: "admin", action: "setApprovalWindow(uint256)", escrow: escrowEvm, value: 3600, transactionId: restored.transactionId }));
+  const restored = requireSuccess(await execute(admin, escrowId, "setApprovalWindow", new ContractFunctionParameters().addUint256(3600)), "setApprovalWindow");
+  await publish({ kind: "admin", hostId: profile.hostId, action: "setApprovalWindow(uint256)", escrow: escrowEvm, value: 3600, transactionId: restored.transactionId });
 
   const messages = await mirror(config, `/api/v1/topics/${topicId}/messages?order=asc&limit=100`, (body) => (body.messages ?? []).length >= published.length);
   const onMirror = new Map(messages.messages.map((message) => [message.sequence_number, Buffer.from(message.message, "base64").toString("utf8")]));

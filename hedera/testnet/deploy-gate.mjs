@@ -4,10 +4,10 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { ContractFunctionParameters, PrivateKey, Status, TopicCreateTransaction } from "@hiero-ledger/sdk";
 import { DEFAULT_MAX_VALIDITY_SECONDS, GATE_ARTIFACT, loadGate } from "../lib/gate.mjs";
-import { deployDetailed, hasNoExternalAdmin } from "../lib/network.mjs";
+import { CONTRACT_CREATE_MAX_FEE_HBAR, deployDetailed, hasNoExternalAdmin } from "../lib/network.mjs";
 import { sha256Hex } from "../lib/canonical.mjs";
 import { ARTIFACTS_ROOT, REPO_ROOT, isInside } from "../lib/paths.mjs";
-import { TESTNET, loadOperator, mirrorCall, mirrorGet, testnetClient } from "./operator.mjs";
+import { MAX_FEE_HBAR, REQUEST_TIMEOUT_MS, TESTNET, loadOperator, mirrorCall, mirrorGet, testnetClient } from "./operator.mjs";
 
 const GATE_GAS = 3_000_000;
 const ESCROW_VIEWS = { admin: "0xf851a440", financialManager: "0x4eef3f31", approvalWindow: "0x737b68dd" };
@@ -77,42 +77,106 @@ async function exists(path) {
   try {
     await access(path);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    if (error.code === "ENOENT") return false;
+    throw error;
   }
 }
 
-async function checkEscrow(config) {
-  const contract = await mirrorGet(`/api/v1/contracts/${config.escrow.evm}`);
-  const observed = sha256Hex(Buffer.from(String(contract.runtime_bytecode).replace(/^0x/, ""), "hex"));
-  if (observed !== config.escrow.runtimeSha256) throw new Error(`the contract at ${config.escrow.evm} does not hold the expected runtime (sha256 ${observed})`);
-  return {
-    id: contract.contract_id,
-    evm: config.escrow.evm,
-    runtimeSha256: observed,
-    admin: wordAddress(await mirrorCall(config.escrow.evm, ESCROW_VIEWS.admin)),
-    financialManager: wordAddress(await mirrorCall(config.escrow.evm, ESCROW_VIEWS.financialManager)),
-    approvalWindow: BigInt(await mirrorCall(config.escrow.evm, ESCROW_VIEWS.approvalWindow)).toString(),
-  };
+export const RECORD_STAGES = ["gate-deployed", "topic-created", "complete"];
+
+export function recordStage(record) {
+  if (record === null) return null;
+  const stage = record.stage ?? "complete";
+  if (!RECORD_STAGES.includes(stage)) throw new Error(`the recorded deploy has an unknown stage ${stage}`);
+  return stage;
 }
 
-async function verifyOnSourcify(gateEvm) {
-  const artifact = JSON.parse(await readFile(GATE_ARTIFACT, "utf8"));
-  const buildInfo = JSON.parse(await readFile(join(ARTIFACTS_ROOT, "build-info", `${artifact.buildInfoId}.json`), "utf8"));
-  const body = {
-    stdJsonInput: verificationInput(buildInfo, artifact.inputSourceName),
-    compilerVersion: buildInfo.solcLongVersion,
-    contractIdentifier: `${artifact.inputSourceName}:${artifact.contractName}`,
-  };
-  const submitted = await fetch(`${TESTNET.sourcify}/v2/verify/${TESTNET.chainId}/${gateEvm}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-  const job = await submitted.json();
-  if (!job.verificationId) return { status: "not-submitted", response: job };
-  for (let attempt = 0; attempt < 60; attempt += 1) {
-    await new Promise((done) => setTimeout(done, 5_000));
-    const state = await (await fetch(`${TESTNET.sourcify}/v2/verify/${job.verificationId}`)).json();
-    if (state.isJobCompleted) return { status: state.error ? "failed" : "completed", verificationId: job.verificationId, match: state.contract?.match ?? null, error: state.error ?? null };
+export async function pollUntil(get, { attempts = 30, intervalMs = 2_000 } = {}) {
+  let last = null;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await get();
+    } catch (error) {
+      last = error;
+    }
+    if (attempt < attempts) await new Promise((done) => setTimeout(done, intervalMs));
   }
-  return { status: "pending", verificationId: job.verificationId };
+  throw new Error(`gave up after ${attempts} attempts: ${last?.message}`, { cause: last });
+}
+
+export async function writeRecord(recordFile, record) {
+  const partial = `${recordFile}.writing`;
+  await writeFile(partial, `${JSON.stringify(record, null, 2)}\n`, { mode: 0o600 });
+  await chmod(partial, 0o600);
+  await rename(partial, recordFile);
+}
+
+export async function writeLogKeyFile(logKeyFile, privateKeyRaw) {
+  const body = `${JSON.stringify({ network: "testnet", purpose: "CoorRe log topic submit key", keyType: "ED25519", privateKey: privateKeyRaw })}\n`;
+  await writeFile(logKeyFile, body, { mode: 0o600, flag: "wx" });
+  await chmod(logKeyFile, 0o600);
+}
+
+export async function verifySafely(verify, gateEvm) {
+  try {
+    return await verify(gateEvm);
+  } catch (error) {
+    return { status: "error", error: `${error.name}: ${error.message}` };
+  }
+}
+
+export function planLines({ config, previous, stage }) {
+  const lines = [];
+  if (stage !== null && stage !== "complete") lines.push(`resume    the recorded deploy of gate ${previous.gate.id} stopped at stage ${stage}; it is resumed, the gate is not deployed again`);
+  if (stage === null || stage === "complete") lines.push(`plan      1. deploy CoorReMandateGate(escrow, mandate validity cap ${config.maxMandateValiditySeconds} s), gas limit ${GATE_GAS}`);
+  if (stage === "complete") lines.push(`          2. keep the existing log topic ${previous.topic.id} (the previous record is archived, not deleted)`);
+  else if (stage !== "topic-created") lines.push("          2. create the CoorRe log topic: new ED25519 submit key kept in the private record directory, no admin key");
+  lines.push("          3. verify the gate on Sourcify (chain 296) with the CoorRe sources only");
+  lines.push("          4. write the deploy record to the private record directory after each step");
+  lines.push(`fees      at most ${MAX_FEE_HBAR} HBAR per transaction, and at most ${CONTRACT_CREATE_MAX_FEE_HBAR} HBAR for the gate's ContractCreate`);
+  return lines;
+}
+
+export async function runDeploy({ args, recordFile, logKeyFile, previous, base }, steps, log = console.log) {
+  const stage = recordStage(previous);
+  if (stage !== null && stage !== "complete" && args.supersede) throw new Error(`the recorded deploy stopped at stage ${stage}; finish it before superseding it`);
+  if (stage === "complete" && !args.supersede) throw new Error("a gate is already recorded for this host; use --supersede to archive that record, keep its log topic and deploy a new gate");
+  let record;
+  if (stage === null || stage === "complete") {
+    const gate = await steps.deployGate();
+    log(`gate      ${gate.id} (${gate.transactionId}), bytecode sent in ${gate.chunks} blocks of at most 1000 characters`);
+    record = { ...base, createdAt: new Date().toISOString(), supersedes: stage === "complete" ? previous.gate.id : null, gate };
+    if (stage === "complete") {
+      await rename(recordFile, `${recordFile.replace(/\.json$/, "")}-superseded-${previous.createdAt.replace(/[^0-9]/g, "")}.json`);
+      record = { ...record, stage: "topic-created", topic: { ...previous.topic, reused: true } };
+      log(`topic     ${record.topic.id} reused`);
+    } else {
+      record = { ...record, stage: "gate-deployed" };
+    }
+    await writeRecord(recordFile, record);
+  } else {
+    record = previous;
+  }
+  await steps.confirmNoAdmin(record.gate);
+  log("admin     the gate has no external admin key: its admin key is the contract itself");
+  if (record.stage === "gate-deployed") {
+    if (await exists(logKeyFile)) {
+      throw new Error("a log key file exists but no topic is recorded; look for a TopicCreate by the operator on the Mirror Node, record it or move the key file away, then rerun");
+    }
+    const logKey = steps.generateLogKey();
+    await writeLogKeyFile(logKeyFile, logKey.toStringRaw());
+    const topic = await steps.createTopic(logKey.publicKey);
+    record = { ...record, stage: "topic-created", topic: { ...topic, submitKey: logKey.publicKey.toStringRaw(), adminKey: null } };
+    await writeRecord(recordFile, record);
+    log(`topic     ${record.topic.id} (${record.topic.transactionId})`);
+  }
+  const verification = await verifySafely(steps.verify, record.gate.evm);
+  log(`sourcify  ${verification.status}${verification.match ? ` (${verification.match})` : ""}${verification.error ? `: ${verification.error}` : ""}`);
+  record = { ...record, stage: "complete", gate: { ...record.gate, verification } };
+  await writeRecord(recordFile, record);
+  log("record    written to the private record directory");
+  return record;
 }
 
 async function main() {
@@ -123,15 +187,14 @@ async function main() {
   const gateBuild = await loadGate();
   const escrow = await checkEscrow(config);
   const recordFile = join(config.recordDir, "testnet-gate.json");
-  const previous = (await exists(recordFile)) ? JSON.parse(await readFile(recordFile, "utf8")) : null;
-  if (previous && !args.supersede) throw new Error("a gate is already recorded for this host; use --supersede to archive that record, keep its log topic and deploy a new gate");
   const logKeyFile = join(config.recordDir, "testnet-log-key.json");
+  const previous = (await exists(recordFile)) ? JSON.parse(await readFile(recordFile, "utf8")) : null;
+  const stage = recordStage(previous);
+  if (stage === "complete" && !args.supersede) throw new Error("a gate is already recorded for this host; use --supersede to archive that record, keep its log topic and deploy a new gate");
+  if (stage !== null && stage !== "complete" && args.supersede) throw new Error(`the recorded deploy stopped at stage ${stage}; finish it before superseding it`);
   console.log(`operator  ${operator.id} (${operator.keyType}), balance ${(operator.balanceTinybar / 1e8).toFixed(8)} HBAR, separate from the host's accounts`);
   console.log(`escrow    ${escrow.id}: expected runtime (sha256 ${escrow.runtimeSha256}), approvalWindow ${escrow.approvalWindow} s`);
-  console.log(`plan      1. deploy CoorReMandateGate(escrow, mandate validity cap ${config.maxMandateValiditySeconds} s), gas limit ${GATE_GAS}`);
-  console.log(previous ? `          2. keep the existing log topic ${previous.topic.id} (the previous record is archived, not deleted)` : "          2. create the CoorRe log topic: new ED25519 submit key kept in the private record directory, no admin key");
-  console.log("          3. verify the gate on Sourcify (chain 296) with the CoorRe sources only");
-  console.log("          4. write the deploy record to the private record directory");
+  for (const line of planLines({ config, previous, stage })) console.log(line);
   if (!args.confirmSpend) {
     console.log("dry run   nothing sent; rerun with --confirm-spend to execute");
     return;
@@ -139,75 +202,49 @@ async function main() {
 
   await mkdir(config.recordDir, { recursive: true, mode: 0o700 });
   const client = testnetClient(operator);
-  const deployed = await deployDetailed(
-    client,
-    gateBuild,
-    new ContractFunctionParameters().addAddress(escrow.evm).addUint64(config.maxMandateValiditySeconds),
-    GATE_GAS,
-  );
-  const gateId = deployed.contractId;
-  const gateEvm = `0x${gateId.toEvmAddress()}`.toLowerCase();
-  console.log(`gate      ${gateId} (${deployed.transactionId}), bytecode sent in ${deployed.chunks} blocks of at most 1000 characters`);
-  let gateInfo = null;
-  for (let attempt = 0; attempt < 30 && gateInfo === null; attempt += 1) {
-    try {
-      gateInfo = await mirrorGet(`/api/v1/contracts/${gateId}`);
-    } catch {
-      await new Promise((done) => setTimeout(done, 2_000));
-    }
+  try {
+    await runDeploy(
+      {
+        args,
+        recordFile,
+        logKeyFile,
+        previous,
+        base: { network: "testnet", chainId: TESTNET.chainId, hostId: config.hostId, operator: operator.id.toString(), escrow },
+      },
+      {
+        deployGate: async () => {
+          const deployed = await deployDetailed(client, gateBuild, new ContractFunctionParameters().addAddress(escrow.evm).addUint64(config.maxMandateValiditySeconds), GATE_GAS);
+          const gateId = deployed.contractId;
+          return {
+            id: gateId.toString(),
+            evm: `0x${gateId.toEvmAddress()}`.toLowerCase(),
+            transactionId: deployed.transactionId,
+            uploadTransactions: deployed.uploads,
+            chunks: deployed.chunks,
+            bytecodeFile: deployed.bytecodeFile,
+            bytecodeSha256: sha256Hex(Buffer.from(gateBuild.bytecode, "hex")),
+            maxMandateValiditySeconds: config.maxMandateValiditySeconds,
+            adminKey: "the contract itself, so there is no external administrator",
+            hashscan: `${TESTNET.hashscan}/contract/${gateId}`,
+          };
+        },
+        confirmNoAdmin: async (gate) => {
+          const gateInfo = await pollUntil(() => mirrorGet(`/api/v1/contracts/${gate.id}`));
+          if (!hasNoExternalAdmin(gateInfo)) throw new Error(`the gate ${gate.id} is deployed but has an external admin key; do not use it`);
+        },
+        generateLogKey: () => PrivateKey.generateED25519(),
+        createTopic: async (publicKey) => {
+          const response = await new TopicCreateTransaction().setTopicMemo("coorre-log").setSubmitKey(publicKey).execute(client);
+          const receipt = await response.getReceipt(client);
+          if (receipt.status !== Status.Success) throw new Error(`topic create returned ${receipt.status}`);
+          return { id: receipt.topicId.toString(), transactionId: response.transactionId.toString(), hashscan: `${TESTNET.hashscan}/topic/${receipt.topicId}` };
+        },
+        verify: verifyOnSourcify,
+      },
+    );
+  } finally {
+    client.close();
   }
-  if (!gateInfo || !hasNoExternalAdmin(gateInfo)) throw new Error(`the gate ${gateId} is deployed but could not be confirmed to have no external admin key; do not use it`);
-  console.log("admin     the gate has no external admin key: its admin key is the contract itself");
-
-  let topic;
-  if (previous) {
-    topic = { ...previous.topic, reused: true };
-    console.log(`topic     ${topic.id} reused`);
-  } else {
-    const logKey = PrivateKey.generateED25519();
-    await writeFile(logKeyFile, `${JSON.stringify({ network: "testnet", purpose: "CoorRe log topic submit key", keyType: "ED25519", privateKey: logKey.toStringRaw() })}\n`, { mode: 0o600 });
-    await chmod(logKeyFile, 0o600);
-    const topicResponse = await new TopicCreateTransaction().setTopicMemo("coorre-log").setSubmitKey(logKey.publicKey).execute(client);
-    const topicReceipt = await topicResponse.getReceipt(client);
-    if (topicReceipt.status !== Status.Success) throw new Error(`topic create returned ${topicReceipt.status}`);
-    topic = {
-      id: topicReceipt.topicId.toString(),
-      submitKey: logKey.publicKey.toStringRaw(),
-      adminKey: null,
-      transactionId: topicResponse.transactionId.toString(),
-      hashscan: `${TESTNET.hashscan}/topic/${topicReceipt.topicId}`,
-    };
-    console.log(`topic     ${topic.id} (${topic.transactionId})`);
-  }
-
-  const verification = await verifyOnSourcify(gateEvm);
-  console.log(`sourcify  ${verification.status}${verification.match ? ` (${verification.match})` : ""}`);
-
-  const record = {
-    network: "testnet",
-    chainId: TESTNET.chainId,
-    hostId: config.hostId,
-    createdAt: new Date().toISOString(),
-    supersedes: previous ? previous.gate.id : null,
-    operator: operator.id.toString(),
-    escrow,
-    gate: {
-      id: gateId.toString(),
-      evm: gateEvm,
-      transactionId: deployed.transactionId,
-      uploadTransactions: deployed.uploads,
-      bytecodeSha256: sha256Hex(Buffer.from(gateBuild.bytecode, "hex")),
-      maxMandateValiditySeconds: config.maxMandateValiditySeconds,
-      adminKey: "the contract itself, so there is no external administrator",
-      hashscan: `${TESTNET.hashscan}/contract/${gateId}`,
-      verification,
-    },
-    topic,
-  };
-  if (previous) await rename(recordFile, join(config.recordDir, `testnet-gate-superseded-${previous.createdAt.replace(/[^0-9]/g, "")}.json`));
-  await writeFile(recordFile, `${JSON.stringify(record, null, 2)}\n`, { mode: 0o600 });
-  console.log("record    written to the private record directory");
-  client.close();
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

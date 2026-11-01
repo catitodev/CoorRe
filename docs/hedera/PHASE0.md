@@ -1,6 +1,6 @@
 # CoorRe on Hedera — network primitives
 
-What the Hedera network does for the primitives CoorRe depends on, measured on a local Solo network in GitHub Actions. The probes are in [hedera/probes/run.mjs](../../hedera/probes/run.mjs) and run with every change to `hedera/`.
+What the Hedera network does for the primitives CoorRe depends on, measured on a local Solo network in GitHub Actions. The probes are in [hedera/probes/run.mjs](../../hedera/probes/run.mjs) and run on every push to `main` and every pull request that changes `hedera/` ([hedera-solo.yml](../../.github/workflows/hedera-solo.yml)).
 
 ## Tooling and versions (checked 2026-10-25)
 
@@ -47,12 +47,13 @@ Verified by the host integration on Solo (`hedera/integration/run.mjs`):
 
 ## Testnet notes
 
-- `ContractCreateFlow` appends bytecode in 4096-byte chunks with a default cap of 5 HBAR, below the testnet fee table for that size; the testnet SDK configuration caps fees at 20 HBAR (the network charges the computed fee).
+- `ContractCreateFlow` appends bytecode in 4096-byte chunks with a default cap of 5 HBAR, below the testnet fee table for that size. The testnet scripts cap fees at 20 HBAR per transaction (`MAX_FEE_HBAR`, hedera/testnet/operator.mjs) and the gate's ContractCreate at 40 HBAR (`CONTRACT_CREATE_MAX_FEE_HBAR`, hedera/lib/network.mjs); the network charges the computed fee, and the deploy plan prints both caps before anything is sent.
 - `ContractCreateFlow` stores a string as its hex text, which is what the network reads, and a `Uint8Array` as raw bytes; every deploy requires hex text.
 - `AccountBalanceQuery` is deprecated on current networks; balances are read from the Mirror Node.
 
-## Golden vectors shared with the engine
+## Golden vectors
 
 - `offchain/crates/coorre-model/tests/vectors/rfc8785` (JCS) and the SUP-001 `case_id`, recomputed in JavaScript by `hedera/test/canonical.test.mjs`;
 - the five rule hashes recorded in the devnet bundles, recomputed in JavaScript from the rule registry;
-- `offchain/crates/coorre-model/tests/vectors/w3c-vc-di-eddsa-b3` for the decision credential.
+- `hedera/test/vectors`: `mandateId`, a decision HCS message and `case_ref` → `case_id`, computed independently in Python and recomputed by `hedera/test/vectors.test.mjs`;
+- `offchain/crates/coorre-model/tests/vectors/w3c-vc-di-eddsa-b3` applies once the decision credential is signed (next step).

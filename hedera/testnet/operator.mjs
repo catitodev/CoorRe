@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { open } from "node:fs/promises";
 import { join } from "node:path";
 import { AccountId, Client, Hbar, PrivateKey } from "@hiero-ledger/sdk";
 import { HEDERA_ROOT } from "../lib/paths.mjs";
@@ -12,11 +12,12 @@ export const TESTNET = {
   sourcify: "https://sourcify.dev/server",
 };
 export const MAX_FEE_HBAR = 20;
+export const REQUEST_TIMEOUT_MS = 15_000;
 export const LOCAL_DIR = join(HEDERA_ROOT, "..", ".local");
 export const OPERATOR_FILE = join(LOCAL_DIR, "hedera-testnet.json");
 
 export async function mirrorGet(path) {
-  const response = await fetch(`${TESTNET.mirrorRest}${path}`);
+  const response = await fetch(`${TESTNET.mirrorRest}${path}`, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
   if (!response.ok) throw new Error(`testnet mirror returned ${response.status} for ${path}`);
   return response.json();
 }
@@ -26,6 +27,7 @@ export async function mirrorCall(to, data) {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ to, data, estimate: false, block: "latest" }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (!response.ok) throw new Error(`testnet mirror contracts/call returned ${response.status}`);
   return (await response.json()).result;
@@ -74,8 +76,19 @@ export async function findAccountByKey(key) {
   return matches[0];
 }
 
+export async function readPrivateFile(path) {
+  const handle = await open(path, "r");
+  try {
+    const { mode } = await handle.stat();
+    if ((mode & 0o077) !== 0) throw new Error(`${path} is readable by other users (mode ${(mode & 0o777).toString(8)}); run chmod 600 on it`);
+    return await handle.readFile("utf8");
+  } finally {
+    await handle.close();
+  }
+}
+
 export async function loadOperator(file = OPERATOR_FILE) {
-  const data = JSON.parse(await readFile(file, "utf8"));
+  const data = JSON.parse(await readPrivateFile(file));
   if (data.network !== "testnet") throw new Error("the operator file is not for testnet");
   let account;
   if (data.accountId) {

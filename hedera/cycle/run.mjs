@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -10,22 +10,45 @@ import {
   TopicCreateTransaction,
   TopicMessageSubmitTransaction,
 } from "@hiero-ledger/sdk";
+import { prepareDecision } from "../adapter/period-escrow.mjs";
 import { loadArtifact } from "../lib/artifacts.mjs";
-import { caseId, caseRef, jcs, jcsHash, mandateId } from "../lib/canonical.mjs";
-import { DEFAULT_MAX_VALIDITY_SECONDS, REGISTER_SIGNATURE, VERDICT, hexToBytes32, loadGate, registerMandateCallData } from "../lib/gate.mjs";
-import { accountEvmAddress, call, clientFor, deploy, evmHex, execute, hasNoExternalAdmin, loadAccounts, mirror, recordOf, settings, submit } from "../lib/network.mjs";
+import { jcsHash, mandateId } from "../lib/canonical.mjs";
+import { DEFAULT_MAX_VALIDITY_SECONDS, REGISTER_SIGNATURE, VERDICT, hexToBytes32, loadGate, registerMandateCallData, termsFromMandate } from "../lib/gate.mjs";
+import { logMessage } from "../lib/log.mjs";
+import { accountEvmAddress, call, callDataBytes, clientFor, deploy, evmHex, execute, hasNoExternalAdmin, loadAccounts, mirror, recordOf, requireSuccess, settings, submit } from "../lib/network.mjs";
 import { HEDERA_ROOT } from "../lib/paths.mjs";
 
 const PERIOD_STATES = ["None", "PendingApproval", "Approved", "Released", "Rejected", "InReview", "ClosedNoPay"];
 const HYBRID = 1;
 const PERIOD_AMOUNT = 100_000_000;
-const MAX_MESSAGE_BYTES = 1024;
+const AGREEMENT_ID = "0";
+const PERIOD_ID = "1";
+const SCORE = 80;
+const SCORE_VERSION = 1;
 
-export function logMessage(entry) {
-  const text = jcs(entry);
-  const size = Buffer.byteLength(text, "utf8");
-  if (size > MAX_MESSAGE_BYTES) throw new Error(`log message of ${size} bytes exceeds ${MAX_MESSAGE_BYTES}`);
-  return text;
+export function cycleMandate({ hostId, chainId, escrow, gate, issuer, delegate, now }) {
+  const document = {
+    format: "coorre-mandate/1",
+    hostId,
+    chainId,
+    escrow,
+    gate,
+    issuer,
+    delegates: [{ account: delegate.account, address: delegate.address, kind: "human", publicKey: delegate.publicKey }],
+    quorum: 1,
+    scope: { agreements: "all", modes: ["HYBRID"], verdicts: ["approve", "reject", "review"] },
+    validFrom: now - 600,
+    validUntil: now + 7 * 24 * 3600,
+    autonomyLimit: null,
+    evidenceRule: "the decision names the audit document whose SHA-256 is the period auditHash",
+  };
+  const id = mandateId(document);
+  return { id, document, registration: { id, ...termsFromMandate(document) } };
+}
+
+export function cycleDecision(profile, { escrow, gate, mandateId: id, delegate, auditHash }) {
+  const input = { hostId: profile.hostId, decisionPoint: profile.decisionPoints[0].name, agreementId: AGREEMENT_ID, periodId: PERIOD_ID, auditHash, score: SCORE, scoreVersion: SCORE_VERSION };
+  return prepareDecision(profile, input, { network: "solo", escrow, gate, mandateId: id, delegate, verdict: "approve", mode: "A" });
 }
 
 export function reviewEventFields(data) {
@@ -57,8 +80,8 @@ export function decisionEventFields(data) {
   };
 }
 
-async function publish(client, topicId, submitKey, entry) {
-  const text = logMessage(entry);
+async function publish(client, topicId, submitKey, entry, maxBytes) {
+  const text = logMessage(entry, maxBytes);
   const sent = await submit(client, new TopicMessageSubmitTransaction().setTopicId(topicId).setMessage(text).setMaxChunks(1), [submitKey]);
   if (sent.status !== "SUCCESS") throw new Error(`topic message returned ${sent.status}`);
   return { sequence: Number(sent.receipt.topicSequenceNumber.toString()), transactionId: sent.transactionId, text };
@@ -72,6 +95,8 @@ async function main() {
   const config = settings(join(HEDERA_ROOT, ".cache", "cycle", "report.json"));
   const accounts = await loadAccounts(config.accounts);
   const escrowArtifact = await loadArtifact("reference/ReferencePeriodEscrow.sol", "ReferencePeriodEscrow");
+  const profile = JSON.parse(await readFile(join(HEDERA_ROOT, "host-profiles", "example.json"), "utf8"));
+  const target = profile.targets.find((entry) => entry.network === "solo");
   const gateBuild = await loadGate();
   const admin = clientFor(config, accounts.operator.id, accounts.operator.key);
   const [oracleAccount, producerAccount, strangerAccount] = accounts.ecdsa;
@@ -100,63 +125,33 @@ async function main() {
 
   const auditDocument = { type: "coorre-cycle-synthetic-audit", agreement: 0, period: 1, measurements: [{ parameter: "turbidity", value: "3.1", unit: "NTU" }], score: 80 };
   const auditHash = jcsHash(auditDocument);
-  const submitted = await execute(oracle, escrowId, "submitBatch", new ContractFunctionParameters().addUint256(0).addUint256(1).addBytes32(hexToBytes32(auditHash)).addUint8(80).addUint16(1));
+  const submitted = await execute(oracle, escrowId, "submitBatch", new ContractFunctionParameters().addUint256(AGREEMENT_ID).addUint256(PERIOD_ID).addBytes32(hexToBytes32(auditHash)).addUint8(SCORE).addUint16(SCORE_VERSION));
   check("oracle submitted the period", submitted.status === "SUCCESS");
   check("period waits for approval", periodState(await call(admin, escrowId, "getPeriod", new ContractFunctionParameters().addUint256(0).addUint256(1))) === "PendingApproval");
 
   const logKey = PrivateKey.generateED25519();
-  const topic = await submit(admin, new TopicCreateTransaction().setTopicMemo("coorre-log").setSubmitKey(logKey.publicKey));
+  const topic = requireSuccess(await submit(admin, new TopicCreateTransaction().setTopicMemo("coorre-log").setSubmitKey(logKey.publicKey)), "topic create");
   const topicId = topic.receipt.topicId;
 
   const delegateKey = PrivateKey.generateED25519();
-  const delegateAccount = await submit(admin, new AccountCreateTransaction().setKeyWithoutAlias(delegateKey.publicKey).setInitialBalance(new Hbar(5)));
+  const delegateAccount = requireSuccess(await submit(admin, new AccountCreateTransaction().setKeyWithoutAlias(delegateKey.publicKey).setInitialBalance(new Hbar(5))), "delegate account create");
   const delegateId = delegateAccount.receipt.accountId;
   const delegateEvm = evmHex(delegateId.toEvmAddress());
   const delegate = clientFor(config, delegateId, delegateKey);
 
-  const now = Math.floor(Date.now() / 1000);
-  const mandateDocument = {
-    format: "coorre-mandate/1",
-    hostId: "example-host",
-    chainId: 298,
+  const mandate = cycleMandate({
+    hostId: profile.hostId,
+    chainId: target.chainId,
     escrow: escrowEvm,
     gate: gateEvm,
     issuer: adminEvm,
-    delegates: [{ account: delegateId.toString(), address: delegateEvm, kind: "human", publicKey: delegateKey.publicKey.toStringRaw() }],
-    quorum: 1,
-    scope: { agreements: "all", modes: ["HYBRID"], verdicts: ["approve", "reject", "review"] },
-    validFrom: now - 600,
-    validUntil: now + 7 * 24 * 3600,
-    autonomyLimit: null,
-    evidenceRule: "the decision names the audit document whose SHA-256 is the period auditHash",
-  };
-  const id = mandateId(mandateDocument);
-  const registered = await submit(
-    admin,
-    new ContractExecuteTransaction()
-      .setContractId(gateId)
-      .setGas(600_000)
-      .setFunctionParameters(
-        registerMandateCallData(gateBuild.identifiers[REGISTER_SIGNATURE], {
-          id,
-          terms: {
-            validFrom: mandateDocument.validFrom,
-            validUntil: mandateDocument.validUntil,
-            quorum: 1,
-            allAgreements: true,
-            allowApprove: true,
-            allowReject: true,
-            allowReview: false,
-            hasAutonomyLimit: false,
-            autonomyLimit: 0,
-          },
-          delegates: [{ address: delegateEvm, kind: "human" }],
-          agreementIds: [],
-        }),
-      ),
-  );
+    delegate: { account: delegateId.toString(), address: delegateEvm, publicKey: delegateKey.publicKey.toStringRaw() },
+    now: Math.floor(Date.now() / 1000),
+  });
+  const { id, document: mandateDocument } = mandate;
+  const registered = await submit(admin, new ContractExecuteTransaction().setContractId(gateId).setGas(600_000).setFunctionParameters(registerMandateCallData(gateBuild.identifiers[REGISTER_SIGNATURE], mandate.registration)));
   check("issuer registered the mandate", registered.status === "SUCCESS", registered.status);
-  const mandateMessage = await publish(admin, topicId, logKey, { kind: "mandate", hostId: "example-host", mandateId: id, gate: gateEvm, transactionId: registered.transactionId });
+  const mandateMessage = await publish(admin, topicId, logKey, { kind: "mandate", hostId: profile.hostId, path: "A", mandateId: id, gate: gateEvm, transactionId: registered.transactionId }, profile.log.maxMessageBytes);
 
   const decideParameters = (verdict, evidenceHash) =>
     new ContractFunctionParameters().addBytes32(hexToBytes32(id)).addUint256(0).addUint256(1).addBytes32(hexToBytes32(auditHash)).addUint8(verdict).addBytes32(hexToBytes32(evidenceHash));
@@ -165,35 +160,29 @@ async function main() {
   const directTry = await execute(admin, escrowId, "approve", new ContractFunctionParameters().addUint256(0).addUint256(1));
   check("the admin cannot approve around the gate", directTry.status === "CONTRACT_REVERT_EXECUTED", directTry.status);
 
-  const ref = caseRef("example-host", 298, escrowEvm, 0, 1);
-  const decisionDocument = { format: "coorre-decision/1", case_ref: ref, case_id: caseId(ref), mandateId: id, verdict: "approve", auditHash, agreementId: "0", periodId: "1", delegate: delegateId.toString() };
-  const evidenceHash = jcsHash(decisionDocument);
-  const decided = await execute(delegate, gateId, "decide", decideParameters(VERDICT.approve, evidenceHash));
+  const decision = cycleDecision(profile, { escrow: escrowEvm, gate: gateEvm, mandateId: id, delegate: delegateEvm, auditHash });
+  const { case_ref: ref, decisionDocument, evidenceHash } = decision;
+  const sendDecision = () => submit(delegate, new ContractExecuteTransaction().setContractId(gateId).setGas(600_000).setFunctionParameters(callDataBytes(decision.call.callData)));
+  const decided = await sendDecision();
   check("the delegate's decision executed on the escrow", decided.status === "SUCCESS", decided.status);
-  const anchoredLog = decided.functionResult?.logs?.find((log) => Buffer.from(log.contractId.toEvmAddress(), "hex").equals(Buffer.from(gateEvm.slice(2), "hex")));
+  const decidedRecord = decided.status === "SUCCESS" ? await recordOf(admin, decided.transactionId) : null;
+  const anchoredLog = decidedRecord?.contractFunctionResult?.logs?.find((log) => Buffer.from(log.contractId.toEvmAddress(), "hex").equals(Buffer.from(gateEvm.slice(2), "hex")));
   const anchored = anchoredLog ? decisionEventFields(anchoredLog.data) : null;
   check("DecisionAnchored carries the evidence hash", anchored?.evidenceHash === evidenceHash, anchored?.evidenceHash);
   check("DecisionAnchored names the delegate", anchored?.delegate === delegateEvm, anchored?.delegate);
   check("period approved", periodState(await call(admin, escrowId, "getPeriod", new ContractFunctionParameters().addUint256(0).addUint256(1))) === "Approved");
-  const replay = await execute(delegate, gateId, "decide", decideParameters(VERDICT.approve, evidenceHash));
+  const replay = await sendDecision();
   check("the same decision cannot run twice", replay.status === "CONTRACT_REVERT_EXECUTED", replay.status);
 
-  const decisionMessage = await publish(admin, topicId, logKey, {
-    kind: "decision",
-    case_ref: ref,
-    mandateId: id,
-    evidenceHash,
-    transactionId: decided.transactionId,
-    blockTimestamp: anchored?.blockTimestamp ?? null,
-  });
+  if (!anchored) throw new Error("the decision transaction carries no DecisionAnchored event from the gate");
+  const decisionMessage = await publish(admin, topicId, logKey, { ...decision.logFields, transactionId: decided.transactionId, blockTimestamp: anchored.blockTimestamp }, profile.log.maxMessageBytes);
 
   const messages = await mirror(config, `/api/v1/topics/${topicId}/messages?order=asc`, (body) => (body.messages ?? []).length >= 2);
   const decisionOnMirror = messages.messages.find((message) => message.sequence_number === decisionMessage.sequence);
   check("decision message on the Mirror Node is byte-identical", Buffer.from(decisionOnMirror.message, "base64").toString("utf8") === decisionMessage.text);
-  const record = await recordOf(admin, decided.transactionId);
-  const decisionSecond = Number(record.consensusTimestamp.seconds.toString());
-  const clockGap = anchored ? decisionSecond - anchored.blockTimestamp : null;
-  check("block timestamp is at most one block before the consensus second", clockGap !== null && clockGap >= 0 && clockGap <= 2, { blockTimestamp: anchored?.blockTimestamp, consensusSecond: decisionSecond });
+  const decisionSecond = Number(decidedRecord.consensusTimestamp.seconds.toString());
+  const clockGap = decisionSecond - anchored.blockTimestamp;
+  check("block timestamp is at most one block before the consensus second", clockGap >= 0 && clockGap <= 2, { blockTimestamp: anchored.blockTimestamp, consensusSecond: decisionSecond });
   const topicInfo = await mirror(config, `/api/v1/topics/${topicId}`);
   check("log topic has a submit key and no admin key", topicInfo.submit_key !== null && topicInfo.admin_key === null);
 

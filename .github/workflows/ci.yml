@@ -64,8 +64,49 @@ jobs:
       - name: npm test
         run: npm test
 
+      - name: Snapshot capture script (local fake RPC, nothing sent to devnet)
+        run: node --test ../scripts/test/
+
       - name: npm audit (fails on high or critical)
         run: npm audit --audit-level=high
+
+  hedera:
+    name: hedera (npm ci, audit, contracts, tests, protections)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: hedera
+    env:
+      HARDHAT_DISABLE_TELEMETRY: "true"
+    steps:
+      - name: Checkout (actions/checkout v7.0.1)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Node 24 (actions/setup-node v7.0.0)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "24"
+
+      - name: npm ci (install scripts disabled by hedera/.npmrc)
+        run: npm ci --no-fund
+
+      - name: npm audit of the runtime dependencies (fails on high or critical)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Contract build (Hardhat 3, solc 0.8.28)
+        run: npm run build:contracts
+
+      - name: npm test (after the build, so selectors and the deployed runtime are checked)
+        run: npm test
+
+      - name: Contract tests (Solidity, with fuzzing)
+        run: npm run test:contracts
+
+      - name: Every protection of the mandate contract fails a test when removed
+        run: npm run check:protections
 
   playground-preflight:
     name: playground preflight (official Playground environment)

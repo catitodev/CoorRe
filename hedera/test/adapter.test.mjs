@@ -2,10 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { DECIDE_SELECTOR, DECIDE_SIGNATURE, REVIEW_SELECTOR, REVIEW_SIGNATURE, prepareDecision as prepare, prepareReview as prepareReviewWith, readInput as read } from "../adapter/period-escrow.mjs";
+import { DECIDE_SELECTOR, DECIDE_SIGNATURE, INPUT_TYPES, REVIEW_SELECTOR, REVIEW_SIGNATURE, prepareDecision as prepare, prepareReview as prepareReviewWith, readInput as read } from "../adapter/period-escrow.mjs";
 import { HEDERA_ROOT } from "../lib/paths.mjs";
 import { caseId, jcsHash } from "../lib/canonical.mjs";
 import { GATE_ARTIFACT, loadGate } from "../lib/gate.mjs";
+import { logMessage } from "../lib/log.mjs";
 
 const PROFILE = JSON.parse(readFileSync(join(HEDERA_ROOT, "host-profiles", "example.json"), "utf8"));
 const prepareDecision = (input, context) => prepare(PROFILE, input, context);
@@ -57,8 +58,10 @@ test("the decision names the case, the batch and the mandate, and the log messag
   assert.equal(out.case_id, caseId(out.case_ref));
   assert.equal(out.decisionDocument.auditHash, AUDIT);
   assert.equal(out.decisionDocument.mandateId, MANDATE);
-  assert.ok(Buffer.byteLength(out.logMessage, "utf8") <= 1024);
-  assert.equal(JSON.parse(out.logMessage).evidenceHash, out.evidenceHash);
+  const message = logMessage({ ...out.logFields, transactionHash: `0x${"f".repeat(64)}` });
+  assert.ok(Buffer.byteLength(message, "utf8") <= 1024);
+  assert.equal(JSON.parse(message).evidenceHash, out.evidenceHash);
+  assert.equal(JSON.parse(message).hostId, "example-host");
 });
 
 test("the output carries only strings, numbers and plain objects", () => {
@@ -117,9 +120,10 @@ test("a review is a call to recordReview with the evidence hash of the review do
 
 test("the review log message carries ids and hashes only, never the reason", () => {
   const out = prepareReview(INPUT, REVIEW_CONTEXT);
-  assert.ok(!out.logMessage.includes(REVIEW_CONTEXT.reason));
-  assert.equal(JSON.parse(out.logMessage).evidenceHash, out.evidenceHash);
-  assert.ok(Buffer.byteLength(out.logMessage, "utf8") <= 1024);
+  const message = logMessage({ ...out.logFields, transactionId: "0.0.1002@1700000000.000000123" });
+  assert.ok(!message.includes(REVIEW_CONTEXT.reason));
+  assert.equal(JSON.parse(message).evidenceHash, out.evidenceHash);
+  assert.ok(Buffer.byteLength(message, "utf8") <= 1024);
 });
 
 test("a review needs an outcome the profile declares and a reason", () => {
@@ -127,4 +131,27 @@ test("a review needs an outcome the profile declares and a reason", () => {
   assert.throws(() => prepareReview(INPUT, { ...REVIEW_CONTEXT, reason: "  " }), /reason must have/);
   assert.throws(() => prepareReview(INPUT, { ...REVIEW_CONTEXT, reason: "x".repeat(501) }), /reason must have/);
   assert.throws(() => prepareReview(INPUT, { ...REVIEW_CONTEXT, gate: "0x1" }), /gate/);
+});
+
+test("an input type the adapter does not read is refused, never read as an unbounded integer", () => {
+  const typed = structuredClone(PROFILE);
+  typed.decisionPoints[0].inputs.push({ name: "label", type: "string" });
+  assert.throws(() => read(typed, { ...INPUT, label: "abc" }), /input label has the unsupported type string/);
+  assert.throws(() => read(typed, { ...INPUT, label: (2n ** 300n).toString() }), /unsupported type string/);
+  typed.decisionPoints[0].inputs.at(-1).type = "toString";
+  assert.throws(() => read(typed, { ...INPUT, label: "1" }), /unsupported type toString/);
+  assert.throws(() => readInput({ ...INPUT, score: "abc" }), /non-negative integer/);
+});
+
+test("the schema offers exactly the input types the adapter reads", () => {
+  const schema = JSON.parse(readFileSync(join(HEDERA_ROOT, "spec", "host-profile.schema.json"), "utf8"));
+  assert.deepEqual([...schema.$defs.typedField.properties.type.enum].sort(), [...INPUT_TYPES].sort());
+});
+
+test("a verdict the gate does not encode is refused before any call data is built", () => {
+  const extended = structuredClone(PROFILE);
+  extended.decisionPoints[0].actions.push({ verdict: "hold", signature: "hold(uint256,uint256)", selector: "0x00000000" });
+  assert.throws(() => prepare(extended, INPUT, { ...CONTEXT, verdict: "hold" }), /verdict must be one of approve, reject/);
+  assert.throws(() => prepare(extended, INPUT, { ...CONTEXT, mode: "B", verdict: "hold" }), /verdict must be one of approve, reject/);
+  assert.throws(() => prepareDecision(INPUT, { ...CONTEXT, verdict: "constructor" }), /verdict must be one of/);
 });

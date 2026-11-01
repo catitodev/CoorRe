@@ -16,6 +16,8 @@ interface Vm {
     function expectRevert(bytes calldata data) external;
 
     function assume(bool condition) external;
+
+    function expectEmit(bool checkTopic1, bool checkTopic2, bool checkTopic3, bool checkData, address emitter) external;
 }
 
 abstract contract CheatCodes {

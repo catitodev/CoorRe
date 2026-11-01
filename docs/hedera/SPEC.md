@@ -20,6 +20,8 @@ A host hands CoorRe its input through a profile that follows [host-profile.schem
 
 The host contract is a **period escrow**: agreements with a period amount and a score threshold; an authorized oracle submits each period's score with the SHA-256 of its audit document; in HYBRID mode a period that meets the threshold waits for the escrow's `financialManager` to approve or reject it before a deadline. [IPeriodEscrow.sol](../../hedera/contracts/IPeriodEscrow.sol) is the interface CoorRe needs; [ReferencePeriodEscrow.sol](../../hedera/contracts/reference/ReferencePeriodEscrow.sol) is a reference implementation written for the tests and the Solo runs. A host's address enters its private profile when the host publishes it; CoorRe never deploys a host's contract on testnet.
 
+Requirement on the host: the escrow refuses a submission whose `auditHash` it has accepted before, for any agreement or period. The reference escrow reverts with `AuditHashUsed` ([ReferencePeriodEscrow.sol:140](../../hedera/contracts/reference/ReferencePeriodEscrow.sol)). The gate keys the votes of a period by `agreementId`, `periodId` and `auditHash`, with no round number, so this refusal is what keeps a vote cast in one round of a period out of a later round. Against a host that accepted a repeated `auditHash`, a vote from an earlier round would count toward the quorum of the next one (`testAHostThatAcceptsARepeatedAuditHashLetsAnEarlierRoundVoteCount`), and with a quorum of 1 a period resubmitted with the hash of a decided batch could not be decided again. A host profile states the requirement in `evidence.auditHashUnique`, with a `host-code` source, and `hedera/test/host-profile.test.mjs` requires it. A round number in the period key is the next step for a future deployment of the gate; the deployed gate stays as it is.
+
 ## Decision point
 
 `approve-or-reject-period`:
@@ -46,22 +48,22 @@ A mandate is a document the issuer signs and registers on-chain before any decis
 | `autonomyLimit` | Optional, see below |
 | `evidenceRule` | The host document a decision must name |
 
-Issuing: the issuer's account calls the CoorRe contract to register `mandateId` and the fields the contract enforces. The registration is the proof of issue, signed by the issuer's own keys and visible on the Mirror Node. The topic carries only `mandateId` and the registration's transaction id; the mandate document stays with the parties.
+Issuing: the issuer's account calls the CoorRe contract to register `mandateId` and the fields the contract enforces. Those fields come from the mandate document through one function, `termsFromMandate` in [gate.mjs](../../hedera/lib/gate.mjs): validity, quorum, delegates and their kinds, the agreement list or all agreements, one permission for each verdict in `scope.verdicts`, and the autonomy limit; it refuses a document the gate cannot represent. A verifier that decodes the `registerMandate` call data and compares it with the mandate document is a next step. The registration is the proof of issue, signed by the issuer's own keys and visible on the Mirror Node. The topic carries only `mandateId` and the registration's transaction id; the mandate document stays with the parties.
 
 Revocation: the escrow's current admin or the original issuer revokes. Revoking only reduces authority, so the original issuer can always take down a mandate it created. A revoked mandate authorizes nothing from the block of its revocation on; earlier decisions stay valid and keep pointing to it. Replacing a delegate means revoking the mandate and registering a new one.
 
 ### Autonomy limit
 
-The engine's rule, unchanged: an automated actor cannot approve above its autonomy limit; only a human approver can. A mandate may name an `agent` delegate and an `autonomyLimit` in tinybar (the unit a contract sees for HBAR sent through the SDK, probe P5). The contract rejects an agent's approval when the agreement's `periodAmount` exceeds the limit, with `MandateExceeded`, the same name and meaning as the Solana program (`onchain/programs/coorre_anchor/src/lib.rs:148-150`). An agent may only approve; a human is never bound by the limit. The limit is the host's value; an empty limit means only humans decide.
+The engine's rule, unchanged: an automated actor cannot approve above its autonomy limit; only a human approver can. A mandate may name an `agent` delegate and an `autonomyLimit` in the unit of the host's `periodAmount`: the contract compares the two numbers as they are. In the reference escrow `periodAmount` is in tinybar, the unit a contract sees for HBAR sent through the SDK (probe P5); a host whose escrow counts in another unit sets the limit in that unit. The contract rejects an agent's approval when the agreement's `periodAmount` exceeds the limit, with `MandateExceeded`, the same name and meaning as the Solana program (`onchain/programs/coorre_anchor/src/lib.rs:148-150`). An agent may only approve; a human is never bound by the limit. The limit is the host's value; an empty limit means only humans decide.
 
 ## Decision
 
 A decision is the tuple
 
-`(hostId, decisionPoint, agreementId, periodId, auditHash, scoreVersion, verdict, mandateId, evidenceHash, blockTimestamp)`
+`(hostId, decisionPoint, agreementId, periodId, auditHash, score, scoreVersion, verdict, mandateId, delegate, evidenceHash, blockTimestamp)`
 
 - `auditHash` binds the decision to the exact batch the oracle submitted. The contract reads the period and refuses a decision whose `auditHash` differs, which prevents replaying a decision in another period or on a resubmitted batch.
-- `evidenceHash` is the SHA-256 of the JCS form of the decision document: a W3C Verifiable Credential signed with eddsa-jcs-2022, as in the engine (`coorre-model`). It names the host's audit document as an artifact by the SHA-256 of its raw bytes, which is the `auditHash`; CoorRe never re-canonicalizes the host's document.
+- `evidenceHash` is the SHA-256 of the JCS form of the decision document `coorre-decision/1`, which the adapter ([period-escrow.mjs](../../hedera/adapter/period-escrow.mjs)) builds for every path and that the Solo cycle and the host integration both use: `hostId`, `decisionPoint`, `case_ref`, `case_id`, `chainId`, `escrow`, `agreementId`, `periodId`, `auditHash`, `score`, `scoreVersion`, `verdict`, `mandateId`, `delegate` and `path`. It names the host's audit document by its `auditHash`, the SHA-256 of the document's raw bytes; CoorRe never re-canonicalizes the host's document. The decision document is not signed; a W3C Verifiable Credential signed with eddsa-jcs-2022, as in the engine (`coorre-model`), with the same fields and a `previousEvidence` link, is a next step.
 - `blockTimestamp` is the `block.timestamp` of the decision transaction; the HCS message adds its own consensus timestamp.
 - Case reference: `urn:coorre:case:<hostId>:<chainId>:<escrow address>:<agreementId>:<periodId>`; `case_id = SHA-256(case_ref)`, as in the engine (`coorre-model/src/evidence.rs:302`).
 
@@ -79,16 +81,17 @@ The period's states stay the host's. CoorRe opens a case when it observes a peri
 
 Path A, reached through path B ([ADR-007](../decisions/ADR-007-hedera-execution-path.md)).
 
-**A.** [CoorReMandateGate.sol](../../hedera/contracts/CoorReMandateGate.sol) is the escrow's `financialManager`. For each decision it checks, in order:
+**A.** [CoorReMandateGate.sol](../../hedera/contracts/CoorReMandateGate.sol) is the escrow's `financialManager`. For each decision it checks, in this order:
 
-1. the mandate is registered, not revoked, `validFrom ≤ block.timestamp ≤ validUntil`, and its issuer is still the escrow's admin;
-2. the caller is a delegate of the mandate and is not the account that submitted the period;
-3. the agreement, the HYBRID mode and the verdict are in the mandate's scope;
-4. the period is `PendingApproval`, its `auditHash` equals the decision's, and `block.timestamp` is not past its approval deadline (for approvals and for rejections alike);
-5. an agent delegate approves only within the autonomy limit (`MandateExceeded`);
-6. this delegate has not decided this period before, and the quorum is reached;
+1. the mandate is registered (`UnknownMandate`), not revoked and `validFrom ≤ block.timestamp ≤ validUntil` (`MandateNotActive`), and its issuer is still the escrow's admin (`IssuerNotAdmin`);
+2. the caller is a delegate of the mandate (`UnauthorizedActor`);
+3. the verdict is approve or reject (`InvalidVerdict`), an agent delegate only approves (`UnauthorizedActor`), and the mandate allows the verdict (`OutOfScope`);
+4. the agreement is in the mandate's list, or the mandate covers all agreements, and the agreement is in HYBRID mode (`OutOfScope`);
+5. the period is `PendingApproval` (`PeriodNotPending`), its `auditHash` equals the decision's (`AuditHashMismatch`), `block.timestamp` is not past its approval deadline, for approvals and for rejections alike (`DeadlinePassed`), and the caller is not the account that submitted the period (`SubmitterCannotDecide`);
+6. an agent delegate approves only within the autonomy limit (`MandateExceeded`);
+7. this delegate has not voted on this period and batch, and the period's ballot is still open (`AlreadyDecided`); the vote is counted and the quorum checked;
 
-then it calls `approve` or `reject` and emits `DecisionAnchored` with `mandateId` and `evidenceHash`. Its errors are `NotIssuer`, `IssuerNotAdmin`, `InvalidTerms`, `MandateExists`, `UnknownMandate`, `MandateNotActive`, `UnauthorizedActor`, `OutOfScope`, `PeriodNotPending`, `PeriodNotInReview`, `AuditHashMismatch`, `DeadlinePassed`, `SubmitterCannotDecide`, `MandateExceeded`, `AlreadyDecided` and `InvalidVerdict`. Votes are counted per verdict; a quorum that is not reached, for example two delegates who disagree with a quorum of 2, leaves the period to its deadline, where `expire` sends it to review and nothing is paid. Partial votes are tied to the period and to the batch's `auditHash`, so they end with the deadline or with a resubmission. It is not upgradeable and has no payable function. The escrow keeps all its own checks. Probe P1 shows that an escrow sees the calling contract as `msg.sender`.
+then it emits `DecisionAnchored` with `mandateId`, the verdict, the delegate and its kind, `auditHash`, `evidenceHash`, `blockTimestamp` and whether the escrow was called, and, when the quorum is reached, calls `approve` or `reject`. Registration refuses a zero `mandateId`, an empty delegate list, a delegate list and a kind list of different lengths, a zero delegate address (`ZeroAddress`), an unknown kind, a duplicate delegate, a mandate that names both all agreements and a list or neither, and an autonomy limit value without a limit (`InvalidTerms` unless stated). Its errors are `ZeroAddress`, `NotIssuer`, `IssuerNotAdmin`, `InvalidTerms`, `MandateExists`, `UnknownMandate`, `MandateNotActive`, `UnauthorizedActor`, `OutOfScope`, `PeriodNotPending`, `PeriodNotInReview`, `AuditHashMismatch`, `DeadlinePassed`, `SubmitterCannotDecide`, `MandateExceeded`, `AlreadyDecided` and `InvalidVerdict`. Votes are counted per verdict; a quorum that is not reached, for example two delegates who disagree with a quorum of 2, leaves the period to its deadline, where `expire` sends it to review and nothing is paid. Partial votes are tied to the period and to the batch's `auditHash`, so they end with the deadline or with a resubmission. It is not upgradeable and has no payable function. The escrow keeps all its own checks. Probe P1 shows that an escrow sees the calling contract as `msg.sender`.
 
 **B.** The financial manager's wallet keeps signing `approve`/`reject`; CoorRe records the mandate and the decision (hashes on the topic) and the verifier checks that the on-chain call matches a recorded decision by a delegate in scope. B proves; A proves and enforces.
 
@@ -115,7 +118,18 @@ The escrow's administrative actions stay with the host's admin. Policy: **record
 - One HCS topic owned by CoorRe for each host, never the host's own topic.
 - `submitKey`: the CoorRe log operator key, kept in the host's private environment. Probe P4: a message without it fails with `INVALID_SIGNATURE`.
 - `adminKey`: none, so the topic cannot be updated or deleted (probe P4). If the operator key has to change, CoorRe opens a new topic and announces it in a final message of the old one.
-- Messages: one JSON object in JCS form, at most 1024 bytes (probe P3). They carry **ids and hashes only**: kind (`mandate`, `revocation`, `decision`, `review`, `admin`, `rotation`), `hostId`, `case_ref` or `mandateId`, `evidenceHash`, `auditHash`, the verdict, the delegate address and the transaction id. Documents (mandate, decision credential, audit document) travel to the parties and in audit bundles, never in the topic.
+- Messages: one JSON object in JCS form, at most 1024 bytes (probe P3), built by one function, `logEntry` in [log.mjs](../../hedera/lib/log.mjs), which refuses a missing field, a field outside the message's kind and a value that is not a string or an integer. They carry **ids and hashes only**. Every message names its `kind` and `hostId`; "transaction" below is the SDK `transactionId` or, for a wallet over JSON-RPC, the `transactionHash`:
+
+  | Kind | Fields |
+  |---|---|
+  | `mandate` | `path`, `mandateId`, `gate` or `escrow`; the registration transaction on path A |
+  | `revocation` | `mandateId`, optional `gate`, transaction |
+  | `decision` | `path`, `case_ref`, `mandateId`, `evidenceHash`, `auditHash`, `verdict`, `delegate`, transaction, optional `blockTimestamp` |
+  | `review` | `case_ref`, `mandateId`, `evidenceHash`, `auditHash`, `outcome`, `delegate`, transaction |
+  | `admin` | `action`, `escrow`, transaction, `from` and `to` or `value` |
+  | `rotation` | `nextTopic` |
+
+  Documents (mandate, decision document, review document, audit document) travel to the parties and in audit bundles, never in the topic.
 - Order: the topic's sequence number and consensus timestamp, read from the Mirror Node with `running_hash` and `running_hash_version`.
 
 ## Clocks
@@ -140,7 +154,7 @@ One account per role: the host's admin, the host's oracle, the host's financial 
 
 ## Verification
 
-For a Hedera case the verifier keeps checks 1, 2, 3 and 7 and reads the anchor from a second source ([ADR-006](../decisions/ADR-006-neutral-anchor-source.md)): the CoorRe contract's state and events and the topic's messages, through the Mirror Node. Trust anchors ship with the verifier and never come from the bundle (ADR-002): chain id, CoorRe contract address, escrow address and topic id.
+For a Hedera case the verifier keeps checks 1, 2, 3 and 7, with check 7 dating each automated decision by the consensus timestamp of its anchor instead of the Solana Clock, and reads the anchor from a second source ([ADR-006](../decisions/ADR-006-neutral-anchor-source.md)): the CoorRe contract's state and events and the topic's messages, through the Mirror Node. Trust anchors ship with the verifier and never come from the bundle (ADR-002): chain id, CoorRe contract address, escrow address and topic id.
 
 ## Governance values
 

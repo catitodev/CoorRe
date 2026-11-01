@@ -175,3 +175,17 @@ test("selectors match the compiled reference escrow when a build is present", as
     .map((entry) => `${entry.signature}: profile ${entry.selector}, compiled 0x${identifiers[entry.signature]}`);
   assert.deepEqual(problems, []);
 });
+
+test("the profile shows, from the host's code, that the host refuses a repeated auditHash", () => {
+  const unique = profile.evidence.auditHashUnique;
+  assert.equal(unique.source.kind, "host-code");
+  const [, file, line] = /^(.+):(\d+)$/.exec(unique.source.ref);
+  const cited = readFileSync(join(REPO_ROOT, file), "utf8").split("\n")[Number(line) - 1];
+  assert.match(cited, /revert AuditHashUsed\(\)/);
+  const missing = structuredClone(profile);
+  delete missing.evidence.auditHashUnique;
+  assert.ok(validate(schema, missing).some((error) => error.includes("missing auditHashUnique")));
+  const proposed = structuredClone(profile);
+  proposed.evidence.auditHashUnique.source = { kind: "coorre-proposal", ref: "docs/hedera/SPEC.md#targets" };
+  assert.ok(validate(schema, proposed).some((error) => error.includes("$.evidence.auditHashUnique.source.kind")));
+});

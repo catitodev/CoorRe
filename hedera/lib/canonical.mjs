@@ -7,8 +7,10 @@ export function jcs(value) {
     return JSON.stringify(value);
   }
   if (typeof value === "string") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(jcs).join(",")}]`;
+  if (Array.isArray(value)) return `[${Array.from(value, jcs).join(",")}]`;
   if (typeof value === "object") {
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) throw new Error(`JCS cannot encode a ${prototype?.constructor?.name ?? "non-plain object"}`);
     const keys = Object.keys(value).sort();
     const members = [];
     for (const key of keys) {

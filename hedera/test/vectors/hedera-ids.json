@@ -1,0 +1,65 @@
+{
+  "mandateId": {
+    "document": {
+      "format": "coorre-mandate/1",
+      "hostId": "example-host",
+      "chainId": 298,
+      "escrow": "0x00000000000000000000000000000000000003ff",
+      "gate": "0x0000000000000000000000000000000000000401",
+      "issuer": "0x0000000000000000000000000000000000000002",
+      "delegates": [
+        {
+          "account": "0.0.1027",
+          "address": "0x0000000000000000000000000000000000000403",
+          "kind": "human"
+        }
+      ],
+      "quorum": 1,
+      "scope": {
+        "agreements": "all",
+        "modes": [
+          "HYBRID"
+        ],
+        "verdicts": [
+          "approve",
+          "reject",
+          "review"
+        ]
+      },
+      "validFrom": 1800000000,
+      "validUntil": 1800604800,
+      "autonomyLimit": null,
+      "evidenceRule": "the decision names the audit document whose SHA-256 is the period auditHash"
+    },
+    "mandateId": "90b6eae9f57479b8b1fb9b035f4c33d3db9e397f8f24a8bbae4860c8e5ad480c",
+    "jcs": "{\"autonomyLimit\":null,\"chainId\":298,\"delegates\":[{\"account\":\"0.0.1027\",\"address\":\"0x0000000000000000000000000000000000000403\",\"kind\":\"human\"}],\"escrow\":\"0x00000000000000000000000000000000000003ff\",\"evidenceRule\":\"the decision names the audit document whose SHA-256 is the period auditHash\",\"format\":\"coorre-mandate/1\",\"gate\":\"0x0000000000000000000000000000000000000401\",\"hostId\":\"example-host\",\"issuer\":\"0x0000000000000000000000000000000000000002\",\"quorum\":1,\"scope\":{\"agreements\":\"all\",\"modes\":[\"HYBRID\"],\"verdicts\":[\"approve\",\"reject\",\"review\"]},\"validFrom\":1800000000,\"validUntil\":1800604800}"
+  },
+  "caseRef": {
+    "input": {
+      "hostId": "example-host",
+      "chainId": 298,
+      "escrow": "0x00000000000000000000000000000000000003FF",
+      "agreementId": "0",
+      "periodId": "1"
+    },
+    "case_ref": "urn:coorre:case:example-host:298:0x00000000000000000000000000000000000003ff:0:1",
+    "case_id": "ba6cad436e3bae9a70d31c392d17283cb79fdbe3bebb106c3621bfdbf5e3c32e"
+  },
+  "hcsMessage": {
+    "entry": {
+      "kind": "decision",
+      "hostId": "example-host",
+      "path": "A",
+      "case_ref": "urn:coorre:case:example-host:298:0x00000000000000000000000000000000000003ff:0:1",
+      "mandateId": "90b6eae9f57479b8b1fb9b035f4c33d3db9e397f8f24a8bbae4860c8e5ad480c",
+      "evidenceHash": "2222222222222222222222222222222222222222222222222222222222222222",
+      "auditHash": "60e923175e060c671d4191c337ba6a6936e3c6120aa9a304e5918c51f33cdd8b",
+      "verdict": "approve",
+      "delegate": "0x0000000000000000000000000000000000000403",
+      "transactionId": "0.0.1027@1800000000.000000123"
+    },
+    "message": "{\"auditHash\":\"60e923175e060c671d4191c337ba6a6936e3c6120aa9a304e5918c51f33cdd8b\",\"case_ref\":\"urn:coorre:case:example-host:298:0x00000000000000000000000000000000000003ff:0:1\",\"delegate\":\"0x0000000000000000000000000000000000000403\",\"evidenceHash\":\"2222222222222222222222222222222222222222222222222222222222222222\",\"hostId\":\"example-host\",\"kind\":\"decision\",\"mandateId\":\"90b6eae9f57479b8b1fb9b035f4c33d3db9e397f8f24a8bbae4860c8e5ad480c\",\"path\":\"A\",\"transactionId\":\"0.0.1027@1800000000.000000123\",\"verdict\":\"approve\"}",
+    "bytes": 511,
+    "sha256": "79d5531d3e7690249e9df0915c1af55d5d514baa58a1c43b32ca8d57cd4aa90b"
+  }
+}

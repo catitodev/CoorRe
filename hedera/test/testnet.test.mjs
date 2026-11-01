@@ -2,9 +2,24 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { chmod, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { PrivateKey } from "@hiero-ledger/sdk";
-import { assertSeparateOperator, hostAccountIds, parseArgs, validateHostConfig, verificationInput, wordAddress } from "../testnet/deploy-gate.mjs";
-import { findAccountByKey, keyFromLedger, parsePrivateKey } from "../testnet/operator.mjs";
+import {
+  assertSeparateOperator,
+  hostAccountIds,
+  parseArgs,
+  planLines,
+  pollUntil,
+  recordStage,
+  runDeploy,
+  validateHostConfig,
+  verificationInput,
+  verifySafely,
+  wordAddress,
+  writeLogKeyFile,
+} from "../testnet/deploy-gate.mjs";
+import { MAX_FEE_HBAR, findAccountByKey, keyFromLedger, parsePrivateKey, readPrivateFile } from "../testnet/operator.mjs";
+import { CONTRACT_CREATE_MAX_FEE_HBAR } from "../lib/network.mjs";
 import { REPO_ROOT } from "../lib/paths.mjs";
 
 const OUTSIDE = join(tmpdir(), "coorre-host", "host.json");
@@ -130,4 +145,131 @@ test("an account is found by the public key and only when exactly one matches", 
   await assert.rejects(findAccountByKey(key), /more than one account.*0\.0\.2001, 0\.0\.2002/);
   globalThis.fetch = answer([{ account: "0.0.2003", key: { _type: "ECDSA_SECP256K1", key: PrivateKey.generateECDSA().publicKey.toStringRaw() } }]);
   await assert.rejects(findAccountByKey(key), /no testnet account/);
+});
+
+async function privateDir(t) {
+  const dir = await mkdtemp(join(tmpdir(), "coorre-testnet-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  return dir;
+}
+
+test("a key file readable by other users is refused before it is read", async (t) => {
+  const dir = await privateDir(t);
+  const file = join(dir, "operator.json");
+  await writeFile(file, '{"network":"testnet"}\n', { mode: 0o644 });
+  await chmod(file, 0o644);
+  await assert.rejects(readPrivateFile(file), /readable by other users \(mode 644\); run chmod 600/);
+  await chmod(file, 0o640);
+  await assert.rejects(readPrivateFile(file), /mode 640/);
+  await chmod(file, 0o600);
+  assert.equal(await readPrivateFile(file), '{"network":"testnet"}\n');
+});
+
+test("the log key file is created once and never overwritten", async (t) => {
+  const dir = await privateDir(t);
+  const file = join(dir, "testnet-log-key.json");
+  await writeLogKeyFile(file, "aa".repeat(32));
+  assert.equal((await stat(file)).mode & 0o777, 0o600);
+  await assert.rejects(writeLogKeyFile(file, "bb".repeat(32)), /EEXIST/);
+  assert.match(await readFile(file, "utf8"), /"privateKey":"a{64}"/);
+});
+
+test("polling keeps the last error and reports it", async () => {
+  let calls = 0;
+  assert.equal(await pollUntil(async () => (++calls < 3 ? Promise.reject(new Error(`not yet ${calls}`)) : "found"), { attempts: 5, intervalMs: 1 }), "found");
+  await assert.rejects(pollUntil(async () => Promise.reject(new Error("HTTP 404")), { attempts: 2, intervalMs: 1 }), /gave up after 2 attempts: HTTP 404/);
+});
+
+test("a Sourcify failure is recorded as an error, not lost", async () => {
+  assert.deepEqual(await verifySafely(async () => Promise.reject(new TypeError("fetch failed")), "0x01"), { status: "error", error: "TypeError: fetch failed" });
+  assert.deepEqual(await verifySafely(async (evm) => ({ status: "completed", match: "exact_match", evm }), "0x01"), { status: "completed", match: "exact_match", evm: "0x01" });
+});
+
+test("the dry-run plan states both fee caps", () => {
+  const config = validateHostConfig(CONFIG);
+  const text = planLines({ config, previous: null, stage: null }).join("\n");
+  assert.match(text, new RegExp(`at most ${MAX_FEE_HBAR} HBAR per transaction`));
+  assert.match(text, new RegExp(`at most ${CONTRACT_CREATE_MAX_FEE_HBAR} HBAR for the gate's ContractCreate`));
+  assert.equal(MAX_FEE_HBAR, 20);
+  assert.equal(CONTRACT_CREATE_MAX_FEE_HBAR, 40);
+  const resumed = planLines({ config, previous: { gate: { id: "0.0.7" } }, stage: "gate-deployed" }).join("\n");
+  assert.match(resumed, /gate 0\.0\.7 stopped at stage gate-deployed; it is resumed, the gate is not deployed again/);
+  assert.doesNotMatch(resumed, /1\. deploy/);
+});
+
+function fakeSteps(overrides = {}) {
+  const calls = { deployGate: 0, createTopic: 0, verify: 0, confirmNoAdmin: 0 };
+  const steps = {
+    deployGate: async () => {
+      calls.deployGate += 1;
+      return { id: `0.0.${100 + calls.deployGate}`, evm: "0x0000000000000000000000000000000000000065", transactionId: "0.0.2@1.1", chunks: 7 };
+    },
+    confirmNoAdmin: async () => {
+      calls.confirmNoAdmin += 1;
+    },
+    generateLogKey: () => PrivateKey.generateED25519(),
+    createTopic: async () => {
+      calls.createTopic += 1;
+      return { id: "0.0.900", transactionId: "0.0.2@2.2" };
+    },
+    verify: async () => {
+      calls.verify += 1;
+      return { status: "completed", match: "exact_match" };
+    },
+    ...overrides,
+  };
+  return { steps, calls };
+}
+
+function deployInput(dir, previous = null, supersede = false) {
+  return { args: { supersede }, recordFile: join(dir, "testnet-gate.json"), logKeyFile: join(dir, "testnet-log-key.json"), previous, base: { network: "testnet", hostId: "example-host" } };
+}
+
+const quiet = () => {};
+
+test("a deploy writes its record after the gate, after the topic and at the end", async (t) => {
+  const dir = await privateDir(t);
+  const { steps, calls } = fakeSteps({ verify: async () => Promise.reject(new Error("Sourcify is down")) });
+  const record = await runDeploy(deployInput(dir), steps, quiet);
+  assert.equal(record.stage, "complete");
+  assert.deepEqual(record.gate.verification, { status: "error", error: "Error: Sourcify is down" });
+  assert.equal(record.topic.id, "0.0.900");
+  assert.deepEqual(JSON.parse(await readFile(join(dir, "testnet-gate.json"), "utf8")), record);
+  assert.equal((await stat(join(dir, "testnet-gate.json"))).mode & 0o777, 0o600);
+  assert.deepEqual(calls, { deployGate: 1, createTopic: 1, verify: 0, confirmNoAdmin: 1 });
+});
+
+test("a deploy that stops after the gate resumes without deploying it again", async (t) => {
+  const dir = await privateDir(t);
+  const failing = fakeSteps({ createTopic: async () => Promise.reject(new Error("network down")) });
+  await assert.rejects(runDeploy(deployInput(dir), failing.steps, quiet), /network down/);
+  const partial = JSON.parse(await readFile(join(dir, "testnet-gate.json"), "utf8"));
+  assert.equal(partial.stage, "gate-deployed");
+  assert.equal(partial.gate.id, "0.0.101");
+  assert.equal(recordStage(partial), "gate-deployed");
+  await assert.rejects(runDeploy(deployInput(dir, partial), fakeSteps().steps, quiet), /a log key file exists but no topic is recorded/);
+  await rm(join(dir, "testnet-log-key.json"));
+  const resumed = fakeSteps();
+  const record = await runDeploy(deployInput(dir, partial), resumed.steps, quiet);
+  assert.equal(resumed.calls.deployGate, 0);
+  assert.equal(record.gate.id, "0.0.101");
+  assert.equal(record.stage, "complete");
+  await assert.rejects(runDeploy(deployInput(dir, partial, true), fakeSteps().steps, quiet), /finish it before superseding it/);
+});
+
+test("a complete record is kept unless superseded, and superseding archives it and keeps its topic", async (t) => {
+  const dir = await privateDir(t);
+  const first = await runDeploy(deployInput(dir), fakeSteps().steps, quiet);
+  await assert.rejects(runDeploy(deployInput(dir, first), fakeSteps().steps, quiet), /already recorded/);
+  const second = fakeSteps();
+  const record = await runDeploy(deployInput(dir, first, true), second.steps, quiet);
+  assert.equal(second.calls.createTopic, 0);
+  assert.equal(record.supersedes, first.gate.id);
+  assert.equal(record.topic.id, first.topic.id);
+  assert.equal(record.topic.reused, true);
+  const files = (await readdir(dir)).sort();
+  assert.equal(files.filter((name) => name.startsWith("testnet-gate-superseded-")).length, 1);
+  assert.ok(!files.some((name) => name.endsWith(".writing")));
+  assert.equal(recordStage({ gate: {}, topic: {} }), "complete");
+  assert.throws(() => recordStage({ stage: "half" }), /unknown stage half/);
 });

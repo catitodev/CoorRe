@@ -4,7 +4,11 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - hedera-engine
+      - main
+    paths:
+      - "hedera/**"
+      - ".github/workflows/hedera-solo.yml"
+  pull_request:
     paths:
       - "hedera/**"
       - ".github/workflows/hedera-solo.yml"
@@ -22,8 +26,8 @@ jobs:
         working-directory: hedera
     env:
       SOLO_VERSION: "0.94.0"
+      SOLO_TARBALL_SHA512: "f3520300230e76b573b49db545cfd4141889b3d0913937df2a32887b100efd9359bc32910a083dfd596942c59a825501ef8dbbba3bb851488cd93aae23514832"
       HARDHAT_DISABLE_TELEMETRY: "true"
-      GITHUB_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout (actions/checkout v7.0.1)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -65,21 +69,23 @@ jobs:
       - name: Contract tests (Solidity, with fuzzing)
         run: npm run test:contracts
 
-      - name: Every protection of the mandate contract fails a test when removed
-        run: npm run check:protections
-
-      - name: Install Solo
+      - name: Install Solo (exact version, tarball checksum pinned)
         run: |
-          npm install -g "@hiero-ledger/solo@${SOLO_VERSION}" --no-fund
-          solo --version
+          npm pack "@hiero-ledger/solo@${SOLO_VERSION}" --ignore-scripts --pack-destination "$RUNNER_TEMP"
+          tarball="$RUNNER_TEMP/hiero-ledger-solo-${SOLO_VERSION}.tgz"
+          echo "${SOLO_TARBALL_SHA512}  ${tarball}" | sha512sum -c -
+          npm install -g "$tarball" --no-fund
+          solo --version | grep -F "$SOLO_VERSION"
 
       - name: Deploy a single-node network
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: solo one-shot single deploy
 
       - name: Deployment and ports
         run: |
           solo one-shot show deployment
-          solo deployment config ports --deployment one-shot || true
+          solo deployment config ports --deployment one-shot
           accounts=$(ls "$HOME"/.solo/one-shot-*/accounts.json | head -n 1)
           test -n "$accounts"
           echo "SOLO_ACCOUNTS=$accounts" >> "$GITHUB_ENV"

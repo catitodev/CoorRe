@@ -107,31 +107,54 @@ export async function recordOf(client, transactionId) {
   return new TransactionRecordQuery().setTransactionId(transactionId).setValidateReceiptStatus(false).execute(client);
 }
 
-export async function mirror(config, path, accept = (body) => body) {
-  const deadline = Date.now() + 90_000;
-  let last = null;
-  while (Date.now() < deadline) {
-    const response = await fetch(`${config.mirrorRest}${path}`);
-    if (response.ok) {
-      const body = await response.json();
-      if (accept(body)) return body;
-      last = `unaccepted body for ${path}`;
-    } else {
-      last = `HTTP ${response.status} for ${path}`;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 2_000));
-  }
-  throw new Error(`mirror node: ${last}`);
+export const MIRROR_POLL = { totalMs: 90_000, intervalMs: 2_000, requestMs: 10_000 };
+export const RPC_TIMEOUT_MS = 30_000;
+
+export function requireSuccess(result, what) {
+  if (result?.status !== "SUCCESS") throw new Error(`${what} returned ${result?.status ?? "no status"}`);
+  return result;
 }
 
-export async function rpc(config, method, params = []) {
+export function callDataBytes(callData) {
+  if (!/^0x([0-9a-f]{2})+$/.test(callData)) throw new Error("call data must be lowercase 0x-prefixed hex");
+  return Buffer.from(callData.slice(2), "hex");
+}
+
+export async function mirror(config, path, accept = (body) => body, poll = MIRROR_POLL) {
+  const deadline = Date.now() + poll.totalMs;
+  let last = "no attempt was made";
+  let attempts = 0;
+  while (attempts === 0 || Date.now() < deadline) {
+    attempts += 1;
+    try {
+      const response = await fetch(`${config.mirrorRest}${path}`, { signal: AbortSignal.timeout(poll.requestMs) });
+      if (response.ok) {
+        const body = await response.json();
+        if (accept(body)) return body;
+        last = `unaccepted body for ${path}`;
+      } else {
+        last = `HTTP ${response.status} for ${path}`;
+      }
+    } catch (error) {
+      last = `${error.name}: ${error.message} for ${path}`;
+    }
+    if (Date.now() + poll.intervalMs >= deadline) break;
+    await new Promise((resolve) => setTimeout(resolve, poll.intervalMs));
+  }
+  throw new Error(`mirror node after ${attempts} attempt(s): ${last}`);
+}
+
+export async function rpc(config, method, params = [], timeoutMs = RPC_TIMEOUT_MS) {
   const response = await fetch(config.relay, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+    signal: AbortSignal.timeout(timeoutMs),
   });
+  if (!response.ok) throw new Error(`${method}: relay returned HTTP ${response.status}`);
   const body = await response.json();
   if (body.error) throw new Error(`${method}: ${JSON.stringify(body.error)}`);
+  if (!Object.hasOwn(body, "result")) throw new Error(`${method}: relay answered without a result`);
   return body.result;
 }
 
@@ -179,6 +202,23 @@ async function confirmed(transaction, client, what) {
   return { response, receipt };
 }
 
+export function settleUpload(outcome, failure, cleanup) {
+  if (failure) {
+    const note = cleanup.deleted ? "" : `; the bytecode file ${cleanup.fileId} was not deleted: ${cleanup.error}`;
+    throw new Error(`${failure.message}${note}`, { cause: failure });
+  }
+  return { ...outcome, bytecodeFile: cleanup };
+}
+
+async function deleteBytecodeFile(client, fileId) {
+  try {
+    const deleted = await confirmed(new FileDeleteTransaction().setFileId(fileId), client, "file delete");
+    return { fileId: fileId.toString(), deleted: true, transactionId: deleted.response.transactionId.toString() };
+  } catch (error) {
+    return { fileId: fileId.toString(), deleted: false, error: `${error.name}: ${error.message}` };
+  }
+}
+
 export async function deployDetailed(client, artifact, parameters, gas, options = {}) {
   const chunks = splitChunks(hexBytecode(artifact.bytecode), options.chunkChars ?? DEFAULT_UPLOAD_CHUNK_CHARS);
   const operatorKey = client.operatorPublicKey;
@@ -186,6 +226,8 @@ export async function deployDetailed(client, artifact, parameters, gas, options 
   const created = await confirmed(new FileCreateTransaction().setKeys([operatorKey]).setContents(chunks[0]), client, "file create");
   const fileId = created.receipt.fileId;
   const uploads = [created.response.transactionId.toString()];
+  let outcome = null;
+  let failure = null;
   try {
     for (const chunk of chunks.slice(1)) {
       const appended = await confirmed(new FileAppendTransaction().setFileId(fileId).setContents(chunk), client, "file append");
@@ -194,14 +236,11 @@ export async function deployDetailed(client, artifact, parameters, gas, options 
     const contractCreate = new ContractCreateTransaction().setBytecodeFileId(fileId).setGas(gas).setMaxTransactionFee(new Hbar(options.contractMaxFeeHbar ?? CONTRACT_CREATE_MAX_FEE_HBAR));
     if (parameters) contractCreate.setConstructorParameters(parameters);
     const deployed = await confirmed(contractCreate, client, "contract create");
-    return { contractId: deployed.receipt.contractId, transactionId: deployed.response.transactionId.toString(), fileId: fileId.toString(), uploads, chunks: chunks.length };
-  } finally {
-    try {
-      await confirmed(new FileDeleteTransaction().setFileId(fileId), client, "file delete");
-    } catch {
-      uploads.push(`file ${fileId} was not deleted`);
-    }
+    outcome = { contractId: deployed.receipt.contractId, transactionId: deployed.response.transactionId.toString(), fileId: fileId.toString(), uploads, chunks: chunks.length };
+  } catch (error) {
+    failure = error;
   }
+  return settleUpload(outcome, failure, await deleteBytecodeFile(client, fileId));
 }
 
 export async function deploy(client, artifact, parameters, gas, options = {}) {

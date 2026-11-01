@@ -788,19 +788,207 @@ contract CoorReMandateGateTest is CheatCodes {
         gate.decide(mandateId, agreementId, 1, auditHash, 1, evidenceHash);
     }
 
-    function testFuzzNoDecisionOutsideTheAuthority(bool revoke, bool adminChanges, uint64 offset) public {
+    function attemptUnderAuthority(bool revoke, bool adminChanges, uint64 at) internal returns (bool decided, bytes4 refusal) {
         registerHuman();
         if (revoke) gate.revokeMandate(mandateId);
         if (adminChanges) changeAdmin();
-        uint64 at = START + offset % uint64(120 days);
         vm.warp(at);
         vm.prank(HUMAN);
-        try gate.decide(mandateId, agreementId, 1, auditHash, 1, evidenceHash) returns (bool) {
-            require(!revoke, "decided with a revoked mandate");
-            require(!adminChanges, "decided with an issuer that is not the admin");
-            require(at <= START + 30 days, "decided after the mandate ended");
-            require(at <= START + WINDOW, "decided after the deadline");
-        } catch {}
+        try gate.decide(mandateId, agreementId, 1, auditHash, 1, evidenceHash) returns (bool executed) {
+            decided = executed;
+        } catch (bytes memory reason) {
+            refusal = bytes4(reason);
+        }
+    }
+
+    function testADecisionInsideTheAuthorityExecutes() public {
+        (bool decided, bytes4 refusal) = attemptUnderAuthority(false, false, START + uint64(WINDOW));
+        require(decided && refusal == bytes4(0), "decided inside the authority");
+        require(stateOf(1) == escrow.STATE_APPROVED(), "approved");
+    }
+
+    function testFuzzNoDecisionOutsideTheAuthority(bool revoke, bool adminChanges, uint64 offset) public {
+        uint64 at = offset % 2 == 0 ? START + (offset / 2) % uint64(2 * WINDOW) : START + offset % uint64(120 days);
+        (bool decided, bytes4 refusal) = attemptUnderAuthority(revoke, adminChanges, at);
+        bool outside = revoke || adminChanges || at > START + 30 days || at > START + WINDOW;
+        if (decided) {
+            require(!outside, "decided outside the authority");
+            require(stateOf(1) == escrow.STATE_APPROVED(), "approved");
+        } else {
+            require(outside, "refused inside the authority");
+            require(
+                refusal == CoorReMandateGate.MandateNotActive.selector || refusal == CoorReMandateGate.IssuerNotAdmin.selector
+                    || refusal == CoorReMandateGate.DeadlinePassed.selector,
+                "refused for a reason other than the authority"
+            );
+        }
+    }
+
+    function testAZeroMandateIdIsRefused() public {
+        (address[] memory d, uint8[] memory k) = one(HUMAN, 1);
+        CoorReMandateGate.MandateTerms memory t = terms(1, false, 0);
+        vm.expectRevert(CoorReMandateGate.InvalidTerms.selector);
+        gate.registerMandate(bytes32(0), t, d, k, new uint256[](0));
+    }
+
+    function testDelegatesAndKindsMustBeNonEmptyAndMatch() public {
+        CoorReMandateGate.MandateTerms memory t = terms(1, false, 0);
+        vm.expectRevert(CoorReMandateGate.InvalidTerms.selector);
+        gate.registerMandate(mandateId, t, new address[](0), new uint8[](0), new uint256[](0));
+        (address[] memory d,) = one(HUMAN, 1);
+        uint8[] memory extra = new uint8[](2);
+        extra[0] = 1;
+        extra[1] = 2;
+        vm.expectRevert(CoorReMandateGate.InvalidTerms.selector);
+        gate.registerMandate(mandateId, t, d, extra, new uint256[](0));
+        (address[] memory pair,) = two(HUMAN, HUMAN_2);
+        (, uint8[] memory single) = one(HUMAN, 1);
+        vm.expectRevert(CoorReMandateGate.InvalidTerms.selector);
+        gate.registerMandate(mandateId, t, pair, single, new uint256[](0));
+    }
+
+    function testAllAgreementsAndAListAreExclusive() public {
+        (address[] memory d, uint8[] memory k) = one(HUMAN, 1);
+        uint256[] memory ids = new uint256[](1);
+        ids[0] = agreementId;
+        CoorReMandateGate.MandateTerms memory t = terms(1, false, 0);
+        vm.expectRevert(CoorReMandateGate.InvalidTerms.selector);
+        gate.registerMandate(mandateId, t, d, k, ids);
+        t.allAgreements = false;
+        vm.expectRevert(CoorReMandateGate.InvalidTerms.selector);
+        gate.registerMandate(mandateId, t, d, k, new uint256[](0));
+        gate.registerMandate(mandateId, t, d, k, ids);
+        require(gate.agreementInScope(mandateId, agreementId), "listed agreement in scope");
+    }
+
+    function testAZeroDelegateIsRefused() public {
+        (address[] memory d, uint8[] memory k) = one(address(0), 1);
+        CoorReMandateGate.MandateTerms memory t = terms(1, false, 0);
+        vm.expectRevert(CoorReMandateGate.ZeroAddress.selector);
+        gate.registerMandate(mandateId, t, d, k, new uint256[](0));
+    }
+
+    function testApprovalOutsideTheMandateIsRefused() public {
+        (address[] memory d, uint8[] memory k) = one(HUMAN, 1);
+        CoorReMandateGate.MandateTerms memory t = terms(1, false, 0);
+        t.allowApprove = false;
+        register(mandateId, t, d, k);
+        vm.prank(HUMAN);
+        vm.expectRevert(CoorReMandateGate.OutOfScope.selector);
+        gate.decide(mandateId, agreementId, 1, auditHash, 1, evidenceHash);
+        require(decideAs(HUMAN, 1, auditHash, 2), "the allowed rejection executes");
+    }
+
+    function testRevokingAnUnknownMandateIsRefused() public {
+        vm.expectRevert(CoorReMandateGate.UnknownMandate.selector);
+        gate.revokeMandate(mandateId);
+        registerHuman();
+        require(!gate.getMandate(mandateId).revoked, "registered active");
+    }
+
+    function testDecisionAnchoredCarriesEachFieldOfAQuorumVote() public {
+        registerPair(2, false);
+        vm.expectEmit(true, true, true, true, address(gate));
+        emit CoorReMandateGate.DecisionAnchored(mandateId, agreementId, 1, auditHash, 1, HUMAN, 1, evidenceHash, START, false);
+        decideAs(HUMAN, 1, auditHash, 1);
+        vm.expectEmit(true, true, true, true, address(gate));
+        emit CoorReMandateGate.DecisionAnchored(mandateId, agreementId, 1, auditHash, 1, HUMAN_2, 1, evidenceHash, START, true);
+        decideAs(HUMAN_2, 1, auditHash, 1);
+    }
+
+    function testDecisionAnchoredNamesAnAgentApprovalAndAHumanRejection() public {
+        (address[] memory d, uint8[] memory k) = one(AGENT, 2);
+        register(mandateId, terms(1, true, PERIOD_AMOUNT), d, k);
+        bytes32 humanMandate = keccak256("mandate-human");
+        (address[] memory h, uint8[] memory hk) = one(HUMAN, 1);
+        register(humanMandate, terms(1, false, 0), h, hk);
+        bytes32 second = keccak256("audit-2");
+        submit(2, second);
+        vm.expectEmit(true, true, true, true, address(gate));
+        emit CoorReMandateGate.DecisionAnchored(mandateId, agreementId, 1, auditHash, 1, AGENT, 2, evidenceHash, START, true);
+        decideAs(AGENT, 1, auditHash, 1);
+        vm.expectEmit(true, true, true, true, address(gate));
+        emit CoorReMandateGate.DecisionAnchored(humanMandate, agreementId, 2, second, 2, HUMAN, 1, evidenceHash, START, true);
+        vm.prank(HUMAN);
+        gate.decide(humanMandate, agreementId, 2, second, 2, evidenceHash);
+    }
+
+    function testReviewRecordedCarriesEachField() public {
+        registerPair(2, true);
+        toReview(1);
+        uint64 at = uint64(block.timestamp);
+        vm.expectEmit(true, true, true, true, address(gate));
+        emit CoorReMandateGate.ReviewRecorded(mandateId, agreementId, 1, auditHash, 2, HUMAN, evidenceHash, at, false);
+        reviewAs(HUMAN, 1, auditHash, 2);
+        vm.expectEmit(true, true, true, true, address(gate));
+        emit CoorReMandateGate.ReviewRecorded(mandateId, agreementId, 1, auditHash, 2, HUMAN_2, evidenceHash, at, true);
+        reviewAs(HUMAN_2, 1, auditHash, 2);
+    }
+
+    function testTheReferenceEscrowRefusesARepeatedAuditHash() public {
+        registerHuman();
+        toReview(1);
+        vm.prank(ORACLE);
+        vm.expectRevert(ReferencePeriodEscrow.AuditHashUsed.selector);
+        escrow.submitBatch(agreementId, 1, auditHash, 80, 1);
+    }
+
+    function testAHostThatAcceptsARepeatedAuditHashLetsAnEarlierRoundVoteCount() public {
+        RepeatedHashEscrow host = new RepeatedHashEscrow(address(this));
+        CoorReMandateGate hostGate = new CoorReMandateGate(address(host), MAX_VALIDITY);
+        (address[] memory d, uint8[] memory k) = two(HUMAN, HUMAN_2);
+        hostGate.registerMandate(mandateId, terms(2, false, 0), d, k, new uint256[](0));
+        host.submit(auditHash);
+        vm.prank(HUMAN);
+        require(!hostGate.decide(mandateId, 0, 1, auditHash, 1, evidenceHash), "first round: one vote of two");
+        host.expire();
+        host.submit(auditHash);
+        vm.prank(HUMAN_2);
+        require(hostGate.decide(mandateId, 0, 1, auditHash, 1, evidenceHash), "second round: the earlier vote completes the quorum");
+        require(host.approvals() == 1, "approved with a single vote cast in this round");
+    }
+}
+
+contract RepeatedHashEscrow {
+    address public immutable adminAccount;
+    IPeriodEscrow.Period internal period;
+    uint256 public approvals;
+
+    constructor(address admin_) {
+        adminAccount = admin_;
+    }
+
+    function submit(bytes32 hash) external {
+        period.state = 1;
+        period.auditHash = hash;
+        period.submitter = address(0xA11CE);
+        period.approvalDeadline = type(uint64).max;
+    }
+
+    function expire() external {
+        period.state = 5;
+    }
+
+    function admin() external view returns (address) {
+        return adminAccount;
+    }
+
+    function getAgreement(uint256) external pure returns (IPeriodEscrow.Agreement memory a) {
+        a.mode = 1;
+        a.periodAmount = 1;
+    }
+
+    function getPeriod(uint256, uint256) external view returns (IPeriodEscrow.Period memory) {
+        return period;
+    }
+
+    function approve(uint256, uint256) external {
+        approvals += 1;
+        period.state = 2;
+    }
+
+    function reject(uint256, uint256) external {
+        period.state = 4;
     }
 }
 

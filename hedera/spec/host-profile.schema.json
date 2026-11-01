@@ -65,7 +65,7 @@
       "required": ["name", "type"],
       "properties": {
         "name": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]*$" },
-        "type": { "enum": ["uint8", "uint16", "uint64", "uint256", "bytes32", "address", "string"] }
+        "type": { "enum": ["uint8", "uint16", "uint64", "uint256", "bytes32", "address"] }
       }
     },
     "action": {
@@ -184,10 +184,28 @@
     "evidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["hostDocument", "hostDigest", "decisionDocument", "source"],
+      "required": ["hostDocument", "hostDigest", "auditHashUnique", "decisionDocument", "source"],
       "properties": {
         "hostDocument": { "type": "string", "minLength": 1 },
         "hostDigest": { "type": "string", "minLength": 1 },
+        "auditHashUnique": {
+          "description": "The host refuses a submission whose auditHash it has seen before. The gate keys a period's votes by agreementId, periodId and auditHash, so this refusal is what keeps a vote from an earlier round out of a later one.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["refusal", "source"],
+          "properties": {
+            "refusal": { "type": "string", "minLength": 1 },
+            "source": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "ref"],
+              "properties": {
+                "kind": { "const": "host-code" },
+                "ref": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        },
         "decisionDocument": { "type": "string", "minLength": 1 },
         "source": { "$ref": "#/$defs/source" }
       }

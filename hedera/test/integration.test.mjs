@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { callDataBytes, indexedAddress } from "../integration/run.mjs";
+import { indexedAddress } from "../integration/run.mjs";
+import { callDataBytes } from "../lib/network.mjs";
 
 test("callDataBytes accepts only lowercase 0x-prefixed whole bytes", () => {
   assert.deepEqual([...callDataBytes("0x5d35a3d9")], [0x5d, 0x35, 0xa3, 0xd9]);

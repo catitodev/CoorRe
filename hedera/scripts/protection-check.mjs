@@ -1,11 +1,24 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
-import { readFile, writeFile } from "node:fs/promises";
+import { rmSync } from "node:fs";
+import { cp, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { HEDERA_ROOT } from "../lib/paths.mjs";
+import { assertFrozenSources } from "../lib/frozen.mjs";
+import { HEDERA_ROOT, isInside } from "../lib/paths.mjs";
 
 const CONTRACT = join(HEDERA_ROOT, "contracts", "CoorReMandateGate.sol");
+const WORK_CONFIG = `import { defineConfig } from "hardhat/config";
+
+export default defineConfig({
+  solidity: {
+    version: "0.8.28",
+    settings: { optimizer: { enabled: true, runs: 200 }, viaIR: true, evmVersion: "paris" },
+  },
+  paths: { sources: "contracts", cache: ".cache/hardhat", artifacts: ".cache/artifacts" },
+});
+`;
 
 const line = (text) => `        ${text}\n`;
 
@@ -25,6 +38,22 @@ export const PROTECTIONS = [
   },
   { name: "a mandate is revoked once", find: line("if (m.revoked) revert MandateNotActive();"), replace: "" },
   { name: "a mandate id is registered once", find: line("if (mandates[mandateId].registered) revert MandateExists();"), replace: "" },
+  { name: "a mandate id is not zero", find: line("if (mandateId == bytes32(0)) revert InvalidTerms();"), replace: "" },
+  { name: "a mandate names delegates and one kind per delegate", find: line("if (delegates.length == 0 || delegates.length != kinds.length) revert InvalidTerms();"), replace: "" },
+  { name: "all agreements or a list, never both nor neither", find: line("if (terms.allAgreements == (agreementIds.length > 0)) revert InvalidTerms();"), replace: "" },
+  { name: "no autonomy limit value without a limit", find: line("if (!terms.hasAutonomyLimit && terms.autonomyLimit != 0) revert InvalidTerms();"), replace: "" },
+  { name: "no zero delegate", find: line("if (delegates[i] == address(0)) revert ZeroAddress();"), replace: "" },
+  { name: "a delegate kind is known", find: line("if (kinds[i] != KIND_HUMAN && kinds[i] != KIND_AGENT) revert InvalidTerms();"), replace: "" },
+  {
+    name: "only a registered mandate is revoked",
+    find: line("if (!m.registered) revert UnknownMandate();") + line("if (msg.sender != escrow.admin() && msg.sender != m.issuer) revert NotIssuer();"),
+    replace: line("if (msg.sender != escrow.admin() && msg.sender != m.issuer) revert NotIssuer();"),
+  },
+  {
+    name: "only a registered mandate decides",
+    find: line("m = mandates[mandateId];") + line("if (!m.registered) revert UnknownMandate();"),
+    replace: line("m = mandates[mandateId];"),
+  },
   { name: "a mandate must allow some verdict", find: line("if (!terms.allowApprove && !terms.allowReject && !terms.allowReview) revert InvalidTerms();"), replace: "" },
   { name: "a mandate does not start after it ends", find: line("if (terms.validFrom >= terms.validUntil) revert InvalidTerms();"), replace: "" },
   { name: "a mandate is not registered already expired", find: line("if (terms.validUntil <= block.timestamp) revert InvalidTerms();"), replace: "" },
@@ -43,6 +72,8 @@ export const PROTECTIONS = [
   { name: "the mandate stays bound to the escrow admin", find: line("if (m.issuer != escrow.admin()) revert IssuerNotAdmin();"), replace: "" },
   { name: "only delegates decide", find: line("if (kind == 0) revert UnauthorizedActor();"), replace: "" },
   { name: "an agent cannot reject", find: line("if (kind == KIND_AGENT && verdict != VERDICT_APPROVE) revert UnauthorizedActor();"), replace: "" },
+  { name: "a decision verdict is known", find: line("if (verdict != VERDICT_APPROVE && verdict != VERDICT_REJECT) revert InvalidVerdict();"), replace: "" },
+  { name: "approval in scope", find: line("if (verdict == VERDICT_APPROVE && !m.terms.allowApprove) revert OutOfScope();"), replace: "" },
   { name: "verdict in scope", find: line("if (verdict == VERDICT_REJECT && !m.terms.allowReject) revert OutOfScope();"), replace: "" },
   {
     name: "agreement in scope for a decision",
@@ -114,15 +145,37 @@ export function applyProtectionRemoval(source, protection) {
   return source.replace(protection.find, protection.replace);
 }
 
-function runSuite() {
-  const result = spawnSync("npx", ["hardhat", "test", "solidity"], {
-    cwd: HEDERA_ROOT,
+export function classifyRun({ status, output }) {
+  const failing = [...new Set([...output.matchAll(/^\s+\d+\) \S+#(\w+)/gm)].map((match) => match[1]))];
+  const passing = Number(/^\s*(\d+) passing/m.exec(output)?.[1] ?? 0);
+  const failingCount = Number(/^\s*(\d+) failing/m.exec(output)?.[1] ?? 0);
+  const hardhatError = /^Error HHE\d+/m.test(output) || /^\w*Error: .*\n\s+--> /m.test(output);
+  if (status === 0 && !hardhatError && failingCount === 0 && passing > 0) return { verdict: "passed", failing, passing };
+  if (status !== 0 && !hardhatError && failingCount > 0 && failing.length > 0) return { verdict: "caught", failing, passing };
+  const reason = hardhatError ? "Hardhat or the compiler stopped before the tests ran" : status === 0 ? "the run reported no passing test" : "the run failed without a failing test";
+  return { verdict: "inconclusive", failing, passing, reason };
+}
+
+function runSuite(workDir) {
+  const result = spawnSync(join(HEDERA_ROOT, "node_modules", ".bin", "hardhat"), ["--config", join(workDir, "hardhat.config.mjs"), "test", "solidity"], {
+    cwd: workDir,
     env: { ...process.env, HARDHAT_DISABLE_TELEMETRY: "true" },
     encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
   });
+  if (result.error) throw result.error;
   const output = `${result.stdout}\n${result.stderr}`;
-  const failing = [...output.matchAll(/^\s+\d+\) \S+#(\w+)/gm)].map((match) => match[1]);
-  return { status: result.status, failing: [...new Set(failing)], output };
+  return { status: result.status, output, ...classifyRun({ status: result.status, output }) };
+}
+
+export async function prepareWorkDir(parent = tmpdir()) {
+  const workDir = await mkdtemp(join(parent, "coorre-protection-check-"));
+  if (isInside(HEDERA_ROOT, workDir)) throw new Error("the mutation work directory must be outside the repository");
+  await cp(join(HEDERA_ROOT, "contracts"), join(workDir, "contracts"), { recursive: true });
+  await symlink(join(HEDERA_ROOT, "node_modules"), join(workDir, "node_modules"), "dir");
+  await writeFile(join(workDir, "package.json"), '{ "type": "module", "private": true }\n');
+  await writeFile(join(workDir, "hardhat.config.mjs"), WORK_CONFIG);
+  return workDir;
 }
 
 export function selectProtections(argv) {
@@ -136,26 +189,45 @@ export function selectProtections(argv) {
 
 async function main() {
   const selected = selectProtections(process.argv.slice(2));
+  await assertFrozenSources();
   const original = await readFile(CONTRACT, "utf8");
-  const baseline = runSuite();
-  if (baseline.status !== 0) {
-    process.stdout.write(baseline.output);
-    throw new Error("the suite fails before any protection is removed");
-  }
-  console.log("baseline: all tests pass");
+  const workDir = await prepareWorkDir();
+  const cleanUp = () => rmSync(workDir, { recursive: true, force: true });
+  const stop = (signal) => {
+    cleanUp();
+    process.kill(process.pid, signal);
+  };
+  process.once("SIGINT", stop);
+  process.once("SIGTERM", stop);
+  const mutant = join(workDir, "contracts", "CoorReMandateGate.sol");
   const survivors = [];
+  const inconclusive = [];
   try {
+    const baseline = runSuite(workDir);
+    if (baseline.verdict !== "passed") {
+      process.stdout.write(baseline.output);
+      throw new Error(`the suite does not pass before any protection is removed (${baseline.reason ?? baseline.verdict})`);
+    }
+    console.log(`baseline: ${baseline.passing} tests pass on a copy in ${workDir}`);
     for (const protection of selected) {
-      await writeFile(CONTRACT, applyProtectionRemoval(original, protection));
-      const run = runSuite();
-      if (run.status === 0) survivors.push(protection.name);
-      console.log(`${run.status === 0 ? "SURVIVED" : "caught  "} ${protection.name}${run.failing.length ? `: ${run.failing.join(", ")}` : ""}`);
+      await writeFile(mutant, applyProtectionRemoval(original, protection));
+      const run = runSuite(workDir);
+      if (run.verdict === "passed") survivors.push(protection.name);
+      if (run.verdict === "inconclusive") {
+        inconclusive.push(protection.name);
+        process.stdout.write(run.output);
+      }
+      const label = { passed: "SURVIVED", caught: "caught  ", inconclusive: "INCONCLUSIVE" }[run.verdict];
+      console.log(`${label} ${protection.name}${run.failing.length ? `: ${run.failing.join(", ")}` : ""}${run.reason ? ` (${run.reason})` : ""}`);
     }
   } finally {
-    await writeFile(CONTRACT, original);
+    process.removeListener("SIGINT", stop);
+    process.removeListener("SIGTERM", stop);
+    cleanUp();
   }
-  if (survivors.length > 0) {
-    console.log(`FAIL: ${survivors.length} protection(s) can be removed without a failing test`);
+  await assertFrozenSources();
+  if (survivors.length > 0 || inconclusive.length > 0) {
+    console.log(`FAIL: ${survivors.length} protection(s) can be removed without a failing test, ${inconclusive.length} run(s) were inconclusive`);
     process.exit(1);
   }
   console.log(`PASS: removing any of the ${selected.length} protection(s) fails at least one test`);

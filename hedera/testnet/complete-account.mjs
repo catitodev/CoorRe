@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-import { chmod, readFile, writeFile } from "node:fs/promises";
+import { chmod, writeFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { AccountId, AccountUpdateTransaction, Client, Hbar, PrivateKey, Status } from "@hiero-ledger/sdk";
-import { OPERATOR_FILE, TESTNET, mirrorGet } from "./operator.mjs";
+import { OPERATOR_FILE, TESTNET, mirrorGet, readPrivateFile } from "./operator.mjs";
 
 const MAX_FEE_HBAR = 1;
 const ACCOUNT_MEMO = "coorre-operator";
@@ -52,7 +52,7 @@ async function saveAccountId(data, accountId) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const data = JSON.parse(await readFile(OPERATOR_FILE, "utf8"));
+  const data = JSON.parse(await readPrivateFile(OPERATOR_FILE));
   const { key, evm } = readOperatorFile(data);
   const account = await mirrorGet(`/api/v1/accounts/${evm}`);
   const state = classifyAccount(account, key.publicKey.toStringRaw());

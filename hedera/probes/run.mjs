@@ -232,6 +232,16 @@ async function probeRelay(config) {
   ];
 }
 
+export async function escrowProbeAfter(ctx, run) {
+  if (!ctx.operatorSender) return [{ id: "escrow", status: "error", error: "not run: the addresses-and-time probe did not establish the operator's EVM sender" }];
+  return run();
+}
+
+export function probeExitCode(results) {
+  if (results.length === 0) return 1;
+  return results.some((entry) => entry.status === "error" || entry.status === "failed") ? 1 : 0;
+}
+
 async function guarded(id, run) {
   try {
     return await run();
@@ -252,7 +262,7 @@ async function main() {
   const results = [];
   results.push(...(await guarded("relay", () => probeRelay(config))));
   results.push(...(await guarded("addresses-and-time", () => probeAddressesAndTime(config, ctx))));
-  if (ctx.operatorSender) results.push(...(await guarded("escrow", () => probeEscrow(config, ctx))));
+  results.push(...(await escrowProbeAfter(ctx, () => guarded("escrow", () => probeEscrow(config, ctx)))));
   results.push(...(await guarded("topics", () => probeTopics(config, ctx))));
   const report = { createdAt: new Date().toISOString(), endpoints: { consensus: config.consensus, mirrorRest: config.mirrorRest, relay: config.relay }, results };
   await mkdir(dirname(config.report), { recursive: true });
@@ -261,7 +271,7 @@ async function main() {
   console.log(`report: ${config.report}`);
   operatorClient.close();
   for (const client of ecdsaClients) client.close();
-  if (results.some((entry) => entry.status === "error" || entry.status === "failed")) process.exit(1);
+  process.exitCode = probeExitCode(results);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

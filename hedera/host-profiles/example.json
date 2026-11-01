@@ -115,7 +115,7 @@
     "autonomyLimit": {
       "appliesTo": "periodAmount of the agreement, approved by an automated delegate",
       "value": null,
-      "unit": "tinybar",
+      "unit": "the unit of the host's periodAmount, compared as the same number (tinybar in the reference escrow)",
       "error": "MandateExceeded",
       "source": {
         "kind": "coorre-proposal",
@@ -134,7 +134,14 @@
   "evidence": {
     "hostDocument": "the host's audit document for the period",
     "hostDigest": "auditHash = SHA-256 of the audit document bytes, the bytes32 submitted on-chain",
-    "decisionDocument": "CoorRe decision credential (W3C VC, eddsa-jcs-2022) that names the audit document as an artifact by the SHA-256 of its raw bytes",
+    "auditHashUnique": {
+      "refusal": "submitBatch reverts with AuditHashUsed when the auditHash was submitted before, for any agreement or period",
+      "source": {
+        "kind": "host-code",
+        "ref": "hedera/contracts/reference/ReferencePeriodEscrow.sol:140"
+      }
+    },
+    "decisionDocument": "CoorRe decision document (coorre-decision/1, JCS) that names the case, the mandate, the verdict and the audit document by its auditHash; evidenceHash is its SHA-256",
     "source": {
       "kind": "coorre-proposal",
       "ref": "docs/hedera/SPEC.md#decision"

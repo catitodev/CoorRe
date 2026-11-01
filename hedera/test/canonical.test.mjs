@@ -29,6 +29,17 @@ test("JCS refuses values JSON cannot carry", () => {
   assert.throws(() => jcs(1n), /bigint/);
 });
 
+test("JCS refuses objects that are not plain JSON objects instead of encoding their fields", () => {
+  assert.throws(() => jcs({ at: new Date(0) }), /cannot encode a Date/);
+  assert.throws(() => jcs(Buffer.from("ab")), /cannot encode a Buffer/);
+  assert.throws(() => jcs(new Map([["a", 1]])), /cannot encode a Map/);
+  assert.throws(() => jcs(new Set([1])), /cannot encode a Set/);
+  assert.throws(() => jcs(new Uint8Array(2)), /cannot encode a Uint8Array/);
+  assert.throws(() => jcs([1, , 3]), /undefined/);
+  assert.equal(jcs(Object.assign(Object.create(null), { b: 1, a: 2 })), '{"a":2,"b":1}');
+  assert.equal(jcs(JSON.parse('{"__proto__":1}')), '{"__proto__":1}');
+});
+
 test("case_id matches the Rust core vector for SUP-001", () => {
   assert.equal(caseId("urn:coorre:case:SUP-001"), "3399ee0b9edb655f3ca4c144f4f37310fc6b20ca53423dd567d890970b50a805");
 });

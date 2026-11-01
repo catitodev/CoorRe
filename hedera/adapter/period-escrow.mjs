@@ -1,5 +1,6 @@
 import { ContractFunctionParameters } from "@hiero-ledger/sdk";
-import { caseId, caseRef, jcs, jcsHash } from "../lib/canonical.mjs";
+import { caseId, caseRef, jcsHash } from "../lib/canonical.mjs";
+import { logFieldsBeforeSending } from "../lib/log.mjs";
 
 export const DECIDE_SIGNATURE = "decide(bytes32,uint256,uint256,bytes32,uint8,bytes32)";
 export const DECIDE_SELECTOR = "0xcd2d478a";
@@ -37,6 +38,7 @@ const VERDICT_CODES = { approve: 1, reject: 2 };
 const REVIEW_OUTCOMES = { resubmit: 1, "close-no-pay": 2 };
 const MAX_REASON_CHARS = 500;
 const UINT_LIMITS = { uint8: 2n ** 8n, uint16: 2n ** 16n, uint64: 2n ** 64n, uint256: 2n ** 256n };
+export const INPUT_TYPES = ["bytes32", "address", ...Object.keys(UINT_LIMITS)];
 
 function decisionPoint(profile, name) {
   const point = profile.decisionPoints.find((entry) => entry.name === name);
@@ -56,6 +58,7 @@ function address(value, field) {
 }
 
 function uint(value, type, field) {
+  if (!Object.hasOwn(UINT_LIMITS, type)) throw new Error(`${field} has the unsupported type ${type}`);
   const text = String(value);
   if (!/^(0|[1-9][0-9]*)$/.test(text)) throw new Error(`${field} must be a non-negative integer`);
   const number = BigInt(text);
@@ -70,13 +73,29 @@ export function readInput(profile, input) {
   for (const field of point.inputs) {
     if (!(field.name in input)) throw new Error(`missing input ${field.name}`);
     const value = input[field.name];
-    read[field.name] = field.type === "bytes32" ? hex32(value, field.name) : field.type === "address" ? address(value, field.name) : uint(value, field.type, field.name);
+    switch (field.type) {
+      case "bytes32":
+        read[field.name] = hex32(value, field.name);
+        break;
+      case "address":
+        read[field.name] = address(value, field.name);
+        break;
+      case "uint8":
+      case "uint16":
+      case "uint64":
+      case "uint256":
+        read[field.name] = uint(value, field.type, field.name);
+        break;
+      default:
+        throw new Error(`input ${field.name} has the unsupported type ${field.type}`);
+    }
   }
   if (Number(read.score) > 100) throw new Error("score must be at most 100");
   return { hostId: profile.hostId, decisionPoint: point.name, ...read };
 }
 
 function verdictAction(point, verdict) {
+  if (!Object.hasOwn(VERDICT_CODES, verdict)) throw new Error(`verdict must be one of ${Object.keys(VERDICT_CODES).join(", ")}`);
   const action = point.actions.find((entry) => entry.verdict === verdict);
   if (!action) throw new Error(`verdict must be one of ${point.actions.map((entry) => entry.verdict).join(", ")}`);
   return action;
@@ -143,12 +162,12 @@ export function prepareDecision(profile, input, context) {
   }
   if (!call.callData.startsWith(call.selector)) throw new Error(`call data does not start with ${call.selector}`);
 
-  const logEntry = { kind: "decision", path: context.mode, case_ref: ref, mandateId, evidenceHash, auditHash: read.auditHash, verdict: context.verdict, delegate };
-  const logMessage = jcs(logEntry);
-  const maxLogBytes = profile.log.maxMessageBytes;
-  if (Buffer.byteLength(logMessage, "utf8") > maxLogBytes) throw new Error(`log message exceeds ${maxLogBytes} bytes`);
+  const logFields = logFieldsBeforeSending(
+    { kind: "decision", hostId: profile.hostId, path: context.mode, case_ref: ref, mandateId, evidenceHash, auditHash: read.auditHash, verdict: context.verdict, delegate },
+    profile.log.maxMessageBytes,
+  );
 
-  return { case_ref: ref, case_id: caseId(ref), decisionDocument, evidenceHash, call, logMessage };
+  return { case_ref: ref, case_id: caseId(ref), decisionDocument, evidenceHash, call, logFields };
 }
 
 export function prepareReview(profile, input, context) {
@@ -195,10 +214,10 @@ export function prepareReview(profile, input, context) {
   const call = { to: gate, function: REVIEW_SIGNATURE, selector: REVIEW_SELECTOR, abi: [REVIEW_ABI], callData: hexOf(data), value: "0" };
   if (!call.callData.startsWith(call.selector)) throw new Error(`call data does not start with ${call.selector}`);
 
-  const logEntry = { kind: "review", case_ref: ref, mandateId, evidenceHash, auditHash: read.auditHash, outcome: context.outcome, delegate };
-  const logMessage = jcs(logEntry);
-  const maxLogBytes = profile.log.maxMessageBytes;
-  if (Buffer.byteLength(logMessage, "utf8") > maxLogBytes) throw new Error(`log message exceeds ${maxLogBytes} bytes`);
+  const logFields = logFieldsBeforeSending(
+    { kind: "review", hostId: profile.hostId, case_ref: ref, mandateId, evidenceHash, auditHash: read.auditHash, outcome: context.outcome, delegate },
+    profile.log.maxMessageBytes,
+  );
 
-  return { case_ref: ref, case_id: caseId(ref), reviewDocument, evidenceHash, call, logMessage };
+  return { case_ref: ref, case_id: caseId(ref), reviewDocument, evidenceHash, call, logFields };
 }
