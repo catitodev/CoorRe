@@ -28,6 +28,24 @@ refund account, two creators with the same case_id). The program account shows 3
 successful transactions after the run, none failed (rejected attempts fail in
 simulation and are never sent).
 
+### Second test run on the deployed program (2026-11-01)
+
+The same program, unchanged, tested again with the suite as of commit `12c7cf5`, which
+adds the limit boundary: an amount equal to the autonomy limit is auto-approved and the
+closed case then refuses any further transition, and one lamport above the limit fails
+with MandateExceeded.
+
+| Field | Value |
+|---|---|
+| Result | **19 passing**, none failing (1 minute) |
+| Environment | Solana Playground on devnet; program ID set to `9esN1A8K1SASLg17ob81dbSdB4VX8ozc6tBLmJ247Wv` and IDL imported from `onchain/idl/coorre_anchor.json`; nothing deployed |
+| Test wallet | [`3W73LczSJPZKTn7KGRed2NTpF8WQkAHx19sXyCe9maW6`](https://explorer.solana.com/address/3W73LczSJPZKTn7KGRed2NTpF8WQkAHx19sXyCe9maW6?cluster=devnet), funded with 5 devnet SOL from faucet.solana.com; it holds no authority over the program |
+| Transactions | 42 on the wallet, none failed, 2026-11-01 18:24 to 20:06 UTC: the faucet transfer of 5 SOL [`gxSxXAXV…E1drKHv`](https://explorer.solana.com/tx/gxSxXAXVA8T4TsGTD49UCEv3XfU6cNjAdPUP4etrRrYDterGyj6SDLZHegWQ9tTM22ZoFHrWGLXrjo5gE1drKHv?cluster=devnet) and 41 sent by the test run, the last [`Wsgqm3BZ…P8SNKzAFvP`](https://explorer.solana.com/tx/Wsgqm3BZzRZL3u6CcEFDWHSwqUHMTMsNRYvBmi94uxR9B7VPdY6WE8DRRbVqapJsZcEHVuhVe2MQKP8SNKzAFvP?cluster=devnet) |
+| Cost | 0.1007 SOL (5 → 4.8993) |
+
+The Playground's automatic airdrop answered 410 ("The RPC faucet is closed on this
+cluster"); the run did not need it. The records of the first run above are unchanged.
+
 ### Bridge smoke test on devnet (2026-10-08)
 
 First case sent through `bridge/anchor.mjs` with the demo keys in `.local/keys`

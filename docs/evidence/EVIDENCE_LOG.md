@@ -449,3 +449,10 @@ Entry template:
 - Found: the first CI run of the review failed in the bridge job. `node --test ../scripts/test/` passes on Node 26 but Node 24, the version CI uses, reads a directory argument as a module and fails; the local runs had used Node 26.
 - Work: the step names the test files (`"../scripts/test/*.test.mjs"`), checked on Node 24.22.2 and 26.13.0 (7 of 7 on both). hedera/test/workflows.test.mjs now fails if any workflow or package script passes `node --test` something other than test files; it fails on the old line and passes on the new one.
 - Commit(s): ci: name the snapshot capture test files so Node 24 runs them
+
+### 2026-11-01 17:08 BRT — Playground: the deployed program passes the extended suite
+- Authors: Clarkson Bartalini.
+- Run: in Solana Playground on devnet, with a new test wallet funded from faucet.solana.com, the program ID set to the deployed program and the IDL imported from onchain/idl/coorre_anchor.json; nothing was built into a new program and nothing was deployed. The suite of onchain/tests/coorre_anchor.test.ts as of 12c7cf5 gave **19 passing**, none failing, including the two boundary tests added by the review: an amount equal to the autonomy limit is auto-approved and the closed case refuses any further transition, and one lamport above the limit fails with MandateExceeded.
+- Evidence: 41 transactions sent by the run from wallet 3W73LczSJPZKTn7KGRed2NTpF8WQkAHx19sXyCe9maW6, none failed, cost 0.1007 SOL; details and links in onchain/DEPLOYMENTS.md. The first attempt stopped before sending anything because the project had no IDL yet; importing the committed IDL fixed it.
+- The records of the first run (2026-10-08) are unchanged.
+- Commit(s): docs: record the second Playground run of the deployed program
