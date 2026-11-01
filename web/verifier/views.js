@@ -95,19 +95,38 @@ function facts(pairs) {
   return html("dl", "facts", ...pairs.flatMap(([term, value]) => [html("dt", null, term), html("dd", null, value)]));
 }
 
+function costDot(matches) {
+  const text = matches ? t("Cost matches DEPLOYMENTS.md") : t("Cost differs from DEPLOYMENTS.md");
+  const dot = html("span", `dot-status ${matches ? "auto" : "human"}`);
+  dot.setAttribute("role", "img");
+  dot.setAttribute("aria-label", text);
+  dot.title = text;
+  return dot;
+}
+
 function outcomeTag(outcome) {
   const o = OUTCOMES[outcome];
   return html("span", "outcome", html("span", `swatch ${o.cls}`), o.short());
 }
 
-let livePromise = null;
+let live = null;
 
 export function liveState(data, rpcUrl) {
-  livePromise ??= readAccounts(rpcUrl, [data.program.id, data.program.programdata, ...data.cases.map((c) => c.case_record)]).catch((error) => {
-    livePromise = null;
-    throw error;
-  });
-  return livePromise;
+  if (live && live.rpcUrl === rpcUrl) return live.promise;
+  const entry = { rpcUrl };
+  entry.promise = readAccounts(rpcUrl, [data.program.id, data.program.programdata, ...data.cases.map((c) => c.case_record)]).then(
+    (state) => ({ ...state, readAt: new Date() }),
+    (error) => {
+      if (live === entry) live = null;
+      throw error;
+    }
+  );
+  live = entry;
+  return entry.promise;
+}
+
+function whenLive(data, rpcUrl, show, fail) {
+  return liveState(data, rpcUrl).then(show).catch(fail);
 }
 
 function liveError(container, error) {
@@ -211,7 +230,7 @@ export function renderOverview(data, rpcUrl) {
           html("span", "row-title", label(RUN_LABELS, r.label)),
           html("span", "row-sub", t("{cases} cases · {transactions} transactions · {spent} spent · {time} UTC", { cases: r.cases.length, transactions: r.transactions, spent: solShort(r.spent), time: r.utc }))
         ),
-        html("span", `dot-status ${r.spent === r.recorded_spent ? "auto" : "human"}`)
+        costDot(r.spent === r.recorded_spent)
       );
     })
   );
@@ -252,15 +271,17 @@ export function renderOverview(data, rpcUrl) {
   const status = document.getElementById("status-card");
   now.replaceChildren(html("p", "muted", t("Reading devnet…")));
   status.replaceChildren(html("p", "muted", t("Reading devnet…")));
-  liveState(data, rpcUrl).then(
-    ({ slot, accounts }) => {
+  whenLive(
+    data,
+    rpcUrl,
+    ({ slot, accounts, readAt }) => {
       const program = accounts[data.program.id];
       const authority = accounts[data.program.programdata] ? decodeUpgradeAuthority(accounts[data.program.programdata].data) : null;
       const matches = cases.filter((c) => {
         const account = accounts[c.case_record];
         return account && account.owner === data.program.id && decodeCaseRecord(account.data).state === c.final_state;
       }).length;
-      nowTime.textContent = timeOfDay(new Date());
+      nowTime.textContent = timeOfDay(readAt);
       now.replaceChildren(
         html("span", "big", `${matches}`, html("small", null, `/${cases.length}`)),
         html("p", "note", t("case records on devnet hold the final state their bundle recorded")),
@@ -268,13 +289,10 @@ export function renderOverview(data, rpcUrl) {
       );
       const ringBox = html("div");
       ring(ringBox, { value: matches, max: cases.length, label: `${Math.round((matches / cases.length) * 100)}%`, caption: t("records match"), cls: "auto" });
-      const costsMatch = data.runs.filter((r) => r.spent === r.recorded_spent).length;
       const meters = [
         [t("Case records match bundles"), matches / cases.length, t("{count} of {total}", { count: matches, total: cases.length })],
         [t("Program executable"), program?.executable ? 1 : 0, program?.executable ? t("yes") : t("no")],
         [t("Upgrade authority as recorded"), authority === data.program.upgrade_authority ? 1 : 0, authority === data.program.upgrade_authority ? t("yes") : t("changed")],
-        [t("Rules shipped by the verifier"), 1, t("{count} of {total}", { count: data.rules.length, total: data.rules.length })],
-        [t("Run costs match DEPLOYMENTS.md"), costsMatch / data.runs.length, t("{count} of {total}", { count: costsMatch, total: data.runs.length })],
       ];
       status.replaceChildren(
         ringBox,
@@ -291,6 +309,7 @@ export function renderOverview(data, rpcUrl) {
       );
     },
     (error) => {
+      nowTime.textContent = t("not read");
       liveError(now, error);
       liveError(status, error);
     }
@@ -501,7 +520,9 @@ export function renderCaseDetail(data, id, rpcUrl, focus) {
       }, 0);
     }
   }
-  liveState(data, rpcUrl).then(
+  whenLive(
+    data,
+    rpcUrl,
     ({ slot, accounts }) => {
       const account = accounts[c.case_record];
       if (!account || account.owner !== data.program.id) {
@@ -584,7 +605,9 @@ export function renderRules(data) {
 export function renderOnchain(data, rpcUrl) {
   const programFacts = document.getElementById("program-facts");
   programFacts.replaceChildren(html("p", "muted", t("Reading devnet…")));
-  liveState(data, rpcUrl).then(
+  whenLive(
+    data,
+    rpcUrl,
     ({ slot, accounts }) => {
       const program = accounts[data.program.id];
       const authority = accounts[data.program.programdata] ? decodeUpgradeAuthority(accounts[data.program.programdata].data) : null;

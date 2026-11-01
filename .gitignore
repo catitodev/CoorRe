@@ -5,3 +5,5 @@ node_modules/
 *.log
 web/verifier/pkg/
 hedera/.cache/
+.env*
+*keypair*.json

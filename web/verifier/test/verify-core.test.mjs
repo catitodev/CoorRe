@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import * as wasm from "../pkg/coorre_verify.js";
-import { verifyBundle, fetchAccounts, explorerUrl, base64ToBytes, accountsFromSnapshot, isAccountSnapshot } from "../verify-core.js";
+import { verifyBundle, fetchAccounts, fetchOk, explorerUrl, base64ToBytes, accountsFromSnapshot, isAccountSnapshot, readSnapshotFile, verdictTone } from "../verify-core.js";
 
 wasm.initSync({ module: readFileSync(new URL("../pkg/coorre_verify_bg.wasm", import.meta.url)) });
 
@@ -162,8 +162,9 @@ test("the published snapshot is the recorded devnet evidence, byte for byte", ()
 for (const id of ["SUP-001", "SUP-002", "AGT-002", "PES-002"]) {
   test(`${id} verifies 7/7 from the recorded snapshot with no network request`, async () => {
     const s = sample(id);
-    const result = await verifyBundle({ wasm, bundleText: s.bundleText, files: s.files, rpcUrl: RPC, programId: PROGRAM, networkId: NETWORK, snapshot: snapshot(), fetchImpl: offline });
-    assert.equal(result.source, "snapshot");
+    const result = await verifyBundle({ wasm, bundleText: s.bundleText, files: s.files, rpcUrl: RPC, programId: PROGRAM, networkId: NETWORK, snapshot: snapshot(), snapshotRecorded: true, fetchImpl: offline });
+    assert.equal(result.source, "recorded-snapshot");
+    assert.equal(result.tone, "pass");
     assert.equal(result.slot, 509686323);
     assert.deepEqual(failing(result.report), []);
   });
@@ -178,12 +179,80 @@ test("an anchor missing from the snapshot fails checks 4 and 6", async () => {
   assert.deepEqual(failing(result.report), [4, 6]);
 });
 
+const EXPECTED = { programId: PROGRAM, networkId: NETWORK };
+const shaped = (value) => ({ format: "coorre-devnet-snapshot/1", network_id: NETWORK, program_id: PROGRAM, addresses: ["A"], response: { result: { value } } });
+
 test("only well-formed snapshots are read", () => {
   assert.ok(!isAccountSnapshot({ format: "coorre-audit-bundle/1" }));
   assert.ok(!isAccountSnapshot(null));
-  assert.throws(() => accountsFromSnapshot({ addresses: ["A"], response: { result: { value: [] } } }, ["A"]), /more addresses/);
-  assert.throws(() => accountsFromSnapshot({ addresses: ["A"], response: { result: { value: [{ owner: "P", data: ["AQ==", "base58"] }] } } }, ["A"]), /base64/);
-  const { accounts } = accountsFromSnapshot({ addresses: ["A"], response: { result: { value: [{ owner: "P", data: ["AQI=", "base64"] }] } } }, ["A", "B"]);
+  assert.throws(() => accountsFromSnapshot(shaped([]), ["A"], EXPECTED), /more addresses/);
+  assert.throws(() => accountsFromSnapshot(shaped([{ owner: "P", data: ["AQ==", "base58"] }]), ["A"], EXPECTED), /base64/);
+  assert.throws(() => accountsFromSnapshot(shaped([{ data: ["AQ==", "base64"] }]), ["A"], EXPECTED), /no owner/);
+  const { accounts } = accountsFromSnapshot(shaped([{ owner: "P", data: ["AQI=", "base64"] }]), ["A", "B"], EXPECTED);
   assert.deepEqual(accounts[0].data, new Uint8Array([1, 2]));
   assert.equal(accounts[1], null);
+});
+
+test("a snapshot without its format, network or program is refused", () => {
+  const recorded = snapshot();
+  for (const key of ["format", "network_id", "program_id"]) {
+    const copy = structuredClone(recorded);
+    delete copy[key];
+    assert.ok(!isAccountSnapshot(copy), key);
+    assert.throws(() => accountsFromSnapshot(copy, recorded.addresses, EXPECTED), /not a coorre-devnet-snapshot\/1 snapshot/, key);
+  }
+  const { format, ...unformatted } = recorded;
+  assert.equal(format, "coorre-devnet-snapshot/1");
+  assert.throws(() => readSnapshotFile("accounts.json", new TextEncoder().encode(JSON.stringify(unformatted)), read("../samples/devnet-snapshot.json")), /accounts\.json is not a coorre-devnet-snapshot\/1 snapshot/);
+});
+
+test("a snapshot of another program or network is refused before any check runs", async () => {
+  const s = sample("SUP-001");
+  const other = { ...snapshot(), program_id: "11111111111111111111111111111111" };
+  await assert.rejects(
+    verifyBundle({ wasm, bundleText: s.bundleText, files: s.files, rpcUrl: RPC, programId: PROGRAM, networkId: NETWORK, snapshot: other, fetchImpl: offline }),
+    /names program 11111111111111111111111111111111, not the expected program/
+  );
+  await assert.rejects(
+    verifyBundle({ wasm, bundleText: s.bundleText, files: s.files, rpcUrl: RPC, programId: PROGRAM, networkId: NETWORK, snapshot: { ...snapshot(), network_id: "solana:mainnet" }, fetchImpl: offline }),
+    /taken on solana:mainnet, not on the expected network/
+  );
+});
+
+test("a valid snapshot that is not the published file is labelled as provided, never as recorded", async () => {
+  const published = new Uint8Array(read("../samples/devnet-snapshot.json"));
+  assert.equal(readSnapshotFile("accounts.json", published, published).recorded, true);
+  const reformatted = new TextEncoder().encode(JSON.stringify(snapshot()));
+  const provided = readSnapshotFile("accounts.json", reformatted, published);
+  assert.equal(provided.recorded, false);
+  const s = sample("SUP-001");
+  const result = await verifyBundle({ wasm, bundleText: s.bundleText, files: s.files, rpcUrl: RPC, programId: PROGRAM, networkId: NETWORK, snapshot: provided.value, snapshotRecorded: provided.recorded, fetchImpl: offline });
+  assert.deepEqual(failing(result.report), []);
+  assert.equal(result.source, "provided-snapshot");
+  assert.equal(result.tone, "caveat");
+  assert.equal(verdictTone(result.report, "rpc"), "pass");
+  assert.equal(verdictTone({ checks: [{ status: "FAIL" }] }, "provided-snapshot"), "fail");
+});
+
+test("the page labels the recorded snapshot only for the published file", () => {
+  const app = read("../app.js").toString("utf8");
+  assert.match(app, /result\.source === "recorded-snapshot" \? ` · \$\{t\("accounts from the recorded devnet snapshot/);
+  assert.match(app, /verdict\.className = `verdict \$\{tone\}`/);
+  assert.match(app, /run\(bundleText, files, snapshot, useSnapshot\)/);
+  assert.match(app, /snapshot\?\.recorded \?\? false/);
+});
+
+test("fetchOk turns an HTTP error into a clear message with the status and the address", async () => {
+  await assert.rejects(fetchOk("samples/SUP-001/bundle.json", undefined, async () => ({ ok: false, status: 404 })), { message: "HTTP 404 samples/SUP-001/bundle.json" });
+  const response = { ok: true, status: 200 };
+  assert.equal(await fetchOk("site-data.json", undefined, async () => response), response);
+  const app = read("../app.js").toString("utf8");
+  assert.ok(!/(?<![A-Za-z])fetch\(/.test(app), "app.js calls fetch without fetchOk");
+});
+
+test("an RPC account that is not base64-encoded or has no owner is refused", async () => {
+  const answer = (value) => async () => ({ ok: true, json: async () => ({ result: { context: { slot: 1 }, value: [value] } }) });
+  await assert.rejects(fetchAccounts(RPC, ["A"], answer({ owner: "P", data: ["x", "base58"] })), { message: "A: account is not base64-encoded" });
+  await assert.rejects(fetchAccounts(RPC, ["A"], answer({ owner: "P", data: ["***", "base64"] })), { message: "A: account is not base64-encoded" });
+  await assert.rejects(fetchAccounts(RPC, ["A"], answer({ data: ["AQI=", "base64"] })), { message: "A: account has no owner" });
 });

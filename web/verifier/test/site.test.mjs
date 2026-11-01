@@ -9,6 +9,35 @@ const html = readFileSync(path.join(root, "index.html"), "utf8");
 const css = readFileSync(path.join(root, "style.css"), "utf8");
 const app = readFileSync(path.join(root, "app.js"), "utf8");
 
+const workflow = readFileSync(path.join(root, "..", "..", ".github", "workflows", "pages.yml"), "utf8");
+
+function localModules(entry) {
+  const seen = new Set();
+  const visit = (file) => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    if (file.startsWith("pkg/") || !existsSync(path.join(root, file))) return;
+    const source = readFileSync(path.join(root, file), "utf8");
+    for (const m of source.matchAll(/(?:from|import)\s*\(?\s*"\.\/([^"]+)"/g)) visit(path.posix.join(path.posix.dirname(file), m[1]));
+  }
+  visit(entry);
+  return seen;
+}
+
+function jobs(text) {
+  const body = text.slice(text.indexOf("\njobs:\n") + 7);
+  const blocks = {};
+  let name = null;
+  for (const line of body.split("\n")) {
+    const head = /^ {2}([a-z][a-z0-9-]*):\s*$/.exec(line);
+    if (head) {
+      name = head[1];
+      blocks[name] = "\n";
+    } else if (name) blocks[name] += `${line}\n`;
+  }
+  return blocks;
+}
+
 const local = (value) => !/^(https?:|data:|#|mailto:)/.test(value);
 
 test("every file referenced by index.html exists", () => {
@@ -19,18 +48,15 @@ test("every file referenced by index.html exists", () => {
   }
 });
 
-test("every module imported by app.js exists after the wasm build", () => {
-  const imports = [...app.matchAll(/from "(\.\/[^"]+)"/g)].map((m) => m[1]);
-  assert.ok(imports.includes("./verify-core.js"));
-  for (const file of imports) assert.ok(existsSync(path.join(root, file)), `missing ${file}`);
+test("every module the page loads exists after the wasm build, following imports transitively", () => {
+  const modules = localModules("app.js");
+  for (const file of ["verify-core.js", "views.js", "charts.js", "live.js", "i18n.js", "pkg/coorre_verify.js"]) assert.ok(modules.has(file), file);
+  for (const file of modules) assert.ok(existsSync(path.join(root, file)), `missing ${file}`);
 });
 
-test("the content security policy stays strict", () => {
-  const policy = /Content-Security-Policy" content="([^"]+)"/.exec(html)?.[1] ?? "";
-  assert.match(policy, /img-src 'self'(;|$)/);
-  assert.match(policy, /style-src 'self'(;|$)/);
-  assert.match(policy, /font-src 'self'(;|$)/);
-  assert.ok(!/'unsafe-(inline|eval)'|data:/.test(policy), policy);
+test("the content security policy is exactly the reviewed one", () => {
+  const policies = [...html.matchAll(/Content-Security-Policy" content="([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(policies, ["default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; connect-src 'self' https:; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'"]);
   assert.ok(!/\sstyle="/.test(html), "inline style attribute");
   assert.ok(!/<style[\s>]/.test(html), "inline style element");
   assert.ok(!/url\(\s*["']?data:/.test(css), "data URI in css");
@@ -119,18 +145,39 @@ test("every font is self-hosted, published and licensed", () => {
 });
 
 test("the pages workflow publishes every file the page loads", () => {
-  const workflow = readFileSync(path.join(root, "..", "..", ".github", "workflows", "pages.yml"), "utf8");
-  const modules = new Set([...app.matchAll(/from "\.\/([^"]+)"/g)].map((m) => m[1]).filter((f) => !f.startsWith("pkg/")));
-  for (const file of fs_list(root)) {
-    if (/\.(js|json)$/.test(file) && !["package.json"].includes(file) && (modules.has(file) || file === "site-data.json" || file === "app.js")) {
-      assert.ok(workflow.includes(`web/verifier/${file}`), `pages.yml does not copy ${file}`);
-    }
+  const published = [...localModules("app.js")].filter((f) => !f.startsWith("pkg/"));
+  for (const file of [...published, "site-data.json", "style.css", "favicon.svg", "favicon-32.png"]) {
+    assert.ok(workflow.includes(`web/verifier/${file}`), `pages.yml does not copy ${file}`);
   }
+  for (const dir of ["pkg", "samples", "brand", "fonts"]) assert.ok(workflow.includes(`web/verifier/${dir}`), `pages.yml does not copy ${dir}`);
+  const shipped = readdirSync(root).filter((f) => /\.js$/.test(f));
+  for (const file of shipped) assert.ok(published.includes(file), `${file} is not loaded by the page; remove it or import it`);
 });
 
-function fs_list(dir) {
-  return readdirSync(dir).filter((f) => !f.startsWith("."));
-}
+test("the pages workflow builds with read access and deploys from main only", () => {
+  const blocks = jobs(workflow);
+  assert.deepEqual(Object.keys(blocks), ["build", "deploy"]);
+  const top = workflow.slice(0, workflow.indexOf("\njobs:\n"));
+  assert.match(top, /\npermissions:\n {2}contents: read\n/);
+  assert.doesNotMatch(top, /pages:|id-token:/);
+  assert.match(blocks.build, /\n {4}permissions:\n {6}contents: read\n/);
+  assert.doesNotMatch(blocks.build, /pages: write|id-token|deploy-pages|configure-pages/);
+  assert.match(blocks.build, /actions\/upload-pages-artifact@/);
+  assert.match(blocks.deploy, /\n {4}needs: build\n/);
+  assert.match(blocks.deploy, /\n {4}if: github\.ref == 'refs\/heads\/main'\n/);
+  assert.match(blocks.deploy, /\n {4}permissions:\n {6}pages: write\n {6}id-token: write\n/);
+  assert.doesNotMatch(blocks.deploy, /actions\/checkout@|run:/);
+  assert.equal((workflow.match(/id-token/g) ?? []).length, 1);
+  for (const m of workflow.matchAll(/uses: ([^\s]+)/g)) assert.match(m[1], /^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/, m[1]);
+});
+
+test("the file drop area is not a focus stop without an action, and files can be cleared", () => {
+  assert.match(html, /<div id="dropzone" class="dropzone">/);
+  assert.match(html, /<button type="button" id="clear-files">Clear files<\/button>/);
+  assert.match(app, /\$\("clear-files"\)\.addEventListener\("click", clearFiles\)/);
+  assert.match(app, /function clearFiles\(\) \{\n {2}selected\.clear\(\);\n {2}\$\("file-input"\)\.value = "";\n {2}renderFileList\(\);/);
+  for (const m of html.matchAll(/<(div|span|section|article|li|p)\b[^>]*\stabindex="0"[^>]*>/g)) assert.match(m[0], /\srole="/, m[0]);
+});
 
 test("spacing follows the 4 px scale", () => {
   const off = [];
@@ -141,4 +188,9 @@ test("spacing follows the 4 px scale", () => {
     }
   }
   assert.deepEqual(off, []);
+});
+
+test("changing the RPC address reads the chain again from the new address", () => {
+  assert.match(app, /\$\("rpc-url"\)\.addEventListener\("change", refresh\)/);
+  assert.match(app, /function refresh\(\) \{\n {2}rendered\.clear\(\);/);
 });

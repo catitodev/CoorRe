@@ -219,7 +219,6 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 summary:focus-visible,
-.dropzone:focus-visible,
 a:focus-visible,
 [tabindex]:focus-visible {
   outline: 3px solid var(--verdigris);
@@ -1097,6 +1096,12 @@ summary {
 .verdict.fail {
   background: var(--fail-bg);
   color: var(--fail);
+}
+
+.verdict.caveat {
+  background: var(--surface);
+  color: var(--text);
+  border: 2px dashed var(--series-third);
 }
 
 .check-chain {

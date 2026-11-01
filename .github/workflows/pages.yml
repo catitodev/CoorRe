@@ -5,19 +5,16 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     env:
       WASM_BINDGEN_VERSION: "0.2.128"
       WASM_BINDGEN_SHA256: "b51f0208fdff83515a787bd8ab9ac5865ed84dabb66d0c709957bb59793c645f"
@@ -57,13 +54,24 @@ jobs:
           cp web/verifier/index.html web/verifier/app.js web/verifier/verify-core.js web/verifier/views.js web/verifier/charts.js web/verifier/live.js web/verifier/i18n.js web/verifier/site-data.json web/verifier/style.css web/verifier/favicon.svg web/verifier/favicon-32.png _site/
           cp -r web/verifier/pkg web/verifier/samples web/verifier/brand web/verifier/fonts _site/
 
-      - name: Setup Pages (actions/configure-pages v6.0.0)
-        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d
-
       - name: Upload artifact (actions/upload-pages-artifact v5.0.0)
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
         with:
           path: _site
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Setup Pages (actions/configure-pages v6.0.0)
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d
 
       - name: Deploy to GitHub Pages (actions/deploy-pages v5.0.1)
         id: deployment

@@ -231,8 +231,6 @@ export const PORTUGUESE = {
   no: "não",
   "Upgrade authority as recorded": "Autoridade de atualização como registrada",
   changed: "alterada",
-  "Rules shipped by the verifier": "Regras que o verificador traz",
-  "Run costs match DEPLOYMENTS.md": "Custos das execuções conferem com o DEPLOYMENTS.md",
   "All rules": "Todas as regras",
   "All outcomes": "Todos os desfechos",
   "Amount {amount}, limit {limit}": "Valor {amount}, limite {limit}",
@@ -376,6 +374,19 @@ export const PORTUGUESE = {
   "Ready.": "Pronto.",
   "Could not load the dashboard data: {error}": "Não foi possível carregar os dados do painel: {error}",
   "Could not start the verifier: {error}": "Não foi possível iniciar o verificador: {error}",
+  "Cost matches DEPLOYMENTS.md": "Custo confere com o DEPLOYMENTS.md",
+  "Cost differs from DEPLOYMENTS.md": "Custo difere do DEPLOYMENTS.md",
+  "not read": "não lido",
+  "accounts from a file you provided, not read from the chain, slot {slot}": "contas de um arquivo enviado por você, não lidas da cadeia, slot {slot}",
+  "{passed}/{total} checks passed against accounts you provided; the chain was not read": "{passed}/{total} checagens aprovadas com contas enviadas por você; a cadeia não foi lida",
+  "Accounts read from a file you provided (slot {slot}), not from the chain; no network request was made. Everything was computed in this browser.":
+    "Contas lidas de um arquivo enviado por você (slot {slot}), não da cadeia; nenhuma requisição à rede foi feita. Tudo foi calculado neste navegador.",
+  "Could not read the files: {error}": "Não foi possível ler os arquivos: {error}",
+  "Files cleared.": "Lista de arquivos limpa.",
+  "More than one audit bundle among the files: {names}. Keep only one.": "Mais de um pacote de auditoria entre os arquivos: {names}. Deixe só um.",
+  "More than one account snapshot among the files: {names}. Keep only one.": "Mais de um snapshot de contas entre os arquivos: {names}. Deixe só um.",
+  "Could not read the account snapshot: {error}": "Não foi possível ler o snapshot de contas: {error}",
+  "Clear files": "Limpar arquivos",
 };
 
 const MONTHS = {

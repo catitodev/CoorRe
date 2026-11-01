@@ -11,12 +11,17 @@ keys) is on the roadmap and is not part of this build; the page shows it as such
   accounts are computed in the browser.
 - The only network requests are `getMultipleAccounts` calls to the chosen Solana RPC,
   carrying public account addresses only: one per verification (the accounts listed in
-  the bundle) and one per page load for the dashboards (the program, its program data
-  and the ten recorded case records).
+  the bundle) and one per RPC address for the dashboards (the program, its program data
+  and the ten recorded case records), shown with the time of that read; changing the RPC
+  address in the settings reads again.
 - Verification can run with no network request: the samples can read their accounts from
   `samples/devnet-snapshot.json` (a byte-identical copy of
   `docs/evidence/devnet-snapshot/accounts.json`), and a dropped `accounts.json` snapshot is
-  used instead of the RPC.
+  used instead of the RPC. A snapshot must carry the format `coorre-devnet-snapshot/1`
+  and the expected program and network. Only a file byte-identical to the published
+  snapshot is labelled as the recorded devnet snapshot; any other snapshot is labelled as
+  accounts from a file you provided, not read from the chain, and its verdict is not
+  shown as a plain pass.
 - Each case page tells the signed steps as a story, with the human signature marked; each
   step has its own address (`#cases/<id>/step-<n>`), which the evidence chain on the
   overview opens.

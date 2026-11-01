@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import { base58, decodeCaseRecord, decodeUpgradeAuthority, readAccounts, CASE_RECORD_SIZE } from "../live.js";
 
@@ -96,4 +97,32 @@ test("each step of the hero chain opens the matching step of a real case", async
     assert.equal(row.kind === "blocked" ? "blocked" : row.step.to, expected[label], label);
   }
   assert.match(source, /key: "anchored"[^\n]*go\("#onchain"\)/);
+});
+
+function spentInDeployments(markdown, run) {
+  const sections = markdown.split(/^#{2,3} /m);
+  const section = sections.find((s) => s.split("\n")[0].includes(`(${run.date} ${run.utc} UTC)`));
+  assert.ok(section, `DEPLOYMENTS.md has no section for the run of ${run.date} ${run.utc} UTC`);
+  const prose = section.replace(/\s+/g, " ");
+  const sol = /the creator spent (\d+)\.(\d{1,9}) SOL/.exec(prose);
+  if (sol) return Number(sol[1]) * 1e9 + Number(sol[2].padEnd(9, "0"));
+  const lamports = /\(([\d,]+) spent:/.exec(prose);
+  assert.ok(lamports, `the section of ${run.date} states no amount spent by the creator`);
+  return Number(lamports[1].replace(/,/g, ""));
+}
+
+test("the recorded cost of each run is the amount DEPLOYMENTS.md states", () => {
+  const markdown = read("../../../onchain/DEPLOYMENTS.md").toString("utf8");
+  assert.equal(data.runs.length, 2);
+  for (const run of data.runs) assert.equal(run.recorded_spent, spentInDeployments(markdown, run), run.date);
+});
+
+test("the site data only produces outcomes the dashboard can draw", async () => {
+  const { OUTCOMES } = await import("../views.js");
+  const require = createRequire(import.meta.url);
+  const { OUTCOME_BY_FINAL_STATE, outcomeOf } = require(new URL("../../../scripts/build-site-data", import.meta.url).pathname);
+  assert.deepEqual(Object.values(OUTCOME_BY_FINAL_STATE).sort(), Object.keys(OUTCOMES).sort());
+  for (const state of ["OPEN", "SUBMITTED", "AGENT_REVIEWED", "ESCALATED"]) assert.throws(() => outcomeOf(state, "X-001"), new RegExp(`X-001: final state ${state} has no dashboard outcome`));
+  assert.equal(outcomeOf("APPROVED", "X-001"), "approved");
+  for (const c of data.cases) assert.ok(OUTCOMES[c.outcome], c.id);
 });

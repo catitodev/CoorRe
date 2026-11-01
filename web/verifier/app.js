@@ -1,5 +1,5 @@
 import init, * as wasm from "./pkg/coorre_verify.js";
-import { verifyBundle, explorerUrl, isAccountSnapshot } from "./verify-core.js";
+import { verifyBundle, explorerUrl, fetchOk, looksLikeSnapshot, PUBLISHED_SNAPSHOT, readSnapshotFile } from "./verify-core.js";
 import { actorKindLabel, autonomyLabel, renderCaseDetail, renderCaseList, renderOnchain, renderOverview, renderRules, sol } from "./views.js";
 import { chooseLanguage, language, LANGUAGES, setLanguage, staticText, t } from "./i18n.js";
 
@@ -28,7 +28,7 @@ const RECOMMENDATIONS = {
   escalate: () => t("escalate"),
 };
 const selected = new Map();
-const buttons = ["sample-sup-001", "sample-sup-002", "sample-agt-002", "sample-pes-002", "verify-files"];
+const buttons = ["sample-sup-001", "sample-sup-002", "sample-agt-002", "sample-pes-002", "verify-files", "clear-files"];
 
 function el(tag, className, ...children) {
   const node = document.createElement(tag);
@@ -90,10 +90,22 @@ function decisionText(payload) {
   return parts.join(" · ");
 }
 
+function verdictTitle(tone, passed, total) {
+  if (tone === "pass") return t("{passed}/{total} checks passed", { passed, total });
+  if (tone === "caveat") return t("{passed}/{total} checks passed against accounts you provided; the chain was not read", { passed, total });
+  return t("Verification failed: {passed}/{total} checks passed", { passed, total });
+}
+
+function sourceStatus(result) {
+  if (result.source === "recorded-snapshot") return t("Accounts read from the recorded devnet snapshot (slot {slot}); no network request was made. Everything was computed in this browser.", { slot: result.slot });
+  if (result.source === "provided-snapshot") return t("Accounts read from a file you provided (slot {slot}), not from the chain; no network request was made. Everything was computed in this browser.", { slot: result.slot });
+  return t("Accounts read from the RPC at slot {slot}. Everything else was computed in this browser.", { slot: result.slot });
+}
+
 function render(result, expected) {
   lastResult = { result, expected };
   const { report } = result;
-  const passed = report.checks.every((c) => c.status === "PASS");
+  const tone = result.tone;
   const count = report.checks.filter((c) => c.status === "PASS").length;
   const network = expected.networkId;
 
@@ -102,13 +114,14 @@ function render(result, expected) {
     result.tamperedName ? ` · ${t("one byte of {name} was changed on purpose", { name: result.tamperedName })}` : "",
     result.missing.length ? ` · ${t("missing files: {names}", { names: result.missing.join(", ") })}` : "",
     result.bundleProgramId !== expected.programId ? ` · ${t("the bundle names program {program}", { program: result.bundleProgramId })}` : "",
-    result.source === "snapshot" ? ` · ${t("accounts from the recorded devnet snapshot, slot {slot}", { slot: result.slot })}` : "",
+    result.source === "recorded-snapshot" ? ` · ${t("accounts from the recorded devnet snapshot, slot {slot}", { slot: result.slot })}` : "",
+    result.source === "provided-snapshot" ? ` · ${t("accounts from a file you provided, not read from the chain, slot {slot}", { slot: result.slot })}` : "",
   ].filter(Boolean);
   verdict.replaceChildren(
-    el("strong", null, passed ? t("{passed}/{total} checks passed", { passed: count, total: report.checks.length }) : t("Verification failed: {passed}/{total} checks passed", { passed: count, total: report.checks.length })),
+    el("strong", null, verdictTitle(tone, count, report.checks.length)),
     ...notes.map((note) => el("span", null, note))
   );
-  verdict.className = `verdict ${passed ? "pass" : "fail"}`;
+  verdict.className = `verdict ${tone}`;
 
   const s = report.summary;
   const rows = [
@@ -178,7 +191,7 @@ function render(result, expected) {
   $("result").hidden = false;
 }
 
-async function run(bundleText, files, snapshot = null) {
+async function run(bundleText, files, snapshot = null, snapshotRecorded = false) {
   setBusy(true);
   setStatus(() => t("Checking…"));
   const expected = {
@@ -195,13 +208,10 @@ async function run(bundleText, files, snapshot = null) {
       networkId: expected.networkId,
       tamper: $("tamper").checked,
       snapshot,
+      snapshotRecorded,
     });
     render(result, expected);
-    setStatus(() =>
-      result.source === "snapshot"
-        ? t("Accounts read from the recorded devnet snapshot (slot {slot}); no network request was made. Everything was computed in this browser.", { slot: result.slot })
-        : t("Accounts read from the RPC at slot {slot}. Everything else was computed in this browser.", { slot: result.slot })
-    );
+    setStatus(() => sourceStatus(result));
     $("result").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
     $("result").hidden = true;
@@ -214,16 +224,17 @@ async function run(bundleText, files, snapshot = null) {
 
 async function runSample(id) {
   try {
-    const bundleText = await (await fetch(`samples/${id}/bundle.json`)).text();
+    const bundleText = await (await fetchOk(`samples/${id}/bundle.json`)).text();
     const names = JSON.parse(bundleText).artifacts.map((a) => a.name);
     const files = await Promise.all(
       names.map(async (name) => ({
         name,
-        bytes: new Uint8Array(await (await fetch(`samples/${id}/artifacts/${encodeURIComponent(name)}`)).arrayBuffer()),
+        bytes: new Uint8Array(await (await fetchOk(`samples/${id}/artifacts/${encodeURIComponent(name)}`)).arrayBuffer()),
       }))
     );
-    const snapshot = $("use-snapshot").checked ? await (await fetch("samples/devnet-snapshot.json")).json() : null;
-    await run(bundleText, files, snapshot);
+    const useSnapshot = $("use-snapshot").checked;
+    const snapshot = useSnapshot ? await (await fetchOk(PUBLISHED_SNAPSHOT)).json() : null;
+    await run(bundleText, files, snapshot, useSnapshot);
   } catch (error) {
     setStatus(() => t("Could not load the sample: {error}", { error: error.message ?? error }), true);
   }
@@ -240,6 +251,17 @@ async function addFiles(fileList) {
   renderFileList();
 }
 
+function addFilesOrReport(fileList) {
+  addFiles(fileList).catch((error) => setStatus(() => t("Could not read the files: {error}", { error: error.message ?? error }), true));
+}
+
+function clearFiles() {
+  selected.clear();
+  $("file-input").value = "";
+  renderFileList();
+  setStatus(() => t("Files cleared."));
+}
+
 function parsedJson(name, bytes) {
   if (!name.endsWith(".json")) return null;
   try {
@@ -249,31 +271,36 @@ function parsedJson(name, bytes) {
   }
 }
 
-function findBundle() {
-  for (const [name, bytes] of selected) {
-    const value = parsedJson(name, bytes);
-    if (value?.format === BUNDLE_FORMAT) return { name, text: new TextDecoder().decode(bytes) };
-  }
-  return null;
-}
-
-function findSnapshot() {
-  for (const [name, bytes] of selected) {
-    const value = parsedJson(name, bytes);
-    if (isAccountSnapshot(value)) return { name, value };
-  }
-  return null;
+function selectedWhere(match) {
+  return [...selected].filter(([name, bytes]) => match(parsedJson(name, bytes))).map(([name, bytes]) => ({ name, bytes }));
 }
 
 async function verifySelected() {
-  const bundle = findBundle();
-  if (!bundle) {
+  const bundles = selectedWhere((value) => value?.format === BUNDLE_FORMAT);
+  if (!bundles.length) {
     setStatus(() => t("No audit bundle found among the files (a JSON file with format coorre-audit-bundle/1)."), true);
     return;
   }
-  const snapshot = findSnapshot();
-  const files = [...selected.entries()].filter(([name]) => name !== bundle.name && name !== snapshot?.name).map(([name, bytes]) => ({ name, bytes }));
-  await run(bundle.text, files, snapshot?.value ?? null);
+  if (bundles.length > 1) {
+    setStatus(() => t("More than one audit bundle among the files: {names}. Keep only one.", { names: bundles.map((b) => b.name).join(", ") }), true);
+    return;
+  }
+  const snapshots = selectedWhere(looksLikeSnapshot);
+  if (snapshots.length > 1) {
+    setStatus(() => t("More than one account snapshot among the files: {names}. Keep only one.", { names: snapshots.map((s) => s.name).join(", ") }), true);
+    return;
+  }
+  const [bundle] = bundles;
+  const [snapshotFile] = snapshots;
+  let snapshot = null;
+  try {
+    snapshot = snapshotFile ? readSnapshotFile(snapshotFile.name, snapshotFile.bytes, new Uint8Array(await (await fetchOk(PUBLISHED_SNAPSHOT)).arrayBuffer())) : null;
+  } catch (error) {
+    setStatus(() => t("Could not read the account snapshot: {error}", { error: error.message ?? error }), true);
+    return;
+  }
+  const files = [...selected.entries()].filter(([name]) => name !== bundle.name && name !== snapshotFile?.name).map(([name, bytes]) => ({ name, bytes }));
+  await run(new TextDecoder().decode(bundle.bytes), files, snapshot?.value ?? null, snapshot?.recorded ?? false);
 }
 
 const ROUTES = ["overview", "verify", "cases", "rules", "onchain", "security"];
@@ -482,7 +509,9 @@ async function main() {
   $("sample-agt-002").addEventListener("click", () => runSample("AGT-002"));
   $("sample-pes-002").addEventListener("click", () => runSample("PES-002"));
   $("verify-files").addEventListener("click", verifySelected);
-  $("file-input").addEventListener("change", (event) => addFiles(event.target.files));
+  $("clear-files").addEventListener("click", clearFiles);
+  $("file-input").addEventListener("change", (event) => addFilesOrReport(event.target.files));
+  $("rpc-url").addEventListener("change", refresh);
   const zone = $("dropzone");
   zone.addEventListener("dragover", (event) => {
     event.preventDefault();
@@ -492,11 +521,11 @@ async function main() {
   zone.addEventListener("drop", (event) => {
     event.preventDefault();
     zone.classList.remove("over");
-    addFiles(event.dataTransfer.files);
+    addFilesOrReport(event.dataTransfer.files);
   });
   setStatus(() => t("Ready."));
   try {
-    siteData = await (await fetch("site-data.json")).json();
+    siteData = await (await fetchOk("site-data.json")).json();
   } catch (error) {
     setStatus(() => t("Could not load the dashboard data: {error}", { error: error.message ?? error }), true);
   }

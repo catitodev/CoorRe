@@ -200,7 +200,7 @@
 
         <article class="panel" aria-labelledby="files-title">
           <h2 id="files-title">Or check your own bundle</h2>
-          <div id="dropzone" class="dropzone" tabindex="0">
+          <div id="dropzone" class="dropzone">
             <p>Drop <code>bundle.json</code> and the artifact files here, or choose them. Add <code>accounts.json</code> from <code>docs/evidence/devnet-snapshot</code> to verify with no network request.</p>
             <input type="file" id="file-input" multiple>
             <ul id="file-list" class="file-list"></ul>
@@ -212,7 +212,10 @@
             <label>Expected network <input type="text" id="network-id" spellcheck="false"></label>
             <p class="note">The expected program never comes from the bundle: a bundle could name a program written by anyone.</p>
           </details>
-          <button type="button" id="verify-files" class="primary">Verify</button>
+          <div class="row">
+            <button type="button" id="verify-files" class="primary">Verify</button>
+            <button type="button" id="clear-files">Clear files</button>
+          </div>
         </article>
 
         <div id="trail" class="trail" aria-hidden="true" hidden><span class="trail-dot"></span><span class="trail-dot"></span><span class="trail-dot"></span><span class="trail-line"></span></div>

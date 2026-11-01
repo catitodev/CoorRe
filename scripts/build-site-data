@@ -23,6 +23,18 @@ const PROGRAM = {
   deployed: "2026-10-08",
 };
 
+const OUTCOME_BY_FINAL_STATE = {
+  AUTO_APPROVED: "auto",
+  APPROVED: "approved",
+  REJECTED: "rejected",
+};
+
+function outcomeOf(finalState, id) {
+  const outcome = OUTCOME_BY_FINAL_STATE[finalState];
+  if (!outcome) throw new Error(`${id}: final state ${finalState} has no dashboard outcome; only ${Object.keys(OUTCOME_BY_FINAL_STATE).join(", ")} are shown`);
+  return outcome;
+}
+
 const ROLE_BY_TRANSITION = {
   "OPEN>SUBMITTED": "payee",
   "SUBMITTED>AGENT_REVIEWED": "agent",
@@ -96,7 +108,7 @@ function caseFrom({ dir, source }) {
     amount,
     limit,
     final_state: finalState,
-    outcome: finalState === "AUTO_APPROVED" ? "auto" : finalState === "APPROVED" ? "approved" : finalState === "REJECTED" ? "rejected" : "open",
+    outcome: outcomeOf(finalState, id),
     blocked_attempt: escalated && amount > limit,
     documents: first.artifacts.map((a) => a.name),
     open_tx: bundle.open_receipt ? bundle.open_receipt.tx_signature : null,
@@ -170,17 +182,23 @@ function build() {
   };
 }
 
-const data = build();
-const text = `${JSON.stringify(data, null, 1)}\n`;
-const target = path.join(root, "web/verifier/site-data.json");
-if (process.argv.includes("--check")) {
-  const current = fs.existsSync(target) ? fs.readFileSync(target, "utf8") : "";
-  if (current !== text) {
-    console.error("web/verifier/site-data.json is out of date; run scripts/build-site-data");
-    process.exit(1);
+function main() {
+  const data = build();
+  const text = `${JSON.stringify(data, null, 1)}\n`;
+  const target = path.join(root, "web/verifier/site-data.json");
+  if (process.argv.includes("--check")) {
+    const current = fs.existsSync(target) ? fs.readFileSync(target, "utf8") : "";
+    if (current !== text) {
+      console.error("web/verifier/site-data.json is out of date; run scripts/build-site-data");
+      process.exit(1);
+    }
+    console.log("site-data.json is up to date");
+  } else {
+    fs.writeFileSync(target, text);
+    console.log(`wrote ${path.relative(root, target)}: ${data.cases.length} cases, ${data.rules.length} rules`);
   }
-  console.log("site-data.json is up to date");
-} else {
-  fs.writeFileSync(target, text);
-  console.log(`wrote ${path.relative(root, target)}: ${data.cases.length} cases, ${data.rules.length} rules`);
 }
+
+if (require.main === module) main();
+
+module.exports = { OUTCOME_BY_FINAL_STATE, outcomeOf, RUNS };
