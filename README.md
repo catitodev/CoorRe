@@ -141,7 +141,7 @@ Os pagamentos por serviços ambientais são onde o motor nasceu.
 
 ## Evidências e limites
 
-- **Matriz de ataques.** Doze ataques aos dez casos gravados rodam como testes automatizados a cada `cargo test`, cada um com as checagens que o barraram. A matriz também lista cinco lacunas que o motor não fecha hoje: documento de origem falso, chave de papel roubada, conluio entre quem abre o caso e o aprovador, qualidade da decisão humana e confiança num snapshot offline. Veja [docs/evidence/ATTACK_MATRIX.md](docs/evidence/ATTACK_MATRIX.md).
+- **Matriz de ataques.** Doze ataques aos dez casos gravados rodam como testes automatizados a cada `cargo test`, cada um com as checagens que o barraram. A matriz também lista sete lacunas que o motor não fecha hoje: documento de origem falso, chave de papel roubada, conluio entre quem abre o caso e o aprovador, limite escolhido por quem abre o caso, custódia sem saída fora de ESCALATED → REJECTED, qualidade da decisão humana e confiança num snapshot offline. Veja [docs/evidence/ATTACK_MATRIX.md](docs/evidence/ATTACK_MATRIX.md).
 - **Snapshot da devnet.** A devnet pode ser reiniciada. [docs/evidence/devnet-snapshot](docs/evidence/devnet-snapshot/README.md) guarda as 45 contas do programa e os 45 status de transação dos dez casos. Com ele, os dez casos verificam 7 de 7 na linha de comando sem acesso à rede, e o verificador ao vivo pode ler as mesmas contas gravadas em vez da rede.
 - **Registro de construção.** [docs/evidence/EVIDENCE_LOG.md](docs/evidence/EVIDENCE_LOG.md) registra cada etapa com data.
 
@@ -343,7 +343,7 @@ Não. No CoorRe, o dinheiro é sempre um pagamento devido por uma entrega ou por
 <details>
 <summary>Por que on-chain?</summary>
 
-Porque o limite não deve depender de quem opera o servidor. O programa recusa uma aprovação acima do mandato, algo que um banco de dados ou uma API não conseguem impor contra quem os opera. Hoje o operador ainda poderia atualizar o programa, porque a autoridade de atualização é uma carteira única; levá-la para uma multisig está no roadmap. A cadeia também dá a cada passo um registro público com carimbo de tempo. Na devnet esse registro pode ser reiniciado, e por isso as contas gravadas ficam em docs/evidence/devnet-snapshot.
+Porque o limite não deve depender de quem opera o servidor. O limite é fixado por caso na abertura e fica público on-chain: o programa recusa uma aprovação automática acima dele (MandateExceeded), e o verificador o lê do registro do caso, exige que cada documento de evidência declare o mesmo valor e o mesmo limite e o mostra no relatório. Ele não é imposto contra quem abre o caso: quem abre escolhe o limite, as quatro chaves de papel e a regra. Vinculá-los a uma conta de política sob outra autoridade ou uma multisig, ou exigir a assinatura do aprovador no open_case, é um próximo passo. Hoje o operador também poderia atualizar o programa, porque a autoridade de atualização é uma carteira única; levá-la para uma multisig está no roadmap. A cadeia também dá a cada passo um registro público com carimbo de tempo. Na devnet esse registro pode ser reiniciado, e por isso as contas gravadas ficam em docs/evidence/devnet-snapshot.
 
 </details>
 
@@ -371,7 +371,7 @@ Ele prova que o documento não mudou, qual chave o assinou e que a decisão segu
 <details>
 <summary>O que o CoorRe ainda não consegue impedir?</summary>
 
-A [matriz de ataques](docs/evidence/ATTACK_MATRIX.md) lista cinco lacunas, cada uma com o que a fecharia: documento de origem falso, chave de papel roubada, conluio entre quem abre o caso e o aprovador, qualidade da decisão humana e confiança num snapshot offline.
+A [matriz de ataques](docs/evidence/ATTACK_MATRIX.md) lista sete lacunas, cada uma com o que a fecharia: documento de origem falso, chave de papel roubada, conluio entre quem abre o caso e o aprovador, limite escolhido por quem abre o caso, custódia sem saída fora de ESCALATED → REJECTED, qualidade da decisão humana e confiança num snapshot offline.
 
 </details>
 
@@ -599,7 +599,7 @@ Payments for ecosystem services are where the engine began.
 
 ## Evidence and limits
 
-- **Attack matrix.** Twelve attacks on the ten recorded cases run as automated tests on every `cargo test`, each with the checks that caught it. The matrix also lists five gaps the engine does not close today: a false source document, a stolen role key, collusion between the case creator and the approver, the quality of the human decision, and trust in an offline snapshot. See [docs/evidence/ATTACK_MATRIX.md](docs/evidence/ATTACK_MATRIX.md).
+- **Attack matrix.** Twelve attacks on the ten recorded cases run as automated tests on every `cargo test`, each with the checks that caught it. The matrix also lists seven gaps the engine does not close today: a false source document, a stolen role key, collusion between the case creator and the approver, a limit chosen by whoever opens the case, escrow with no exit outside ESCALATED → REJECTED, the quality of the human decision, and trust in an offline snapshot. See [docs/evidence/ATTACK_MATRIX.md](docs/evidence/ATTACK_MATRIX.md).
 - **Devnet snapshot.** Devnet can be reset. [docs/evidence/devnet-snapshot](docs/evidence/devnet-snapshot/README.md) keeps the 45 program accounts and the 45 transaction statuses of the ten cases. With it, all ten cases verify 7 of 7 on the command line with no network access, and the live verifier can read the same recorded accounts instead of the network.
 - **Build log.** [docs/evidence/EVIDENCE_LOG.md](docs/evidence/EVIDENCE_LOG.md) records each step with its date.
 
@@ -801,7 +801,7 @@ No. Money in CoorRe is always a payment owed for a delivery or a decision: escro
 <details>
 <summary>Why on-chain?</summary>
 
-Because the limit should not depend on whoever runs the server. The program refuses an approval above the mandate, which a database or an API cannot enforce against the operator who runs it. Today the operator could still upgrade the program, because the upgrade authority is a single wallet; moving it to a multisig is on the roadmap. The chain also gives every step a public record with a timestamp. On devnet that record can be reset, which is why the recorded accounts are kept in docs/evidence/devnet-snapshot.
+Because the limit should not depend on whoever runs the server. The limit is fixed per case when the case opens and stays public on-chain: the program refuses an automated approval above it (MandateExceeded), and the verifier reads it from the case record, requires every evidence document to state the same amount and limit, and shows it in the report. It is not enforced against whoever opens the case: the creator chooses the limit, the four role keys and the rule. Binding them to a policy account under another authority or a multisig, or requiring the approver's signature on open_case, is a next step. Today the operator could also upgrade the program, because the upgrade authority is a single wallet; moving it to a multisig is on the roadmap. The chain also gives every step a public record with a timestamp. On devnet that record can be reset, which is why the recorded accounts are kept in docs/evidence/devnet-snapshot.
 
 </details>
 
@@ -829,7 +829,7 @@ It proves that a document has not changed, which key signed it and that the deci
 <details>
 <summary>What can CoorRe not stop today?</summary>
 
-The [attack matrix](docs/evidence/ATTACK_MATRIX.md) lists five gaps, each with what would close it: a false source document, a stolen role key, collusion between the case creator and the approver, the quality of the human decision, and trust in an offline snapshot.
+The [attack matrix](docs/evidence/ATTACK_MATRIX.md) lists seven gaps, each with what would close it: a false source document, a stolen role key, collusion between the case creator and the approver, a limit chosen by whoever opens the case, escrow with no exit outside ESCALATED → REJECTED, the quality of the human decision, and trust in an offline snapshot.
 
 </details>
 
