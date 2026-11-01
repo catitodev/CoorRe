@@ -456,3 +456,10 @@ Entry template:
 - Evidence: 41 transactions sent by the run from wallet 3W73LczSJPZKTn7KGRed2NTpF8WQkAHx19sXyCe9maW6, none failed, cost 0.1007 SOL; details and links in onchain/DEPLOYMENTS.md. The first attempt stopped before sending anything because the project had no IDL yet; importing the committed IDL fixed it.
 - The records of the first run (2026-10-08) are unchanged.
 - Commit(s): docs: record the second Playground run of the deployed program
+
+### 2026-11-01 17:21 BRT — Live run 1: SUP-002 through the reviewed bridge
+- Authors: Clarkson Bartalini.
+- Run: `coorre demo run --case SUP-002` on devnet at 2026-11-01 20:16 UTC, the first of the cases run again after the review, one per day. The rule engine's approval of 0.2 SOL above its 0.1 SOL limit was refused with MandateExceeded and no funds moved; the case escalated with two reasons (environmental license expired; amount exceeds autonomy limit) and the human approver released the escrow to the supplier. Transactions and the case record are in onchain/DEPLOYMENTS.md.
+- Verification: 7 of 7 by the demo, by `coorre verify` against devnet and by `coorre verify --accounts` from the accounts read with finalized commitment at slot 517611961, with no network access. Check 6 reported every evidence signed within 300 s of the on-chain clock, the rule added by the review, on a real run.
+- Kept: bundle, documents and accounts in onchain/live-runs/2026-11-01/SUP-002, outside onchain/devnet-bundles, so the recorded runs and the devnet snapshot stay unchanged. offchain/crates/coorre-cli/tests/live_runs.rs verifies every live run 7 of 7 from its own accounts and fails checks 1 and 7 when a byte changes; it fails when an account of the run is missing from its accounts file.
+- Commit(s): test(cli): verify every live devnet run from its own recorded accounts; docs: record live run 1, SUP-002 through the reviewed bridge

@@ -46,6 +46,28 @@ with MandateExceeded.
 The Playground's automatic airdrop answered 410 ("The RPC faucet is closed on this
 cluster"); the run did not need it. The records of the first run above are unchanged.
 
+### Live run through the reviewed bridge (2026-11-01 20:16 UTC)
+
+First case of the runs after the review, sent with the demo keys through the bridge as of
+commit `12c7cf5` (HTTP confirmation, deadline, https only). Case
+`urn:coorre:case:SUP-002-20261101T201633Z`, case record
+[`9p8RBKpuBTiaMs75ArUBkZBdMAHG5sE47BA5ZekxCVpC`](https://explorer.solana.com/address/9p8RBKpuBTiaMs75ArUBkZBdMAHG5sE47BA5ZekxCVpC?cluster=devnet).
+Bundle, documents and accounts: [live-runs/2026-11-01/SUP-002](live-runs/2026-11-01/SUP-002).
+
+| Step | Transaction |
+|---|---|
+| OPEN, 0.2 SOL escrowed, limit 0.1 SOL | [`4iJdsf5s…BTWmvvf`](https://explorer.solana.com/tx/4iJdsf5sCzjPhyDjr7nGQPhCGHUGPX5y1AnDvxcKQg9hzTMSzTTyPZcSzfLfKp3TmRdYB3PQR2xfoXopXBTWmvvf?cluster=devnet) |
+| SUBMITTED | [`CbFZdaMs…eBM5YnW`](https://explorer.solana.com/tx/CbFZdaMsMT9sXdJTB5Kdty7BT5LJmkeTQMMN3eXmFUiid2LbiWceAVuaEgppA9PcAGpi2WjvQQK1i9ioeBM5YnW?cluster=devnet) |
+| AGENT_REVIEWED | [`5wXdcAq1…HopuvzPXrW`](https://explorer.solana.com/tx/5wXdcAq1K9UWAPwCrPU6h3hMfXCzZtfwegXhKPSwK1reWZ18zaDUfcjrVguxJ8ihQrutPadxVVTDCWHopuvzPXrW?cluster=devnet) |
+| ROGUE AUTO_APPROVED (rule_engine key, 0.2 SOL > 0.1 SOL limit) | rejected: `MandateExceeded`, no funds moved |
+| ESCALATED | [`4H568mNS…Fdt4dwF`](https://explorer.solana.com/tx/4H568mNSkRoGSfd2kcjEuVUYwXaSveHfybFu2Q588W6uZnYUkyxFo6Aq1Dm7iJYxGvBUkMarndsESNKg3Fdt4dwF?cluster=devnet) |
+| APPROVED, escrow released to the supplier | [`4Ji8HoeB…e283Abq1DL`](https://explorer.solana.com/tx/4Ji8HoeBbtdGDDQWL86B9nCjVz1vsazjKtkB2qkJzCbwKigrUUW8jAStwz9V6HSGANaZJvN4ZBUwF3e283Abq1DL?cluster=devnet) |
+
+Verified 7 of 7 three times: by the demo itself, by `coorre verify` against devnet, and
+by `coorre verify --accounts` from the accounts read with `finalized` commitment at slot
+517611961, with no network access. Check 6 reports every evidence signed within 300 s of
+the on-chain clock. The tamper test changed one byte and check 1 failed, as it must.
+
 ### Bridge smoke test on devnet (2026-10-08)
 
 First case sent through `bridge/anchor.mjs` with the demo keys in `.local/keys`
