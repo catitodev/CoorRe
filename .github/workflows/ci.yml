@@ -65,7 +65,7 @@ jobs:
         run: npm test
 
       - name: Snapshot capture script (local fake RPC, nothing sent to devnet)
-        run: node --test ../scripts/test/
+        run: node --test "../scripts/test/*.test.mjs"
 
       - name: npm audit (fails on high or critical)
         run: npm audit --audit-level=high

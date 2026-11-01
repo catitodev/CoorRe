@@ -443,3 +443,9 @@ Entry template:
 - Docs: the README, the attack matrix and the security notes state that the autonomy limit and the role keys are chosen by whoever opens a case, and that escrow has no exit outside the approved and rejected outcomes (seven gaps, from five).
 - Tests: Rust 218 to 270; browser verifier 45 to 65; bridge 41; snapshot capture script 7 (new); Playground preflight 21; Hedera Node 62 to 111 and Solidity 70 to 82. All pass, with cargo fmt and clippy clean and the preflight PASS. New on-chain tests (amount equal to the limit, one lamport above it, closed cases after approval) pass the preflight and still have to run in Solana Playground.
 - Commit(s): fix(verify): date every evidence by the on-chain clock and escape untrusted text; fix(web): label provided snapshots and report failed reads; fix(bridge): validate role keys, require https and stop at a deadline; docs: state who sets a case's limit and that escrow has no exit outside its outcomes; fix(hedera): test the module in CI and keep the deployed contract out of the protection check; docs: record the review in the evidence log
+
+### 2026-11-01 03:22 BRT — CI: the snapshot capture tests run on Node 24
+- Authors: Clarkson Bartalini.
+- Found: the first CI run of the review failed in the bridge job. `node --test ../scripts/test/` passes on Node 26 but Node 24, the version CI uses, reads a directory argument as a module and fails; the local runs had used Node 26.
+- Work: the step names the test files (`"../scripts/test/*.test.mjs"`), checked on Node 24.22.2 and 26.13.0 (7 of 7 on both). hedera/test/workflows.test.mjs now fails if any workflow or package script passes `node --test` something other than test files; it fails on the old line and passes on the new one.
+- Commit(s): ci: name the snapshot capture test files so Node 24 runs them

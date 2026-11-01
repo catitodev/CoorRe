@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { REPO_ROOT } from "../lib/paths.mjs";
 
@@ -134,4 +134,24 @@ test("the Solo workflow gives the token only to the step that needs it and swall
   const install = job.steps.find((step) => /npm install -g/.test(step.run ?? ""));
   assert.match(install.run, /sha512sum -c -/);
   for (const step of job.steps.filter((entry) => entry.run)) assert.ok(!/\|\|\s*true\b/.test(step.run), `${step.name} swallows an error`);
+});
+
+test("every node --test call names test files, not a directory, so it runs on every supported Node", () => {
+  const sources = readdirSync(join(REPO_ROOT, ".github", "workflows"))
+    .filter((name) => name.endsWith(".yml"))
+    .map((name) => [name, readFileSync(join(REPO_ROOT, ".github", "workflows", name), "utf8")]);
+  for (const dir of ["bridge", "hedera", "web/verifier", "tools/playground-preflight"]) {
+    const manifest = JSON.parse(readFileSync(join(REPO_ROOT, dir, "package.json"), "utf8"));
+    sources.push([`${dir}/package.json`, Object.values(manifest.scripts ?? {}).join("\n")]);
+  }
+  let calls = 0;
+  for (const [name, source] of sources) {
+    for (const match of source.matchAll(/node --test((?:[ \t]+[^\s&|;]+)+)/g)) {
+      calls += 1;
+      for (const arg of match[1].trim().split(/\s+/).filter((part) => !part.startsWith("-"))) {
+        assert.match(arg.replace(/^["']|["']$/g, ""), /\.m?js$/, `${name}: node --test ${arg} must name test files`);
+      }
+    }
+  }
+  assert.ok(calls >= 5, `only ${calls} node --test calls found`);
 });
