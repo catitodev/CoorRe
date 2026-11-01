@@ -31,6 +31,17 @@ declares.
 - Evaluation date: must be the UTC signing day (`validFrom`) or the day before. The
   day of tolerance keeps runs that cross UTC midnight valid; anything older would let a
   signer backdate the evaluation to a day on which an expired document was still valid.
+- Evaluation date against the chain (amended 2026-11-01): `validFrom` is written by the
+  signer, so it is not enough on its own. The evaluation date must also be the UTC day
+  of the EvidenceAnchor's `unix_ts` (Clock sysvar) or the day before; without the
+  anchor the decision fails. Check 6 requires every evidence's `validFrom` to be
+  within 300 seconds of its anchor's `unix_ts`.
+  Across the 35 recorded devnet anchors, `unix_ts` is 1 to 5 seconds after `validFrom`.
+  300 seconds covers the slowest path the bridge allows: a transaction can land until
+  its blockhash expires (150 slots, about 120 seconds at 400 ms slots), the bridge
+  retries once with a new blockhash; when the CLI runs it, the bridge stops itself after
+  150 seconds and the CLI stops the bridge process after 180 seconds, so a transaction
+  it sent lands at the latest about 270 seconds after the evidence was signed.
 - A bundle with no automated decision yet passes with a note.
 
 ## What this does not prove
@@ -42,6 +53,8 @@ declares.
 ## Consequences
 - Tampering with a document now fails check 1 and, because the decision can no longer
   be reproduced from it, check 7.
+- Check 7 needs the on-chain anchors: without them (no network and no recorded
+  accounts) automated decisions cannot be dated and the check fails.
 - A real LLM agent can later replace the simulated one: its advice is compared with the
   rule but cannot release funds, and a rule-engine decision that disagrees with the rule is
   caught by any verifier.

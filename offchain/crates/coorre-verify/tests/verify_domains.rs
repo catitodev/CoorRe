@@ -27,6 +27,7 @@ const CASE_REF: &str = "urn:coorre:case:DOMAIN-TEST";
 const AMOUNT: u64 = 20_000_000;
 const LIMIT: u64 = 30_000_000;
 const EVALUATION_DATE: &str = "2026-10-09";
+const SIGNING_DAY_NOON: i64 = 1_791_547_200;
 
 const DOMAIN_CASES: [(RuleId, &str); 4] = [
     (RuleId::AgentPurchase, "AGT-002"),
@@ -193,7 +194,7 @@ fn build(files: BTreeMap<String, Vec<u8>>, recorded: &Recorded, agent: &Decision
             actor_kind: kind.code(),
             rule_hash,
             slot: 2000 + i as u64,
-            unix_ts: 1_791_500_000 + i as i64,
+            unix_ts: SIGNING_DAY_NOON + 60 * i as i64 + 2,
             bump: 255,
         };
         accounts.insert(

@@ -30,8 +30,9 @@ impl Ed25519Keypair {
     }
 
     pub fn from_solana_keypair_json(json: &str) -> Result<Self> {
-        let bytes: Vec<u8> =
-            serde_json::from_str(json).map_err(|e| ModelError::InvalidJson(e.to_string()))?;
+        let bytes: Vec<u8> = serde_json::from_str(json).map_err(|_| {
+            ModelError::InvalidJson("keypair file is not a JSON byte array".to_owned())
+        })?;
         Self::from_solana_keypair_bytes(&bytes)
     }
 
@@ -62,6 +63,22 @@ impl fmt::Debug for Ed25519Keypair {
             .field("did", &self.did())
             .finish_non_exhaustive()
     }
+}
+
+pub fn public_key_from_solana_keypair_json(json: &str) -> Result<[u8; 32]> {
+    let bytes: Vec<u8> = serde_json::from_str(json)
+        .map_err(|_| ModelError::InvalidJson("keypair file is not a JSON byte array".to_owned()))?;
+    if bytes.len() != SOLANA_KEYPAIR_LENGTH {
+        return Err(ModelError::InvalidKeyLength {
+            expected: SOLANA_KEYPAIR_LENGTH,
+            actual: bytes.len(),
+        });
+    }
+    let public: [u8; 32] = bytes[32..]
+        .try_into()
+        .map_err(|_| ModelError::InvalidPublicKey)?;
+    VerifyingKey::from_bytes(&public).map_err(|_| ModelError::InvalidPublicKey)?;
+    Ok(public)
 }
 
 pub fn verify_signature(public_key: &[u8; 32], message: &[u8], signature: &[u8; 64]) -> Result<()> {
@@ -149,9 +166,38 @@ mod tests {
         let json = serde_json::to_string(&solana_bytes(&keypair, &seed)).unwrap();
         let loaded = Ed25519Keypair::from_solana_keypair_json(&json).unwrap();
         assert_eq!(loaded.public_key(), keypair.public_key());
-        assert!(Ed25519Keypair::from_solana_keypair_json("[256]").is_err());
+        let error = Ed25519Keypair::from_solana_keypair_json("[256]").unwrap_err();
+        assert!(!error.to_string().contains("256"), "{error}");
         assert!(Ed25519Keypair::from_solana_keypair_json("{}").is_err());
         assert!(Ed25519Keypair::from_solana_keypair_json("[1,2,3]").is_err());
+    }
+
+    #[test]
+    fn public_key_from_solana_keypair_json_reads_only_the_public_half() {
+        let seed = [3u8; 32];
+        let keypair = Ed25519Keypair::from_seed(&seed);
+        let json = serde_json::to_string(&solana_bytes(&keypair, &seed)).unwrap();
+        assert_eq!(
+            public_key_from_solana_keypair_json(&json).unwrap(),
+            keypair.public_key()
+        );
+        assert!(matches!(
+            public_key_from_solana_keypair_json("[1,2,3]"),
+            Err(ModelError::InvalidKeyLength {
+                expected: 64,
+                actual: 3
+            })
+        ));
+        let error = public_key_from_solana_keypair_json("[256]").unwrap_err();
+        assert!(!error.to_string().contains("256"), "{error}");
+        let mut not_a_point = solana_bytes(&keypair, &seed);
+        not_a_point[32..].fill(0);
+        not_a_point[32] = 2;
+        let json = serde_json::to_string(&not_a_point).unwrap();
+        assert_eq!(
+            public_key_from_solana_keypair_json(&json),
+            Err(ModelError::InvalidPublicKey)
+        );
     }
 
     #[test]

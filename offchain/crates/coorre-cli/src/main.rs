@@ -8,13 +8,15 @@ use coorre_anchor::memory::MemoryAnchorer;
 use coorre_anchor::{Anchorer, BridgeAnchorer, BridgeConfig};
 use coorre_cli::demo::{DemoContext, run_case};
 use coorre_cli::env::{Environment, SystemEnvironment};
-use coorre_cli::files::{fetch_accounts, load_bundle, read_artifacts, verify_bundle};
-use coorre_cli::fixtures::load_cases;
+use coorre_cli::files::{
+    expected_network_id, fetch_accounts, load_bundle, read_artifacts, verify_bundle,
+};
+use coorre_cli::fixtures::{load_cases, select_cases};
 use coorre_cli::keys;
-use coorre_cli::print::print_report;
+use coorre_cli::print::{escape, print_report};
 use coorre_cli::snapshot::load_recorded_accounts;
 use coorre_cli::zcash_memo;
-use coorre_verify::{COORRE_DEVNET_PROGRAM_ID, SOLANA_DEVNET_NETWORK_ID};
+use coorre_verify::COORRE_DEVNET_PROGRAM_ID;
 
 #[derive(Parser)]
 #[command(name = "coorre", version, about = "Provable decisions for AI agents.")]
@@ -92,8 +94,11 @@ struct VerifyArgs {
     bundle: PathBuf,
     #[arg(long)]
     artifacts: PathBuf,
-    #[arg(long, default_value = SOLANA_DEVNET_NETWORK_ID)]
-    network_id: String,
+    #[arg(
+        long,
+        help = "Network the bundle must name; with --accounts it defaults to solana:devnet, otherwise it must match the network the accounts are read from"
+    )]
+    network_id: Option<String>,
     #[arg(long, default_value = "out")]
     out: PathBuf,
     #[arg(long, help = "Print the report as JSON")]
@@ -133,6 +138,7 @@ fn bridge(args: &BridgeArgs, work_dir: &Path, keys_dir: &Path) -> anyhow::Result
         work_dir: work_dir.to_path_buf(),
         rpc_url: args.rpc_url.clone(),
         rpc_fallback_url: args.rpc_fallback_url.clone(),
+        timeout: coorre_anchor::bridge::DEFAULT_TIMEOUT,
     })?)
 }
 
@@ -146,18 +152,15 @@ fn demo(args: &DemoArgs) -> anyhow::Result<bool> {
     let out_dir = args.out.join(format!("demo-{}", env.run_suffix()));
     std::fs::create_dir_all(&out_dir)?;
     let all = load_cases(&args.fixtures)?;
-    let selected: Vec<_> = if args.cases.is_empty() {
-        all.iter().filter(|c| c.demo).collect()
-    } else {
-        let picked: Vec<_> = all.iter().filter(|c| args.cases.contains(&c.id)).collect();
-        if picked.len() != args.cases.len() {
-            bail!("unknown case id in --case");
-        }
-        picked
-    };
+    let selected = select_cases(&all, &args.cases)?;
 
     let mut anchorer: Box<dyn Anchorer> = if args.offline {
-        Box::new(MemoryAnchorer::new(keys.creator, keys.role_keys(), 0))
+        Box::new(MemoryAnchorer::new(
+            keys.creator,
+            keys.role_keys(),
+            0,
+            env.clock()?,
+        ))
     } else {
         Box::new(bridge(&args.bridge, &out_dir.join("bridge-io"), &keys_dir)?)
     };
@@ -203,18 +206,27 @@ fn verify(args: &VerifyArgs) -> anyhow::Result<bool> {
     let env = SystemEnvironment::new();
     let bundle = load_bundle(&args.bundle)?;
     let files = read_artifacts(&args.artifacts, &bundle)?;
-    let (accounts, source) = match &args.accounts {
+    let (accounts, source, network_id) = match &args.accounts {
         Some(path) => {
             let recorded = load_recorded_accounts(path)?;
+            let network_id = expected_network_id(args.network_id.as_deref(), None)?;
+            recorded
+                .ensure_source(&network_id, &args.bridge.program_id)
+                .with_context(|| path.display().to_string())?;
+            let recorded_on = recorded
+                .network_id
+                .clone()
+                .unwrap_or_else(|| "network not recorded in the file".to_owned());
             let slot = recorded
                 .slot
                 .map_or_else(|| "unknown slot".to_owned(), |s| format!("slot {s}"));
             (
                 recorded.accounts,
                 format!(
-                    "  accounts    recorded in {} ({slot}); no network access",
+                    "  accounts    recorded in {} ({recorded_on}, {slot}); no network access",
                     path.display()
                 ),
+                network_id,
             )
         }
         None => {
@@ -224,10 +236,13 @@ fn verify(args: &VerifyArgs) -> anyhow::Result<bool> {
                 .join("bridge-io");
             let keys_dir = args.out.join("no-keys");
             let mut anchorer = bridge(&args.bridge, &work_dir, &keys_dir)?;
+            let network_id =
+                expected_network_id(args.network_id.as_deref(), Some(anchorer.network_id()))?;
             let accounts = fetch_accounts(&mut anchorer, &bundle)?;
             (
                 accounts,
                 format!("  accounts    read from {}", anchorer.network_id()),
+                network_id,
             )
         }
     };
@@ -236,14 +251,14 @@ fn verify(args: &VerifyArgs) -> anyhow::Result<bool> {
         &files,
         &accounts,
         &args.bridge.program_id,
-        &args.network_id,
+        &network_id,
     );
     let stdout = std::io::stdout();
     let mut out = stdout.lock();
     if args.json {
         writeln!(out, "{}", serde_json::to_string_pretty(&report)?)?;
     } else {
-        writeln!(out, "{source}")?;
+        writeln!(out, "{}", escape(&source))?;
         print_report(&report, &mut out)?;
     }
     Ok(report.passed())
@@ -256,7 +271,7 @@ fn zcash_memo_command(args: &ZcashMemoArgs) -> anyhow::Result<bool> {
     match &args.check {
         None => {
             let decision = zcash_memo::release_decision(&bundle)?;
-            writeln!(out, "  case        {}", bundle.case_ref)?;
+            writeln!(out, "  case        {}", escape(&bundle.case_ref))?;
             writeln!(
                 out,
                 "  decision    {} (evidence {})",
@@ -287,18 +302,18 @@ fn zcash_memo_command(args: &ZcashMemoArgs) -> anyhow::Result<bool> {
                         out,
                         "  MATCH       the memo points to the {} decision of {} (evidence {})",
                         decision.memo.state.name(),
-                        bundle.case_ref,
+                        escape(&bundle.case_ref),
                         decision.evidence_number
                     )?;
                     writeln!(
                         out,
                         "  Confirm that this decision is anchored: coorre verify --bundle {} --artifacts <folder>",
-                        args.bundle.display()
+                        escape(&args.bundle.display().to_string())
                     )?;
                     Ok(true)
                 }
                 Err(e) => {
-                    writeln!(out, "  NO MATCH    {e}")?;
+                    writeln!(out, "  NO MATCH    {}", escape(&e.to_string()))?;
                     Ok(false)
                 }
             }
@@ -317,7 +332,7 @@ fn main() -> ExitCode {
         Ok(true) => ExitCode::SUCCESS,
         Ok(false) => ExitCode::from(1),
         Err(e) => {
-            eprintln!("error: {e:#}");
+            eprintln!("error: {}", escape(&format!("{e:#}")));
             ExitCode::from(2)
         }
     }

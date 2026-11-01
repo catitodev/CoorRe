@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use coorre_anchor::memory::{MEMORY_NETWORK_ID, MEMORY_PROGRAM_ID, MemoryAnchorer};
 use coorre_cli::demo::{DemoContext, run_case};
-use coorre_cli::env::FixedEnvironment;
+use coorre_cli::env::{Environment, FixedEnvironment};
 use coorre_cli::files::{fetch_accounts, load_bundle, read_artifacts, verify_bundle};
 use coorre_cli::fixtures::load_cases;
 use coorre_cli::keys::DemoKeys;
@@ -103,8 +103,13 @@ fn failing(report: &coorre_verify::Report) -> Vec<u8> {
 #[test]
 fn every_domain_case_runs_offline_and_verifies_seven_of_seven() {
     let keys = DemoKeys::from_seeds(SEEDS);
-    let mut anchorer = MemoryAnchorer::new(keys.creator, keys.role_keys(), 650_240);
     let mut env = FixedEnvironment::new("2026-10-09", "20261009T120000Z");
+    let mut anchorer = MemoryAnchorer::new(
+        keys.creator,
+        keys.role_keys(),
+        650_240,
+        env.clock().unwrap(),
+    );
     let out_dir = scratch("domains-offline");
     let cases: Vec<_> = load_cases(&fixtures())
         .unwrap()

@@ -1,6 +1,9 @@
+use std::io::Read;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::thread::{self, JoinHandle};
+use std::time::{Duration, Instant};
 
 use coorre_model::accounts::pubkey_to_base58;
 use coorre_model::hash::to_hex;
@@ -12,6 +15,15 @@ use crate::{
 };
 
 pub const NETWORK_ID: &str = "solana:devnet";
+pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(180);
+pub const BRIDGE_DEADLINE_MARGIN: Duration = Duration::from_secs(30);
+const POLL_INTERVAL: Duration = Duration::from_millis(20);
+
+pub fn bridge_deadline(timeout: Duration) -> Duration {
+    timeout
+        .saturating_sub(BRIDGE_DEADLINE_MARGIN)
+        .max(Duration::from_millis(1))
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BridgeConfig {
@@ -22,6 +34,80 @@ pub struct BridgeConfig {
     pub work_dir: PathBuf,
     pub rpc_url: Option<String>,
     pub rpc_fallback_url: Option<String>,
+    pub timeout: Duration,
+}
+
+struct Finished {
+    status: ExitStatus,
+    stdout: Vec<u8>,
+    stderr: Vec<u8>,
+}
+
+fn drain(stream: Option<impl Read + Send + 'static>) -> JoinHandle<std::io::Result<Vec<u8>>> {
+    thread::spawn(move || {
+        let mut bytes = Vec::new();
+        if let Some(mut stream) = stream {
+            stream.read_to_end(&mut bytes)?;
+        }
+        Ok(bytes)
+    })
+}
+
+fn collect(
+    handle: JoinHandle<std::io::Result<Vec<u8>>>,
+    name: &str,
+) -> Result<Vec<u8>, AnchorError> {
+    handle
+        .join()
+        .map_err(|_| AnchorError::Process(format!("the {name} reader of the bridge stopped")))?
+        .map_err(|e| AnchorError::Process(format!("cannot read the bridge {name}: {e}")))
+}
+
+fn stop(child: &mut Child, command: &str, timeout: Duration) -> AnchorError {
+    let outcome = match child.kill().and_then(|()| child.wait()) {
+        Ok(_) => "the bridge process was stopped".to_owned(),
+        Err(e) => format!("stopping the bridge process failed: {e}"),
+    };
+    AnchorError::Process(format!(
+        "{command} did not finish within {} s and {outcome}; a transaction it sent may still land, so check the case record on the explorer before running again",
+        timeout.as_secs_f64()
+    ))
+}
+
+fn run_with_deadline(
+    mut process: Command,
+    command: &str,
+    timeout: Duration,
+) -> Result<Finished, AnchorError> {
+    let mut child = process
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| AnchorError::Process(format!("cannot start the bridge: {e}")))?;
+    let stdout = drain(child.stdout.take());
+    let stderr = drain(child.stderr.take());
+    let deadline = Instant::now() + timeout;
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) if Instant::now() >= deadline => {
+                return Err(stop(&mut child, command, timeout));
+            }
+            Ok(None) => thread::sleep(POLL_INTERVAL),
+            Err(e) => {
+                let stopped = stop(&mut child, command, timeout);
+                return Err(AnchorError::Process(format!(
+                    "cannot wait for the bridge: {e} ({stopped})"
+                )));
+            }
+        }
+    };
+    Ok(Finished {
+        status,
+        stdout: collect(stdout, "stdout")?,
+        stderr: collect(stderr, "stderr")?,
+    })
 }
 
 pub struct BridgeAnchorer {
@@ -55,7 +141,11 @@ impl BridgeAnchorer {
             .arg(&input_path)
             .env_clear()
             .env("COORRE_PROGRAM_ID", &self.config.program_id)
-            .env("COORRE_KEYS_DIR", &self.config.keys_dir);
+            .env("COORRE_KEYS_DIR", &self.config.keys_dir)
+            .env(
+                "COORRE_BRIDGE_TIMEOUT_MS",
+                bridge_deadline(self.config.timeout).as_millis().to_string(),
+            );
         if let Some(path) = std::env::var_os("PATH") {
             process.env("PATH", path);
         }
@@ -65,9 +155,15 @@ impl BridgeAnchorer {
         if let Some(url) = &self.config.rpc_fallback_url {
             process.env("COORRE_RPC_FALLBACK_URL", url);
         }
-        let output = process.output().map_err(|e| {
-            AnchorError::Process(format!("cannot start {}: {e}", self.config.node.display()))
-        })?;
+        let output =
+            run_with_deadline(process, command, self.config.timeout).map_err(|e| match e {
+                AnchorError::Process(message) => AnchorError::Process(format!(
+                    "{} ({}): {message}",
+                    command,
+                    self.config.node.display()
+                )),
+                other => other,
+            })?;
         let stdout = String::from_utf8_lossy(&output.stdout);
         let value: Value = serde_json::from_str(stdout.trim()).map_err(|e| {
             AnchorError::Protocol(format!(
@@ -82,16 +178,15 @@ impl BridgeAnchorer {
         let error = value.get("error").ok_or_else(|| {
             AnchorError::Protocol(format!("failed without an error object: {value}"))
         })?;
-        let name = error
-            .get("name")
-            .and_then(Value::as_str)
-            .unwrap_or("UnknownError")
-            .to_owned();
-        let message = error
-            .get("message")
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_owned();
+        let (Some(name), Some(message)) = (
+            error.get("name").and_then(Value::as_str),
+            error.get("message").and_then(Value::as_str),
+        ) else {
+            return Err(AnchorError::Protocol(format!(
+                "error object without a name and a message: {error}"
+            )));
+        };
+        let (name, message) = (name.to_owned(), message.to_owned());
         if PROGRAM_ERRORS.contains(&name.as_str())
             || name == "AccountAlreadyInUse"
             || name.starts_with("Constraint")
@@ -200,6 +295,97 @@ impl Anchorer for BridgeAnchorer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    fn bridge_running(name: &str, script: &str, timeout: Duration) -> BridgeAnchorer {
+        let dir = std::env::temp_dir().join(format!("coorre-bridge-{}-{name}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("bridge.sh");
+        std::fs::write(&path, script).unwrap();
+        BridgeAnchorer::new(BridgeConfig {
+            node: PathBuf::from("/bin/sh"),
+            script: path,
+            program_id: "P".to_owned(),
+            keys_dir: dir.join("keys"),
+            work_dir: dir.join("io"),
+            rpc_url: None,
+            rpc_fallback_url: None,
+            timeout,
+        })
+        .unwrap()
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_bridge_that_hangs_is_stopped_at_the_deadline() {
+        let mut bridge = bridge_running("hang", "exec sleep 30\n", Duration::from_millis(300));
+        let started = Instant::now();
+        let error = bridge.fetch_account("A").unwrap_err();
+        assert!(
+            started.elapsed() < Duration::from_secs(10),
+            "{:?}",
+            started.elapsed()
+        );
+        let text = error.to_string();
+        assert!(matches!(error, AnchorError::Process(_)), "{text}");
+        assert!(
+            text.contains(
+                "fetch-account did not finish within 0.3 s and the bridge process was stopped"
+            ),
+            "{text}"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_bridge_that_answers_in_time_is_read() {
+        let mut bridge = bridge_running(
+            "answer",
+            "printf '{\"exists\":false}'\n",
+            Duration::from_secs(30),
+        );
+        assert_eq!(bridge.fetch_account("A").unwrap(), None);
+    }
+
+    #[test]
+    fn the_bridge_stops_itself_before_the_cli_stops_it() {
+        assert_eq!(bridge_deadline(DEFAULT_TIMEOUT), Duration::from_secs(150));
+        assert_eq!(
+            bridge_deadline(Duration::from_secs(60)),
+            Duration::from_secs(30)
+        );
+        assert_eq!(
+            bridge_deadline(Duration::from_secs(5)),
+            Duration::from_millis(1)
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_bridge_receives_its_own_deadline() {
+        let mut bridge = bridge_running(
+            "deadline",
+            "if [ \"$COORRE_BRIDGE_TIMEOUT_MS\" = 30000 ]; then printf '{\"exists\":false}'; else printf '{\"error\":{\"name\":\"WrongDeadline\",\"message\":\"%s\"}}' \"$COORRE_BRIDGE_TIMEOUT_MS\"; exit 1; fi\n",
+            Duration::from_secs(60),
+        );
+        assert_eq!(bridge.fetch_account("A").unwrap(), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_bridge_error_without_a_name_is_a_protocol_error() {
+        let mut bridge = bridge_running(
+            "nameless",
+            "printf '{\"error\":{\"code\":1}}'; exit 1\n",
+            Duration::from_secs(30),
+        );
+        let error = bridge.fetch_account("A").unwrap_err();
+        assert!(matches!(error, AnchorError::Protocol(_)), "{error}");
+        assert!(
+            error.to_string().contains("without a name and a message"),
+            "{error}"
+        );
+    }
 
     #[test]
     fn hex_bytes_accepts_hex_and_rejects_garbage() {

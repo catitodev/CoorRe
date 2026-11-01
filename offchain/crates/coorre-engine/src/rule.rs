@@ -1,7 +1,8 @@
+use coorre_model::datetime::utc_seconds_to_unix;
 use coorre_model::{CaseState, hash, jcs};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use time::{Date, Month};
+use time::{Date, Month, OffsetDateTime};
 
 use crate::error::{EngineError, Result};
 
@@ -101,6 +102,35 @@ pub fn evaluation_date_is_credible(evaluation_date: &str, signed_at: &str) -> Re
     let signed = parse_date(signed_date)?;
     let age = signed.to_julian_day() - evaluated.to_julian_day();
     Ok((0..=MAX_EVALUATION_AGE_DAYS).contains(&age))
+}
+
+pub const MAX_ANCHOR_DELAY_SECONDS: i64 = 300;
+
+pub fn anchored_day(anchored_unix_ts: i64) -> Result<Date> {
+    OffsetDateTime::from_unix_timestamp(anchored_unix_ts)
+        .map(OffsetDateTime::date)
+        .map_err(|_| {
+            EngineError::InvalidRuleInput(format!(
+                "on-chain timestamp {anchored_unix_ts} is out of range"
+            ))
+        })
+}
+
+pub fn evaluation_date_matches_anchor(
+    evaluation_date: &str,
+    anchored_unix_ts: i64,
+) -> Result<bool> {
+    let evaluated = parse_date(evaluation_date)?;
+    let anchored = anchored_day(anchored_unix_ts)?;
+    let age = anchored.to_julian_day() - evaluated.to_julian_day();
+    Ok((0..=MAX_EVALUATION_AGE_DAYS).contains(&age))
+}
+
+pub fn signing_time_matches_anchor(signed_at: &str, anchored_unix_ts: i64) -> Result<bool> {
+    let signed = utc_seconds_to_unix(signed_at)
+        .map_err(|_| EngineError::InvalidRuleInput(format!("invalid timestamp `{signed_at}`")))?;
+    let distance = signed.abs_diff(anchored_unix_ts);
+    Ok(distance <= MAX_ANCHOR_DELAY_SECONDS.unsigned_abs())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -402,6 +432,44 @@ mod tests {
         assert!(evaluation_date_is_credible("2026-09-30", "2026-10-01T08:00:00Z").unwrap());
         assert!(evaluation_date_is_credible("bad", "2026-10-09T12:00:00Z").is_err());
         assert!(evaluation_date_is_credible("2026-10-09", "short").is_err());
+    }
+
+    const OCT_9_NOON: i64 = 1_791_547_200;
+
+    #[test]
+    fn anchored_day_is_the_utc_day_of_the_on_chain_clock() {
+        assert_eq!(anchored_day(OCT_9_NOON).unwrap().to_string(), "2026-10-09");
+        assert_eq!(
+            anchored_day(OCT_9_NOON + 12 * 3600).unwrap().to_string(),
+            "2026-10-10"
+        );
+        assert!(anchored_day(i64::MAX).is_err());
+    }
+
+    #[test]
+    fn evaluation_date_must_be_the_anchoring_day_or_the_day_before() {
+        assert!(evaluation_date_matches_anchor("2026-10-09", OCT_9_NOON).unwrap());
+        assert!(evaluation_date_matches_anchor("2026-10-08", OCT_9_NOON).unwrap());
+        assert!(!evaluation_date_matches_anchor("2026-10-07", OCT_9_NOON).unwrap());
+        assert!(!evaluation_date_matches_anchor("2026-10-10", OCT_9_NOON).unwrap());
+        assert!(!evaluation_date_matches_anchor("2026-09-01", OCT_9_NOON).unwrap());
+        assert!(evaluation_date_matches_anchor("bad", OCT_9_NOON).is_err());
+        assert!(evaluation_date_matches_anchor("2026-10-09", i64::MIN).is_err());
+    }
+
+    #[test]
+    fn signing_time_must_be_within_the_anchor_delay_of_the_on_chain_clock() {
+        let limit = MAX_ANCHOR_DELAY_SECONDS;
+        assert_eq!(limit, 300);
+        let signed = "2026-10-09T12:00:00Z";
+        assert!(signing_time_matches_anchor(signed, OCT_9_NOON).unwrap());
+        assert!(signing_time_matches_anchor(signed, OCT_9_NOON + limit).unwrap());
+        assert!(signing_time_matches_anchor(signed, OCT_9_NOON - limit).unwrap());
+        assert!(!signing_time_matches_anchor(signed, OCT_9_NOON + limit + 1).unwrap());
+        assert!(!signing_time_matches_anchor(signed, OCT_9_NOON - limit - 1).unwrap());
+        assert!(!signing_time_matches_anchor("2026-09-01T12:00:00Z", OCT_9_NOON).unwrap());
+        assert!(signing_time_matches_anchor("2026-10-09", OCT_9_NOON).is_err());
+        assert!(!signing_time_matches_anchor(signed, i64::MIN).unwrap());
     }
 
     #[test]

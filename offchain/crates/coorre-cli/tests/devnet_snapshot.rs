@@ -65,6 +65,23 @@ fn every_recorded_case_passes_all_seven_checks_from_the_devnet_snapshot() {
             );
         }
         assert_eq!(report.checks.len(), 7);
+        let mut tampered = files.clone();
+        let first = tampered.keys().next().unwrap().clone();
+        tampered.get_mut(&first).unwrap()[10] ^= 0x01;
+        let report = verify_bundle(
+            &bundle,
+            &tampered,
+            &snapshot.accounts,
+            COORRE_DEVNET_PROGRAM_ID,
+            SOLANA_DEVNET_NETWORK_ID,
+        );
+        let failing: Vec<u8> = report
+            .checks
+            .iter()
+            .filter(|c| c.status == Status::Fail)
+            .map(|c| c.id)
+            .collect();
+        assert_eq!(failing, [1, 7], "{}", dir.display());
     }
 }
 
@@ -152,4 +169,46 @@ fn the_earlier_browser_recordings_match_the_snapshot_byte_for_byte() {
         }
     }
     assert_eq!(compared, 19);
+}
+
+#[test]
+fn the_binary_verifies_from_the_snapshot_and_refuses_another_network_or_program() {
+    let root = repository();
+    let case = root.join("web/verifier/samples/SUP-001");
+    let run = |extra: &[&str]| {
+        std::process::Command::new(env!("CARGO_BIN_EXE_coorre"))
+            .current_dir(&root)
+            .args(["verify", "--bundle"])
+            .arg(case.join("bundle.json"))
+            .arg("--artifacts")
+            .arg(case.join("artifacts"))
+            .arg("--accounts")
+            .arg(snapshot_dir().join("accounts.json"))
+            .args(extra)
+            .output()
+            .unwrap()
+    };
+    let ok = run(&[]);
+    let stdout = String::from_utf8_lossy(&ok.stdout);
+    assert!(ok.status.success(), "{stdout}");
+    assert!(stdout.contains("7/7 checks passed"), "{stdout}");
+    assert!(
+        stdout.contains("(solana:devnet, slot 509686323)"),
+        "{stdout}"
+    );
+
+    let other_network = run(&["--network-id", "memory:simulated"]);
+    let stderr = String::from_utf8_lossy(&other_network.stderr);
+    assert_eq!(other_network.status.code(), Some(2), "{stderr}");
+    assert!(
+        stderr.contains(
+            "recorded on \"solana:devnet\", but the verifier expects \"memory:simulated\""
+        ),
+        "{stderr}"
+    );
+
+    let other_program = run(&["--program-id", "11111111111111111111111111111111"]);
+    let stderr = String::from_utf8_lossy(&other_program.stderr);
+    assert_eq!(other_program.status.code(), Some(2), "{stderr}");
+    assert!(stderr.contains("recorded for program"), "{stderr}");
 }

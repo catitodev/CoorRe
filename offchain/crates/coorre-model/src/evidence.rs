@@ -328,7 +328,7 @@ pub fn is_safe_artifact_name(name: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || b == b'.' || b == b'_' || b == b'-')
 }
 
-fn is_case_ref(text: &str) -> bool {
+pub fn is_case_ref(text: &str) -> bool {
     text.strip_prefix(CASE_REF_PREFIX).is_some_and(|id| {
         !id.is_empty()
             && id
@@ -638,5 +638,21 @@ mod tests {
             EvidenceDocument::from_secured(&json!([])),
             Err(ModelError::NotAnObject)
         );
+    }
+
+    #[test]
+    fn is_case_ref_accepts_the_urn_form_only() {
+        assert!(is_case_ref("urn:coorre:case:SUP-001-20261009T120000Z"));
+        assert!(is_case_ref("urn:coorre:case:a.b_c-1"));
+        for bad in [
+            "",
+            "urn:coorre:case:",
+            "urn:other:case:SUP-001",
+            "urn:coorre:case:SUP 001",
+            "urn:coorre:case:SUP-001\u{1b}[2J",
+            "urn:coorre:case:SUP/001",
+        ] {
+            assert!(!is_case_ref(bad), "{bad:?}");
+        }
     }
 }

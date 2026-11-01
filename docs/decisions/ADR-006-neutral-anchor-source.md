@@ -7,12 +7,12 @@
 ## Context
 The anchoring interface writes in neutral terms: `open_case` and `anchor_transition` take hashes, keys and amounts and return a receipt with a `network_id` (`offchain/crates/coorre-anchor/src/lib.rs:12-67`). The read side and the verifier are shaped by Solana:
 
-- `AccountSnapshot { owner, data }` carries raw account bytes (`coorre-verify/src/verify.rs:23`);
-- `owned` requires `owner == expected_program_id` (`verify.rs:55-60`);
-- checks 4, 5 and 6 decode Anchor layouts with discriminators (`coorre-model/src/accounts.rs:7`, `70-83`, `98`, `140`) and compare them with the recomputed values (`verify.rs:269`, `362`, `416-546`);
+- `AccountSnapshot { owner, data }` carries raw account bytes (`coorre-verify/src/verify.rs:26`);
+- `owned` requires `owner == expected_program_id` (`verify.rs:58-67`);
+- checks 4, 5 and 6 decode Anchor layouts with discriminators (`coorre-model/src/accounts.rs:7`, `70-83`, `98`, `140`) and compare them with the recomputed values (`verify.rs:294`, `387`, `452-601`);
 - the WebAssembly verifier takes the expected program id from the page, never from the bundle (`coorre-verify/src/wasm.rs:71`, `web/verifier/app.js:477-478`).
 
-Checks 1, 2, 3 and 7 (artifact digests, evidence hashes, proofs, reproduced decisions) do not depend on where the anchor lives. CoorRe on Hedera ([docs/hedera/SPEC.md](../hedera/SPEC.md)) and the Web2 witness log ([WEB2_MODE.md](../design/WEB2_MODE.md)) need the same verifier to read a second source.
+Checks 1, 2 and 3 (artifact digests, evidence hashes, proofs) do not depend on where the anchor lives. Check 7 (reproduced decisions) depends on it only for the anchoring time: it dates each automated decision by the anchor's clock (ADR-004), so a second source must supply a timestamp written by the ledger or the witness, never by the signer. CoorRe on Hedera ([docs/hedera/SPEC.md](../hedera/SPEC.md)) and the Web2 witness log ([WEB2_MODE.md](../design/WEB2_MODE.md)) need the same verifier to read a second source.
 
 ## Decision
 - The verifier compares the evidence with a neutral **anchor record**: case id, role or delegate bindings, amount and limit when present, state, and for each step the evidence hash, previous hash, states, actor, rule hash and time.

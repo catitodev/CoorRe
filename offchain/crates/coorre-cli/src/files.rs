@@ -1,10 +1,12 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use anyhow::{Context, anyhow};
+use anyhow::{Context, anyhow, bail};
 use coorre_anchor::Anchorer;
 use coorre_model::evidence::is_safe_artifact_name;
-use coorre_verify::{AccountSnapshot, AuditBundle, Inputs, Report, verify};
+use coorre_verify::{
+    AccountSnapshot, AuditBundle, Inputs, Report, SOLANA_DEVNET_NETWORK_ID, verify,
+};
 
 pub fn load_bundle(path: &Path) -> anyhow::Result<AuditBundle> {
     let text =
@@ -63,4 +65,51 @@ pub fn verify_bundle(
         expected_program_id,
         expected_network_id,
     })
+}
+
+pub fn expected_network_id(
+    requested: Option<&str>,
+    online_network: Option<&str>,
+) -> anyhow::Result<String> {
+    match (requested, online_network) {
+        (Some(requested), Some(online)) if requested != online => bail!(
+            "--network-id {requested} does not match the network the accounts are read from ({online}); drop --network-id or read recorded accounts with --accounts"
+        ),
+        (_, Some(online)) => Ok(online.to_owned()),
+        (Some(requested), None) => Ok(requested.to_owned()),
+        (None, None) => Ok(SOLANA_DEVNET_NETWORK_ID.to_owned()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn online_verification_expects_the_network_it_reads_from() {
+        assert_eq!(
+            expected_network_id(None, Some("solana:devnet")).unwrap(),
+            "solana:devnet"
+        );
+        assert_eq!(
+            expected_network_id(Some("solana:devnet"), Some("solana:devnet")).unwrap(),
+            "solana:devnet"
+        );
+        let error = expected_network_id(Some("memory:simulated"), Some("solana:devnet"))
+            .unwrap_err()
+            .to_string();
+        assert!(
+            error.contains("--network-id memory:simulated does not match the network the accounts are read from (solana:devnet)"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn recorded_accounts_use_the_requested_network_or_devnet() {
+        assert_eq!(
+            expected_network_id(Some("memory:simulated"), None).unwrap(),
+            "memory:simulated"
+        );
+        assert_eq!(expected_network_id(None, None).unwrap(), "solana:devnet");
+    }
 }

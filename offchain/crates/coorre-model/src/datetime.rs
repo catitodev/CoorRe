@@ -24,6 +24,13 @@ pub fn validate_utc_seconds(text: &str) -> Result<()> {
     validate_rfc3339(text)
 }
 
+pub fn utc_seconds_to_unix(text: &str) -> Result<i64> {
+    validate_utc_seconds(text)?;
+    OffsetDateTime::parse(text, &Rfc3339)
+        .map(OffsetDateTime::unix_timestamp)
+        .map_err(|_| ModelError::InvalidDatetime(text.to_owned()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -51,5 +58,16 @@ mod tests {
         assert!(validate_utc_seconds("2026-10-09T09:00:00-03:00").is_err());
         assert!(validate_utc_seconds("2026-10-09t12:00:00z").is_err());
         assert!(validate_utc_seconds("2026-13-09T12:00:00Z").is_err());
+    }
+
+    #[test]
+    fn utc_seconds_convert_to_unix_time_and_reject_other_forms() {
+        assert_eq!(utc_seconds_to_unix("1970-01-01T00:00:00Z").unwrap(), 0);
+        assert_eq!(
+            utc_seconds_to_unix("2026-10-09T12:00:00Z").unwrap(),
+            1_791_547_200
+        );
+        assert!(utc_seconds_to_unix("2026-10-09T09:00:00-03:00").is_err());
+        assert!(utc_seconds_to_unix("2026-10-09").is_err());
     }
 }

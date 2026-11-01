@@ -17,7 +17,10 @@ struct SimulatedCase {
     creator: [u8; 32],
 }
 
+pub type Clock = Box<dyn FnMut() -> i64>;
+
 pub struct MemoryAnchorer {
+    clock: Clock,
     creator: [u8; 32],
     signers: RoleKeys,
     payout_floor: u64,
@@ -48,8 +51,9 @@ fn rejected(error: EngineError) -> AnchorError {
 }
 
 impl MemoryAnchorer {
-    pub fn new(creator: [u8; 32], signers: RoleKeys, payout_floor: u64) -> Self {
+    pub fn new(creator: [u8; 32], signers: RoleKeys, payout_floor: u64, clock: Clock) -> Self {
         Self {
+            clock,
             creator,
             signers,
             payout_floor,
@@ -218,7 +222,7 @@ impl Anchorer for MemoryAnchorer {
             actor_kind: applied.actor_kind.code(),
             rule_hash: r.rule_hash,
             slot: self.slot,
-            unix_ts: 1_700_000_000 + i64::try_from(self.slot).unwrap_or(0),
+            unix_ts: (self.clock)(),
             bump: 255,
         };
         let anchor_address = address("simulated-evidence", &[&case_key, &r.evidence_hash]);
@@ -249,6 +253,7 @@ mod tests {
     use coorre_model::{CaseState, Role};
 
     const FLOOR: u64 = 650_240;
+    const SIMULATED_NOW: i64 = 1_791_547_200;
 
     fn signers() -> RoleKeys {
         RoleKeys {
@@ -294,7 +299,7 @@ mod tests {
 
     #[test]
     fn mirrors_the_program_for_release_rejection_and_refund() {
-        let mut m = MemoryAnchorer::new([1; 32], signers(), FLOOR);
+        let mut m = MemoryAnchorer::new([1; 32], signers(), FLOOR, Box::new(|| SIMULATED_NOW));
         let case = open(&mut m, 3_000_000, 2_000_000);
         step(
             &mut m,
@@ -377,8 +382,42 @@ mod tests {
     }
 
     #[test]
+    fn anchors_carry_the_time_of_the_injected_clock() {
+        let ticks = std::rc::Rc::new(std::cell::Cell::new(SIMULATED_NOW));
+        let source = ticks.clone();
+        let mut m = MemoryAnchorer::new([1; 32], signers(), FLOOR, Box::new(move || source.get()));
+        let case = open(&mut m, 3_000_000, 2_000_000);
+        let first = step(
+            &mut m,
+            &case,
+            CaseState::Submitted,
+            Role::Submitter,
+            [9; 32],
+            11,
+        )
+        .unwrap();
+        ticks.set(SIMULATED_NOW + 42);
+        let second = step(
+            &mut m,
+            &case,
+            CaseState::AgentReviewed,
+            Role::Agent,
+            [11; 32],
+            12,
+        )
+        .unwrap();
+        let time_of = |m: &mut MemoryAnchorer, r: &Receipt| {
+            EvidenceAnchorAccount::decode(&m.fetch_account(&r.account).unwrap().unwrap().data)
+                .unwrap()
+                .unix_ts
+        };
+        assert_eq!(time_of(&mut m, &first), SIMULATED_NOW);
+        assert_eq!(time_of(&mut m, &second), SIMULATED_NOW + 42);
+    }
+
+    #[test]
     fn release_credits_the_submitter_and_rejects_low_amounts_and_duplicates() {
-        let mut m = MemoryAnchorer::new([1; 32], signers(), FLOOR);
+        let mut m = MemoryAnchorer::new([1; 32], signers(), FLOOR, Box::new(|| SIMULATED_NOW));
         let case = open(&mut m, 1_000_000, 2_000_000);
         step(
             &mut m,

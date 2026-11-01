@@ -66,3 +66,66 @@ impl Report {
             .count()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn check(id: u8, status: Status) -> CheckResult {
+        CheckResult {
+            id,
+            name: "check",
+            status,
+            details: vec![],
+        }
+    }
+
+    fn report(statuses: &[Status]) -> Report {
+        Report {
+            summary: CaseSummary {
+                case_ref: "urn:coorre:case:T".to_owned(),
+                program_id: "P".to_owned(),
+                case_record: "R".to_owned(),
+                creator: None,
+                submitter: None,
+                agent: None,
+                rule_engine: None,
+                approver: None,
+                amount_lamports: None,
+                autonomy_limit_lamports: None,
+                final_state: None,
+            },
+            timeline: vec![],
+            checks: statuses
+                .iter()
+                .enumerate()
+                .map(|(i, s)| check(i as u8 + 1, *s))
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn passed_requires_every_check_to_pass() {
+        assert!(report(&[Status::Pass, Status::Pass]).passed());
+        assert!(!report(&[Status::Pass, Status::Fail]).passed());
+    }
+
+    #[test]
+    fn passed_count_counts_only_passing_checks() {
+        assert_eq!(
+            report(&[Status::Pass, Status::Fail, Status::Pass]).passed_count(),
+            2
+        );
+        assert_eq!(report(&[Status::Fail]).passed_count(), 0);
+    }
+
+    #[test]
+    fn status_serializes_in_upper_case() {
+        assert_eq!(
+            serde_json::to_string(&[Status::Pass, Status::Fail])
+                .ok()
+                .as_deref(),
+            Some(r#"["PASS","FAIL"]"#)
+        );
+    }
+}

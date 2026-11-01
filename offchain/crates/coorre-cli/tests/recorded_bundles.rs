@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use coorre_cli::files::{load_bundle, read_artifacts, verify_bundle};
 use coorre_verify::{COORRE_DEVNET_PROGRAM_ID, SOLANA_DEVNET_NETWORK_ID, Status};
 
-const OFFLINE_CHECKS: [u8; 4] = [1, 2, 3, 7];
+const OFFLINE_CHECKS: [u8; 3] = [1, 2, 3];
 
 fn repository() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..")
@@ -98,6 +98,17 @@ fn recorded_devnet_bundles_pass_every_check_that_needs_no_chain() {
                 check.details
             );
         }
+        let decisions = &report.checks[6];
+        assert_eq!(decisions.status, Status::Fail, "{}", dir.display());
+        assert!(
+            decisions
+                .details
+                .iter()
+                .all(|d| d.contains("on-chain anchor unavailable")),
+            "{}: check 7 must date the decision from the chain: {:?}",
+            dir.display(),
+            decisions.details
+        );
         let mut tampered = files.clone();
         let first = tampered.keys().next().unwrap().clone();
         tampered.get_mut(&first).unwrap()[10] ^= 0x01;
@@ -114,6 +125,6 @@ fn recorded_devnet_bundles_pass_every_check_that_needs_no_chain() {
             .filter(|c| OFFLINE_CHECKS.contains(&c.id) && c.status == Status::Fail)
             .map(|c| c.id)
             .collect();
-        assert_eq!(failing, [1, 7], "{}", dir.display());
+        assert_eq!(failing, [1], "{}", dir.display());
     }
 }

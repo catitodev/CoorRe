@@ -7,7 +7,37 @@ use serde_json::Value;
 
 pub struct RecordedAccounts {
     pub slot: Option<u64>,
+    pub network_id: Option<String>,
+    pub program_id: Option<String>,
     pub accounts: BTreeMap<String, AccountSnapshot>,
+}
+
+impl RecordedAccounts {
+    pub fn ensure_source(&self, network_id: &str, program_id: &str) -> anyhow::Result<()> {
+        if let Some(recorded) = &self.network_id
+            && recorded != network_id
+        {
+            bail!(
+                "the accounts were recorded on {recorded:?}, but the verifier expects {network_id:?}"
+            );
+        }
+        if let Some(recorded) = &self.program_id
+            && recorded != program_id
+        {
+            bail!(
+                "the accounts were recorded for program {recorded:?}, but the verifier expects {program_id:?}"
+            );
+        }
+        Ok(())
+    }
+}
+
+fn optional_text(recorded: &Value, key: &str) -> anyhow::Result<Option<String>> {
+    match recorded.get(key) {
+        None => Ok(None),
+        Some(Value::String(text)) => Ok(Some(text.clone())),
+        Some(_) => bail!("snapshot {key} is not a string"),
+    }
 }
 
 fn sextet(byte: u8) -> Option<u8> {
@@ -104,6 +134,8 @@ pub fn accounts_from_rpc(recorded: &Value) -> anyhow::Result<RecordedAccounts> {
     }
     Ok(RecordedAccounts {
         slot: result.pointer("/context/slot").and_then(Value::as_u64),
+        network_id: optional_text(recorded, "network_id")?,
+        program_id: optional_text(recorded, "program_id")?,
         accounts,
     })
 }
@@ -191,5 +223,45 @@ mod tests {
             ]}}
         });
         assert!(accounts_from_rpc(&twice).is_err());
+    }
+
+    #[test]
+    fn a_snapshot_from_another_network_or_program_is_refused() {
+        let mut value = recorded(json!([null, null]));
+        value["network_id"] = json!("solana:devnet");
+        value["program_id"] = json!("PROGRAM");
+        let r = accounts_from_rpc(&value).unwrap();
+        r.ensure_source("solana:devnet", "PROGRAM").unwrap();
+        let error = r
+            .ensure_source("memory:simulated", "PROGRAM")
+            .unwrap_err()
+            .to_string();
+        assert!(
+            error.contains(
+                "recorded on \"solana:devnet\", but the verifier expects \"memory:simulated\""
+            ),
+            "{error}"
+        );
+        let error = r
+            .ensure_source("solana:devnet", "OTHER")
+            .unwrap_err()
+            .to_string();
+        assert!(
+            error.contains("recorded for program \"PROGRAM\""),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn a_raw_recording_without_source_fields_is_read_and_typed_fields_are_checked() {
+        let r = accounts_from_rpc(&recorded(json!([null, null]))).unwrap();
+        assert_eq!(
+            (r.network_id.as_deref(), r.program_id.as_deref()),
+            (None, None)
+        );
+        r.ensure_source("solana:devnet", "PROGRAM").unwrap();
+        let mut value = recorded(json!([null, null]));
+        value["network_id"] = json!(7);
+        assert!(accounts_from_rpc(&value).is_err());
     }
 }

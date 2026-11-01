@@ -12,7 +12,7 @@ Some processes need provable decisions but involve no payment on a blockchain: a
 |---|---|
 | `coorre-model` | Evidence as W3C Verifiable Credentials, RFC 8785 canonical JSON, SHA-256 hashes, eddsa-jcs-2022 proofs, did:key, case_id = sha256(case_ref) |
 | `coorre-engine` | The rule registry and the rules, rule evaluation, the state machine and `CaseTracker` (roles, previous-hash chain, `MandateExceeded`, `UnauthorizedActor`) |
-| `coorre-verify` checks 1, 2, 3 and 7 | Artifact digests, evidence hashes, proofs and reproduced decisions do not depend on where the anchor lives |
+| `coorre-verify` checks 1, 2, 3 and 7 | Artifact digests, evidence hashes, proofs and reproduced decisions do not depend on where the anchor lives; check 7 only needs the anchoring time, which the witness log entry supplies |
 | `coorre-verify` checks 4 and 5 | Signer binding and the chain replay, once the role keys and the case state come from the witness log instead of a CaseRecord account |
 | Audit bundle format (`coorre-audit-bundle/1`) | Unchanged, except that `network_id` names the witness and the receipts carry witness entries |
 | Browser verifier | Same page and the same WebAssembly, with a second anchor source |

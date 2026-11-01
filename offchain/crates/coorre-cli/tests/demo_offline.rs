@@ -5,7 +5,7 @@ use std::process::Command;
 
 use coorre_anchor::memory::{MEMORY_NETWORK_ID, MEMORY_PROGRAM_ID, MemoryAnchorer};
 use coorre_cli::demo::{DemoContext, run_case};
-use coorre_cli::env::FixedEnvironment;
+use coorre_cli::env::{Environment, FixedEnvironment};
 use coorre_cli::files::{fetch_accounts, load_bundle, read_artifacts, verify_bundle};
 use coorre_cli::fixtures::load_cases;
 use coorre_cli::keys::DemoKeys;
@@ -27,8 +27,13 @@ fn scratch(name: &str) -> PathBuf {
 #[test]
 fn the_three_spec_cases_run_and_verify_offline() {
     let keys = DemoKeys::from_seeds(SEEDS);
-    let mut anchorer = MemoryAnchorer::new(keys.creator, keys.role_keys(), 650_240);
     let mut env = FixedEnvironment::new("2026-10-09", "20261009T120000Z");
+    let mut anchorer = MemoryAnchorer::new(
+        keys.creator,
+        keys.role_keys(),
+        650_240,
+        env.clock().unwrap(),
+    );
     let mut out = Vec::new();
     let out_dir = scratch("demo-offline");
     let cases: Vec<_> = load_cases(&fixtures())

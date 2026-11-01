@@ -1,6 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use coorre_engine::rule::evaluation_date_is_credible;
+use coorre_engine::rule::{
+    MAX_ANCHOR_DELAY_SECONDS, anchored_day, evaluation_date_is_credible,
+    evaluation_date_matches_anchor, signing_time_matches_anchor,
+};
 use coorre_engine::{CaseTracker, Decision, RoleKeys, RuleId, required_role};
 use coorre_model::accounts::{
     CaseRecordAccount, EvidenceAnchorAccount, pubkey_from_base58, pubkey_to_base58,
@@ -10,7 +13,7 @@ use coorre_model::eddsa_jcs_2022::{
 };
 use coorre_model::evidence::{case_id, genesis_previous_evidence, is_safe_artifact_name};
 use coorre_model::hash::{sha256, to_hex, to_prefixed};
-use coorre_model::{CaseState, EvidenceDocument, did_key, jcs};
+use coorre_model::{CaseState, EvidenceDocument, RuleRef, did_key, jcs};
 
 use serde_json::Value;
 
@@ -37,7 +40,7 @@ struct Entry {
     document: Option<EvidenceDocument>,
     hash: Option<[u8; 32]>,
     proof: Option<VerifiedProof>,
-    anchor: Option<EvidenceAnchorAccount>,
+    anchor: Result<EvidenceAnchorAccount, String>,
     errors: Vec<String>,
 }
 
@@ -98,9 +101,9 @@ pub fn verify(inputs: &Inputs) -> Report {
                 .map_err(|err| errors.push(err.to_string()))
                 .ok();
             let proof = verify_proof(&e.document).ok();
-            let anchor = owned(inputs, &e.anchor_account)
-                .and_then(|a| EvidenceAnchorAccount::decode(&a.data).map_err(|err| err.to_string()))
-                .ok();
+            let anchor = owned(inputs, &e.anchor_account).and_then(|a| {
+                EvidenceAnchorAccount::decode(&a.data).map_err(|err| err.to_string())
+            });
             Entry {
                 document,
                 hash,
@@ -182,6 +185,7 @@ fn check_evidence(bundle: &AuditBundle, entries: &[Entry]) -> CheckResult {
     if entries.is_empty() {
         failures.push("the bundle contains no evidence".to_owned());
     }
+    let case_rule = submitted_rule(entries);
     for (i, entry) in entries.iter().enumerate() {
         let n = i + 1;
         for error in &entry.errors {
@@ -195,6 +199,19 @@ fn check_evidence(bundle: &AuditBundle, entries: &[Entry]) -> CheckResult {
             failures.push(format!(
                 "evidence {n}: belongs to case {}, not {}",
                 subject.case, bundle.case_ref
+            ));
+        }
+        if let Some(case_rule) = case_rule
+            && subject.rule != *case_rule
+        {
+            failures.push(format!(
+                "evidence {n}: cites rule {} v{} ({}) but the SUBMITTED evidence cites rule {} v{} ({})",
+                subject.rule.id,
+                subject.rule.version,
+                subject.rule.hash,
+                case_rule.id,
+                case_rule.version,
+                case_rule.hash
             ));
         }
         let rule = bundle.rules.iter().find(|r| {
@@ -230,6 +247,14 @@ fn check_evidence(bundle: &AuditBundle, entries: &[Entry]) -> CheckResult {
         failures,
         passed,
     )
+}
+
+fn submitted_rule(entries: &[Entry]) -> Option<&RuleRef> {
+    entries
+        .iter()
+        .filter_map(|e| e.document.as_ref())
+        .find(|d| d.credential_subject.to_state == CaseState::Submitted)
+        .map(|d| &d.credential_subject.rule)
 }
 
 fn check_proofs(bundle: &AuditBundle) -> CheckResult {
@@ -335,16 +360,16 @@ fn check_signers(record: &Result<CaseRecordAccount, String>, entries: &[Entry]) 
             ok = false;
         }
         match &entry.anchor {
-            Some(anchor)
+            Ok(anchor)
                 if anchor.actor == issuer && anchor.actor_kind == role.actor_kind().code() => {}
-            Some(_) => {
+            Ok(_) => {
                 failures.push(format!(
                     "evidence {n}: on-chain anchor records a different actor"
                 ));
                 ok = false;
             }
-            None => {
-                failures.push(format!("evidence {n}: on-chain anchor unavailable"));
+            Err(e) => {
+                failures.push(format!("evidence {n}: on-chain anchor unavailable: {e}"));
                 ok = false;
             }
         }
@@ -367,12 +392,23 @@ fn check_chain(
     let mut failures = Vec::new();
     let mut expected_prev = genesis_previous_evidence(&bundle.case_ref);
     let mut expected_from = CaseState::Open;
-    let mut tracker = record.as_ref().ok().and_then(|r| {
-        CaseTracker::open(r.case_id, role_keys(r), r.amount, r.autonomy_limit, 0).ok()
-    });
-    if tracker.is_none() {
-        failures.push("case record unavailable: transitions cannot be replayed".to_owned());
-    }
+    let mut tracker = match record {
+        Ok(r) => match CaseTracker::open(r.case_id, role_keys(r), r.amount, r.autonomy_limit, 0) {
+            Ok(t) => Some(t),
+            Err(e) => {
+                failures.push(format!(
+                    "case record roles are invalid ({e}): transitions cannot be replayed"
+                ));
+                None
+            }
+        },
+        Err(e) => {
+            failures.push(format!(
+                "case record unavailable ({e}): transitions cannot be replayed"
+            ));
+            None
+        }
+    };
     for (i, entry) in entries.iter().enumerate() {
         let n = i + 1;
         let (Some(doc), Some(hash)) = (&entry.document, &entry.hash) else {
@@ -465,18 +501,17 @@ fn check_onchain(
                     );
                 }
             }
-            for (i, doc) in entries
-                .iter()
-                .filter_map(|e| e.document.as_ref())
-                .enumerate()
-            {
-                if doc.amount_lamports().ok() != Some(r.amount)
-                    || doc.autonomy_limit_lamports().ok() != Some(r.autonomy_limit)
-                {
-                    failures.push(format!(
-                        "evidence {}: mandate differs from the on-chain amount/limit",
-                        i + 1
-                    ));
+            for (i, entry) in entries.iter().enumerate() {
+                let Some(doc) = &entry.document else { continue };
+                let n = i + 1;
+                match (doc.amount_lamports(), doc.autonomy_limit_lamports()) {
+                    (Ok(amount), Ok(limit)) if amount == r.amount && limit == r.autonomy_limit => {}
+                    (Ok(_), Ok(_)) => failures.push(format!(
+                        "evidence {n}: mandate differs from the on-chain amount/limit"
+                    )),
+                    (Err(e), _) | (_, Err(e)) => {
+                        failures.push(format!("evidence {n}: mandate: {e}"))
+                    }
                 }
             }
             if failures.is_empty() {
@@ -498,9 +533,7 @@ fn check_onchain(
         if !seen.insert(evidence.anchor_account.as_str()) {
             failures.push(format!("evidence {n}: anchor account listed twice"));
         }
-        let anchor = match owned(inputs, &evidence.anchor_account)
-            .and_then(|a| EvidenceAnchorAccount::decode(&a.data).map_err(|e| e.to_string()))
-        {
+        let anchor = match &entry.anchor {
             Ok(a) => a,
             Err(e) => {
                 failures.push(format!("evidence {n}: {e}"));
@@ -533,15 +566,29 @@ fn check_onchain(
         if doc.rule_hash().ok() != Some(anchor.rule_hash) {
             mismatches.push("rule_hash");
         }
-        if mismatches.is_empty() {
-            passed.push(format!(
-                "evidence {n}: anchor {} matches (slot {})",
-                evidence.anchor_account, anchor.slot
-            ));
-        } else {
+        let mut timing = None;
+        match signing_time_matches_anchor(&doc.valid_from, anchor.unix_ts) {
+            Ok(true) => {}
+            Ok(false) => {
+                timing = Some(format!(
+                    "evidence {n}: validFrom {} is more than {MAX_ANCHOR_DELAY_SECONDS} s away from the on-chain anchoring time (unix {})",
+                    doc.valid_from, anchor.unix_ts
+                ))
+            }
+            Err(e) => timing = Some(format!("evidence {n}: validFrom: {e}")),
+        }
+        let matches = mismatches.is_empty() && timing.is_none();
+        if !mismatches.is_empty() {
             failures.push(format!(
                 "evidence {n}: on-chain anchor differs in {}",
                 mismatches.join(", ")
+            ));
+        }
+        failures.extend(timing);
+        if matches {
+            passed.push(format!(
+                "evidence {n}: anchor {} matches (slot {}, signed within {MAX_ANCHOR_DELAY_SECONDS} s of the on-chain clock)",
+                evidence.anchor_account, anchor.slot
             ));
         }
     }
@@ -577,8 +624,39 @@ fn submitted_documents<'a>(
         .collect()
 }
 
+fn check_evaluation_time(
+    document: &EvidenceDocument,
+    evaluation_date: &str,
+    anchor: &Result<EvidenceAnchorAccount, String>,
+) -> Result<(), String> {
+    let signing_day = document
+        .valid_from
+        .get(..10)
+        .ok_or_else(|| format!("validFrom `{}` is not a timestamp", document.valid_from))?;
+    if !evaluation_date_is_credible(evaluation_date, &document.valid_from)
+        .map_err(|e| e.to_string())?
+    {
+        return Err(format!(
+            "evaluation date {evaluation_date} is not the signing day ({signing_day}) or the day before"
+        ));
+    }
+    let anchor = anchor.as_ref().map_err(|e| {
+        format!("on-chain anchor unavailable, so the evaluation date cannot be dated: {e}")
+    })?;
+    let anchored = anchored_day(anchor.unix_ts).map_err(|e| e.to_string())?;
+    if !evaluation_date_matches_anchor(evaluation_date, anchor.unix_ts)
+        .map_err(|e| e.to_string())?
+    {
+        return Err(format!(
+            "evaluation date {evaluation_date} is not the anchoring day ({anchored}, on-chain clock) or the day before"
+        ));
+    }
+    Ok(())
+}
+
 fn reproduce(
     document: &EvidenceDocument,
+    anchor: &Result<EvidenceAnchorAccount, String>,
     documents: &Result<Vec<(&str, &[u8])>, String>,
 ) -> Result<(Decision, String), String> {
     let subject = &document.credential_subject;
@@ -601,14 +679,7 @@ fn reproduce(
         .get("evaluation_date")
         .and_then(Value::as_str)
         .ok_or("the payload has no evaluation_date")?;
-    if !evaluation_date_is_credible(evaluation_date, &document.valid_from)
-        .map_err(|e| e.to_string())?
-    {
-        return Err(format!(
-            "evaluation date {evaluation_date} is not the signing day ({}) or the day before",
-            &document.valid_from[..10]
-        ));
-    }
+    check_evaluation_time(document, evaluation_date, anchor)?;
     let documents = documents.clone()?;
     for (name, bytes) in &documents {
         rule.parse_artifact(bytes)
@@ -628,12 +699,18 @@ fn reproduce(
     Ok((decision, evaluation_date.to_owned()))
 }
 
-fn string_list(payload: &serde_json::Map<String, Value>, key: &str) -> Option<Vec<String>> {
+fn string_list(payload: &serde_json::Map<String, Value>, key: &str) -> Result<Vec<String>, String> {
     payload
-        .get(key)?
-        .as_array()?
+        .get(key)
+        .ok_or_else(|| format!("the payload has no {key}"))?
+        .as_array()
+        .ok_or_else(|| format!("the payload {key} is not a list"))?
         .iter()
-        .map(|v| v.as_str().map(str::to_owned))
+        .map(|v| {
+            v.as_str()
+                .map(str::to_owned)
+                .ok_or_else(|| format!("the payload {key} holds a value that is not text"))
+        })
         .collect()
 }
 
@@ -666,7 +743,7 @@ fn check_decisions(inputs: &Inputs, entries: &[Entry]) -> CheckResult {
             continue;
         }
         automated += 1;
-        let (decision, evaluated_on) = match reproduce(doc, &documents) {
+        let (decision, evaluated_on) = match reproduce(doc, &entry.anchor, &documents) {
             Ok(result) => result,
             Err(e) if is_agent => {
                 passed.push(format!(
@@ -686,7 +763,7 @@ fn check_decisions(inputs: &Inputs, entries: &[Entry]) -> CheckResult {
                 Decision::Escalated { .. } => "escalate",
             };
             if payload.get("recommendation").and_then(Value::as_str) == Some(expected)
-                && string_list(payload, "findings").as_deref() == Some(decision.reasons())
+                && string_list(payload, "findings").as_deref() == Ok(decision.reasons())
             {
                 passed.push(format!(
                     "evidence {n}: agent recommendation matches the rule ({expected})"
@@ -709,13 +786,17 @@ fn check_decisions(inputs: &Inputs, entries: &[Entry]) -> CheckResult {
         if payload.get("decision").and_then(Value::as_str) != Some(subject.to_state.name()) {
             differences.push("the payload decision does not match the state".to_owned());
         }
-        let recorded = string_list(payload, "reasons").unwrap_or_default();
-        if recorded != decision.reasons() {
-            differences.push(format!(
+        match string_list(payload, "reasons") {
+            Ok(recorded) if recorded == decision.reasons() => {}
+            Ok(recorded) => differences.push(format!(
                 "reasons recorded [{}] but the rule gives [{}]",
                 recorded.join("; "),
                 decision.reasons().join("; ")
-            ));
+            )),
+            Err(e) => differences.push(format!(
+                "{e}, but the rule gives [{}]",
+                decision.reasons().join("; ")
+            )),
         }
         if differences.is_empty() {
             passed.push(format!(
@@ -768,8 +849,8 @@ fn timeline(bundle: &AuditBundle, entries: &[Entry]) -> Vec<TimelineEntry> {
                 valid_from: doc.valid_from.clone(),
                 evidence_hash: entry.hash.map(|h| to_prefixed(&h)).unwrap_or_default(),
                 anchor_account: evidence.anchor_account.clone(),
-                anchor_slot: entry.anchor.as_ref().map(|a| a.slot),
-                anchor_unix_ts: entry.anchor.as_ref().map(|a| a.unix_ts),
+                anchor_slot: entry.anchor.as_ref().ok().map(|a| a.slot),
+                anchor_unix_ts: entry.anchor.as_ref().ok().map(|a| a.unix_ts),
                 tx_signature: evidence.receipt.as_ref().map(|r| r.tx_signature.clone()),
                 payload: Value::Object(s.payload.clone()),
             })

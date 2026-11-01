@@ -26,6 +26,11 @@ const OTHER_PROGRAM: &str = "11111111111111111111111111111111";
 const CASE_REF: &str = "urn:coorre:case:TEST-001";
 const AMOUNT: u64 = 50_000_000;
 const LIMIT: u64 = 100_000_000;
+const ANCHOR_DAY_NOON: i64 = 1_791_547_200;
+
+type Hook<'a> = &'a dyn Fn(usize, &mut EvidenceDocument, &mut ProofOptions);
+
+fn no_hook(_: usize, _: &mut EvidenceDocument, _: &mut ProofOptions) {}
 
 struct Fixture {
     bundle: AuditBundle,
@@ -52,7 +57,7 @@ struct Step<'a> {
     payload: Value,
 }
 
-fn document(step: &Step, previous: String) -> Value {
+fn document(step: &Step, previous: String, signed_on: &str, hook: Hook) -> Value {
     let Step {
         signer,
         n,
@@ -69,7 +74,7 @@ fn document(step: &Step, previous: String) -> Value {
         id: format!("urn:uuid:00000000-0000-4000-8000-00000000000{n}"),
         types: vec![VC_TYPE.to_owned(), TRANSITION_TYPE.to_owned()],
         issuer: signer.did(),
-        valid_from: format!("2026-10-09T12:0{n}:00Z"),
+        valid_from: format!("{signed_on}T12:0{n}:00Z"),
         credential_subject: TransitionSubject {
             case: CASE_REF.to_owned(),
             from_state: from,
@@ -93,7 +98,9 @@ fn document(step: &Step, previous: String) -> Value {
             previous_evidence: previous,
         },
     };
-    let options = ProofOptions::assertion(doc.valid_from.clone(), signer.verification_method());
+    let mut doc = doc;
+    let mut options = ProofOptions::assertion(doc.valid_from.clone(), signer.verification_method());
+    hook(usize::from(n) - 1, &mut doc, &mut options);
     sign_document(&doc.to_value().unwrap(), &options, signer).unwrap()
 }
 
@@ -104,6 +111,9 @@ struct Scenario {
     recommendation: &'static str,
     findings: Vec<&'static str>,
     reasons: Vec<&'static str>,
+    signed_on: &'static str,
+    anchor_delay_seconds: i64,
+    approved: bool,
 }
 
 impl Scenario {
@@ -115,6 +125,9 @@ impl Scenario {
             recommendation: "auto_approve",
             findings: vec![],
             reasons: vec![],
+            signed_on: "2026-10-09",
+            anchor_delay_seconds: 2,
+            approved: false,
         }
     }
 
@@ -126,6 +139,9 @@ impl Scenario {
             recommendation: "escalate",
             findings: vec!["environmental license expired"],
             reasons: vec!["environmental license expired"],
+            signed_on: "2026-10-09",
+            anchor_delay_seconds: 2,
+            approved: false,
         }
     }
 }
@@ -142,6 +158,10 @@ fn fixture() -> Fixture {
 }
 
 fn fixture_with(scenario: &Scenario) -> Fixture {
+    fixture_hooked(scenario, &no_hook)
+}
+
+fn fixture_hooked(scenario: &Scenario, hook: Hook) -> Fixture {
     let (creator, submitter, agent, rule_engine, approver) =
         (key(1), key(2), key(3), key(4), key(5));
     let case_record = address(50);
@@ -164,7 +184,7 @@ fn fixture_with(scenario: &Scenario) -> Fixture {
         })
         .collect();
 
-    let steps = [
+    let mut steps = vec![
         Step {
             signer: &submitter,
             n: 1,
@@ -204,13 +224,30 @@ fn fixture_with(scenario: &Scenario) -> Fixture {
             }),
         },
     ];
+    if scenario.approved {
+        steps.push(Step {
+            signer: &approver,
+            n: 4,
+            from: CaseState::Escalated,
+            to: CaseState::Approved,
+            kind: ActorKind::Human,
+            autonomy: Autonomy::Autonomous,
+            artifacts: vec![],
+            payload: json!({ "decision": "APPROVED", "justification": "checked by hand" }),
+        });
+    }
+    let final_state = steps.last().unwrap().to;
     let mut previous = genesis_previous_evidence(CASE_REF);
     let mut evidence = Vec::new();
     let mut accounts = BTreeMap::new();
     let mut last_hash = [0u8; 32];
     for (i, step) in steps.iter().enumerate() {
-        let doc = document(step, previous.clone());
+        let doc = document(step, previous.clone(), scenario.signed_on, hook);
         let hash = evidence_hash(&doc).unwrap();
+        let cited_rule = EvidenceDocument::from_secured(&doc)
+            .unwrap()
+            .rule_hash()
+            .unwrap();
         let anchor_account = address(60 + i as u8);
         let anchor = EvidenceAnchorAccount {
             evidence_hash: hash,
@@ -220,9 +257,9 @@ fn fixture_with(scenario: &Scenario) -> Fixture {
             to_state: step.to.code(),
             actor: step.signer.public_key(),
             actor_kind: step.kind.code(),
-            rule_hash: rule_hash().unwrap(),
+            rule_hash: cited_rule,
             slot: 1000 + i as u64,
-            unix_ts: 1_791_500_000 + i as i64,
+            unix_ts: ANCHOR_DAY_NOON + 60 * (i as i64 + 1) + scenario.anchor_delay_seconds,
             bump: 255,
         };
         accounts.insert(
@@ -249,9 +286,9 @@ fn fixture_with(scenario: &Scenario) -> Fixture {
         approver: approver.public_key(),
         amount: AMOUNT,
         autonomy_limit: LIMIT,
-        state: scenario.final_state.code(),
+        state: final_state.code(),
         last_evidence_hash: last_hash,
-        transition_count: 3,
+        transition_count: u32::try_from(steps.len()).unwrap(),
         bump: 254,
     };
     accounts.insert(
@@ -479,11 +516,293 @@ fn a_backdated_evaluation_date_fails_check_7() {
 }
 
 #[test]
-fn a_missing_evaluation_date_or_document_fails_check_7() {
+fn a_rule_engine_decision_without_an_evaluation_date_fails_only_check_7() {
+    let f = fixture_hooked(&Scenario::valid(), &|i, doc, _| {
+        if i == 2 {
+            doc.credential_subject.payload.remove("evaluation_date");
+        }
+    });
+    let report = run(&f);
+    assert_eq!(failing(&report), [7], "{:#?}", report.checks);
+    assert!(
+        first_detail(&report, 7).contains(
+            "evidence 3: decision cannot be reproduced: the payload has no evaluation_date"
+        ),
+        "{}",
+        first_detail(&report, 7)
+    );
+}
+
+#[test]
+fn an_agent_step_without_an_evaluation_date_is_noted_but_does_not_fail() {
+    let f = fixture_hooked(&Scenario::valid(), &|i, doc, _| {
+        if i == 1 {
+            doc.credential_subject.payload.remove("evaluation_date");
+        }
+    });
+    let report = run(&f);
+    assert!(report.passed(), "{:#?}", report.checks);
+    assert!(
+        first_detail(&report, 7).contains(
+            "evidence 2: agent recommendation not compared (the payload has no evaluation_date)"
+        ),
+        "{}",
+        first_detail(&report, 7)
+    );
+}
+
+#[test]
+fn a_signer_backdating_validfrom_and_evaluation_date_fails_checks_6_and_7() {
+    let mut scenario = Scenario::valid();
+    scenario.license_until = "2026-09-30";
+    scenario.evaluation_date = "2026-09-01";
+    scenario.signed_on = "2026-09-01";
+    let report = run(&fixture_with(&scenario));
+    assert_eq!(failing(&report), [6, 7], "{:#?}", report.checks);
+    let detail = first_detail(&report, 7);
+    assert!(
+        detail.contains(
+            "evidence 3: decision cannot be reproduced: evaluation date 2026-09-01 is not the anchoring day (2026-10-09, on-chain clock) or the day before"
+        ),
+        "{detail}"
+    );
+    let detail = first_detail(&report, 6);
+    for n in 1..=3 {
+        assert!(
+            detail.contains(&format!(
+                "evidence {n}: validFrom 2026-09-01T12:0{n}:00Z is more than 300 s away from the on-chain anchoring time"
+            )),
+            "{detail}"
+        );
+    }
+}
+
+#[test]
+fn an_approver_backdating_validfrom_fails_check_6() {
+    let mut scenario = Scenario::expired_license_escalated();
+    scenario.approved = true;
+    let honest = run(&fixture_with(&scenario));
+    assert!(honest.passed(), "{:#?}", honest.checks);
+    let f = fixture_hooked(&scenario, &|i, doc, options| {
+        if i == 3 {
+            doc.valid_from = "2026-09-01T12:04:00Z".to_owned();
+            options.created = doc.valid_from.clone();
+        }
+    });
+    let report = run(&f);
+    assert_eq!(failing(&report), [6], "{:#?}", report.checks);
+    assert!(
+        first_detail(&report, 6).contains(
+            "evidence 4: validFrom 2026-09-01T12:04:00Z is more than 300 s away from the on-chain anchoring time"
+        ),
+        "{}",
+        first_detail(&report, 6)
+    );
+}
+
+#[test]
+fn a_validfrom_far_from_the_on_chain_clock_fails_check_6() {
+    let mut scenario = Scenario::valid();
+    scenario.anchor_delay_seconds = 301;
+    let report = run(&fixture_with(&scenario));
+    assert_eq!(failing(&report), [6], "{:#?}", report.checks);
+    assert!(
+        first_detail(&report, 6).contains(
+            "evidence 1: validFrom 2026-10-09T12:01:00Z is more than 300 s away from the on-chain anchoring time"
+        ),
+        "{}",
+        first_detail(&report, 6)
+    );
+    scenario.anchor_delay_seconds = -301;
+    assert_eq!(failing(&run(&fixture_with(&scenario))), [6]);
+}
+
+#[test]
+fn an_anchor_within_the_delay_of_the_signing_time_passes() {
+    for delay in [300, -300, 0] {
+        let mut scenario = Scenario::valid();
+        scenario.anchor_delay_seconds = delay;
+        let report = run(&fixture_with(&scenario));
+        assert!(report.passed(), "{delay}: {:#?}", report.checks);
+    }
+}
+
+#[test]
+fn a_missing_anchor_of_a_rule_engine_decision_fails_check_7_too() {
     let mut f = fixture();
-    f.artifacts.remove("tax-certificate.json");
-    let failed = failing(&run(&f));
-    assert!(failed.contains(&1) && failed.contains(&7), "{failed:?}");
+    let anchor = f.bundle.evidence[2].anchor_account.clone();
+    f.accounts.remove(&anchor);
+    let report = run(&f);
+    assert_eq!(failing(&report), [4, 6, 7], "{:#?}", report.checks);
+    assert!(
+        first_detail(&report, 7).contains("on-chain anchor unavailable"),
+        "{}",
+        first_detail(&report, 7)
+    );
+}
+
+#[test]
+fn a_bundle_for_another_network_fails_check_6() {
+    let mut f = fixture();
+    f.bundle.network_id = "solana:mainnet-beta".to_owned();
+    let report = run(&f);
+    assert_eq!(failing(&report), [6], "{:#?}", report.checks);
+    assert!(
+        first_detail(&report, 6)
+            .contains("bundle network is solana:mainnet-beta, expected solana:devnet")
+    );
+}
+
+#[test]
+fn a_proof_purpose_other_than_assertion_method_fails_check_3() {
+    let f = fixture_hooked(&Scenario::valid(), &|i, _, options| {
+        if i == 0 {
+            options.proof_purpose = "authentication".to_owned();
+        }
+    });
+    let report = run(&f);
+    assert_eq!(failing(&report), [3], "{:#?}", report.checks);
+    assert!(
+        first_detail(&report, 3).contains("evidence 1: unexpected proof purpose authentication"),
+        "{}",
+        first_detail(&report, 3)
+    );
+}
+
+#[test]
+fn an_actor_kind_that_does_not_match_the_role_fails_check_4() {
+    let f = fixture_hooked(&Scenario::valid(), &|i, doc, _| {
+        if i == 1 {
+            doc.credential_subject.actor.kind = ActorKind::Human;
+        }
+    });
+    let report = run(&f);
+    assert_eq!(failing(&report), [4], "{:#?}", report.checks);
+    assert!(
+        first_detail(&report, 4).contains("evidence 2: actor kind human does not match role agent"),
+        "{}",
+        first_detail(&report, 4)
+    );
+}
+
+#[test]
+fn an_anchor_account_listed_twice_fails_check_6() {
+    let mut f = fixture();
+    f.bundle.evidence[1].anchor_account = f.bundle.evidence[0].anchor_account.clone();
+    let report = run(&f);
+    assert!(failing(&report).contains(&6), "{:#?}", report.checks);
+    assert!(
+        first_detail(&report, 6).contains("evidence 2: anchor account listed twice"),
+        "{}",
+        first_detail(&report, 6)
+    );
+}
+
+fn rewrite_record(f: &mut Fixture, change: impl Fn(&mut CaseRecordAccount)) {
+    let snapshot = f.accounts.get_mut(&f.bundle.case_record).unwrap();
+    let mut record = CaseRecordAccount::decode(&snapshot.data).unwrap();
+    change(&mut record);
+    snapshot.data = record.encode();
+}
+
+#[test]
+fn a_case_record_holding_another_case_id_fails_check_6() {
+    let mut f = fixture();
+    rewrite_record(&mut f, |r| r.case_id = [9; 32]);
+    let report = run(&f);
+    assert!(failing(&report).contains(&6), "{:#?}", report.checks);
+    assert!(
+        first_detail(&report, 6).contains("case record holds a different case_id"),
+        "{}",
+        first_detail(&report, 6)
+    );
+}
+
+#[test]
+fn a_case_record_with_repeated_role_keys_reports_why_it_cannot_be_replayed() {
+    let mut f = fixture();
+    rewrite_record(&mut f, |r| r.agent = r.submitter);
+    let report = run(&f);
+    assert!(failing(&report).contains(&5), "{:#?}", report.checks);
+    assert!(
+        first_detail(&report, 5).contains("role keys must be pairwise distinct"),
+        "{}",
+        first_detail(&report, 5)
+    );
+}
+
+#[test]
+fn the_mandate_failure_names_the_right_evidence_after_an_invalid_document() {
+    let mut f = fixture_hooked(&Scenario::valid(), &|i, doc, _| {
+        if i == 2 {
+            doc.credential_subject.mandate.amount_lamports = (AMOUNT + 1).to_string();
+        }
+    });
+    f.bundle.evidence[0].document["type"] = json!("not a credential");
+    let report = run(&f);
+    let detail = first_detail(&report, 6);
+    assert!(
+        detail.contains("evidence 3: mandate differs from the on-chain amount/limit"),
+        "{detail}"
+    );
+    assert!(!detail.contains("evidence 2: mandate"), "{detail}");
+}
+
+#[test]
+fn reasons_that_are_not_text_fail_check_7() {
+    let f = fixture_hooked(&Scenario::valid(), &|i, doc, _| {
+        if i == 2 {
+            doc.credential_subject
+                .payload
+                .insert("reasons".to_owned(), json!([1]));
+        }
+    });
+    let report = run(&f);
+    assert_eq!(failing(&report), [7], "{:#?}", report.checks);
+    assert!(
+        first_detail(&report, 7).contains("the payload reasons holds a value that is not text"),
+        "{}",
+        first_detail(&report, 7)
+    );
+}
+
+#[test]
+fn missing_reasons_fail_check_7() {
+    let f = fixture_hooked(&Scenario::valid(), &|i, doc, _| {
+        if i == 2 {
+            doc.credential_subject.payload.remove("reasons");
+        }
+    });
+    let report = run(&f);
+    assert_eq!(failing(&report), [7], "{:#?}", report.checks);
+    assert!(first_detail(&report, 7).contains("the payload has no reasons"));
+}
+
+#[test]
+fn an_evidence_citing_another_rule_than_the_submission_fails_check_2() {
+    let other = coorre_engine::RuleId::MilestonePayment;
+    let other_hash = to_prefixed(&other.hash().unwrap());
+    let mut f = fixture_hooked(&Scenario::valid(), &|i, doc, _| {
+        if i == 1 {
+            doc.credential_subject.rule = RuleRef {
+                id: other.id().to_owned(),
+                version: other.version().to_owned(),
+                hash: other_hash.clone(),
+            };
+        }
+    });
+    f.bundle.rules.push(other.document().unwrap());
+    let report = run(&f);
+    assert_eq!(failing(&report), [2], "{:#?}", report.checks);
+    assert!(
+        first_detail(&report, 2).contains(&format!(
+            "evidence 2: cites rule {} v{} ({other_hash}) but the SUBMITTED evidence cites rule supplier-docs v1",
+            other.id(),
+            other.version()
+        )),
+        "{}",
+        first_detail(&report, 2)
+    );
 }
 
 #[test]

@@ -110,11 +110,12 @@ pub fn decode_binary(bytes: &[u8]) -> anyhow::Result<ReleaseMemo> {
     })
 }
 
+const _: () = assert!(MEMO_LEN.is_multiple_of(32));
+
 pub fn encode_binary_hex(memo: &ReleaseMemo) -> String {
-    encode_binary(memo)
-        .chunks(32)
-        .map(|chunk| to_hex(&digest(chunk).unwrap_or([0; 32])))
-        .collect()
+    let bytes = encode_binary(memo);
+    let (chunks, _) = bytes.as_chunks::<32>();
+    chunks.iter().map(to_hex).collect()
 }
 
 pub fn decode_binary_hex(text: &str) -> anyhow::Result<ReleaseMemo> {
