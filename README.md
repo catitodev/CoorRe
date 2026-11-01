@@ -132,10 +132,10 @@ O programa, os papéis, a máquina de estados e o modelo de evidências são os 
 | Domínio | Quem age | Evidência | Regra | Autoridade humana | Por que importa | Status |
 |---|---|---|---|---|---|---|
 | Homologação e pagamento de fornecedores | Fornecedor, agente de compras, motor de regras | Certidão fiscal, licença ambiental | supplier-docs v1 | Gestor de compras | [StartSe Consulting, 2026](https://mundorh.com.br/ia-nas-empresas-84-dos-projetos-analisados-apresentam-resultados-e-revelam-novos-desafios-para-o-rh/) | roda na devnet |
-| Pagamentos por marco em projetos financiados, com prestação de contas | Organização beneficiária, agente de análise, motor de regras | Termo de fomento, relatório do marco, prestação de contas | milestone-payment v1 | Gestor do fundo | [Lei 13.019/2014, art. 48](https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2014/lei/l13019compilado.htm) | roda na devnet |
+| Pagamentos por marco em projetos financiados, com prestação de contas | Organização beneficiária, agente de análise, motor de regras | Termo de fomento, relatório do marco, prestação de contas | milestone-payment v1, v2 | Gestor do fundo | [Lei 13.019/2014, art. 48](https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2014/lei/l13019compilado.htm) | v1 roda na devnet; v2 roda offline |
 | Pagamentos por serviços ambientais com evidência de monitoramento | Provedor no território, agente de monitoramento, motor de regras | Contrato, relatório de monitoramento | ecosystem-services-payment v1 | Gestor do programa | [Lei 14.119/2021, art. 6º, § 6º](https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/l14119.htm) | roda na devnet |
-| Contratos de serviço entregues por consultorias | Consultoria, agente de análise, motor de regras | Contrato de serviço, termo de aceite, nota fiscal | service-delivery v1 | Gestor do contrato | [Lei 4.320/1964, arts. 62 e 63](https://www.planalto.gov.br/ccivil_03/leis/l4320.htm), quando o contratante é um órgão público | roda na devnet |
-| Compras preparadas por agentes de IA | Fornecedor, agente de compras, motor de regras | Pedido de compra, cotação do fornecedor, cadastro do fornecedor | agent-purchase v1 | Gestor de compras | [AP2](https://cloud.google.com/blog/products/ai-machine-learning/announcing-agents-to-payments-ap2-protocol/?hl=en), [IMDA](https://www.imda.gov.sg/resources/press-releases-factsheets-and-speeches/factsheets/2026/updated-model-ai-governance-framework-for-agentic-ai), [StartSe Consulting](https://mundorh.com.br/ia-nas-empresas-84-dos-projetos-analisados-apresentam-resultados-e-revelam-novos-desafios-para-o-rh/) | roda na devnet |
+| Contratos de serviço entregues por consultorias | Consultoria, agente de análise, motor de regras | Contrato de serviço, termo de aceite, nota fiscal | service-delivery v1, v2 | Gestor do contrato | [Lei 4.320/1964, arts. 62 e 63](https://www.planalto.gov.br/ccivil_03/leis/l4320.htm), quando o contratante é um órgão público | v1 roda na devnet; v2 roda offline |
+| Compras preparadas por agentes de IA | Fornecedor, agente de compras, motor de regras | Pedido de compra, cotação do fornecedor, cadastro do fornecedor | agent-purchase v1, v2 | Gestor de compras | [AP2](https://cloud.google.com/blog/products/ai-machine-learning/announcing-agents-to-payments-ap2-protocol/?hl=en), [IMDA](https://www.imda.gov.sg/resources/press-releases-factsheets-and-speeches/factsheets/2026/updated-model-ai-governance-framework-for-agentic-ai), [StartSe Consulting](https://mundorh.com.br/ia-nas-empresas-84-dos-projetos-analisados-apresentam-resultados-e-revelam-novos-desafios-para-o-rh/) | v1 roda na devnet; v2 roda offline |
 
 Os pagamentos por serviços ambientais são onde o motor nasceu.
 
@@ -241,10 +241,15 @@ Cada regra é um documento JSON em [offchain/crates/coorre-engine/rules](offchai
 | Regra | Documentos | Casos de demonstração |
 |---|---|---|
 | supplier-docs v1 | certidão fiscal, licença ambiental | SUP-001, SUP-002, SUP-003 |
-| agent-purchase v1 | pedido de compra, cotação do fornecedor, cadastro do fornecedor | AGT-001, AGT-002 |
+| agent-purchase v1 | pedido de compra, cotação do fornecedor, cadastro do fornecedor | AGT-001, AGT-002 (execução na devnet de 2026-10-10) |
+| agent-purchase v2 | como a v1 | AGT-001, AGT-002 |
 | ecosystem-services-payment v1 | contrato, relatório de monitoramento | PES-001, PES-002 |
-| milestone-payment v1 | termo de fomento, relatório do marco, prestação de contas | MIL-001, MIL-002 |
-| service-delivery v1 | contrato de serviço, termo de aceite, nota fiscal | SRV-001, SRV-002 |
+| milestone-payment v1 | termo de fomento, relatório do marco, prestação de contas | MIL-001, MIL-002 (execução na devnet de 2026-10-10) |
+| milestone-payment v2 | como a v1 | MIL-001, MIL-002 |
+| service-delivery v1 | contrato de serviço, termo de aceite, nota fiscal | SRV-001, SRV-002 (execução na devnet de 2026-10-10) |
+| service-delivery v2 | como a v1 | SRV-001, SRV-002 |
+
+A versão 2 de agent-purchase, milestone-payment e service-delivery aplica uma única checagem de data a todas as regras: um marco entregue, um aceite registrado ou uma nota emitida depois da data da avaliação escala com o seu próprio motivo, assim como um pedido de compra com a data de necessidade (needed-by) vencida; uma data igual à da avaliação passa. Os casos de demonstração indicam a v2. A versão 1 continua no registro sem mudança, porque cada evidência indica a versão da regra com que foi decidida e a checagem 7 refaz a decisão com essa versão: as execuções na devnet de 2026-10-10 são verificadas com a v1 ([ADR-005](docs/decisions/ADR-005-rule-registry-and-application-domains.md)).
 
 Os casos e seus documentos sintéticos estão descritos em [demo/fixtures](demo/fixtures/README.md).
 
@@ -590,10 +595,10 @@ The program, the roles, the state machine and the evidence model stay the same i
 | Domain | Who acts | Evidence | Rule | Human authority | Why it matters | Status |
 |---|---|---|---|---|---|---|
 | Supplier onboarding and payment | Supplier, procurement agent, rule engine | Tax certificate, environmental license | supplier-docs v1 | Procurement manager | [StartSe Consulting, 2026](https://mundorh.com.br/ia-nas-empresas-84-dos-projetos-analisados-apresentam-resultados-e-revelam-novos-desafios-para-o-rh/) | runs on devnet |
-| Milestone payments in funded projects, with accountability | Grantee organisation, review agent, rule engine | Funding agreement, milestone report, accountability report | milestone-payment v1 | Fund manager | [Law 13.019/2014, Art. 48](https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2014/lei/l13019compilado.htm) | runs on devnet |
+| Milestone payments in funded projects, with accountability | Grantee organisation, review agent, rule engine | Funding agreement, milestone report, accountability report | milestone-payment v1, v2 | Fund manager | [Law 13.019/2014, Art. 48](https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2014/lei/l13019compilado.htm) | v1 runs on devnet; v2 runs offline |
 | Payments for ecosystem services with monitoring evidence | Provider on the land, monitoring agent, rule engine | Contract, monitoring report | ecosystem-services-payment v1 | Program manager | [Law 14.119/2021, Art. 6, § 6](https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/l14119.htm) | runs on devnet |
-| Service contracts delivered by consultancies | Consultancy, review agent, rule engine | Service contract, acceptance record, invoice | service-delivery v1 | Contract manager | [Law 4.320/1964, Arts. 62 and 63](https://www.planalto.gov.br/ccivil_03/leis/l4320.htm), when the contracting party is a public body | runs on devnet |
-| Purchases prepared by AI agents | Supplier, purchasing agent, rule engine | Purchase request, supplier quote, supplier registration | agent-purchase v1 | Purchasing manager | [AP2](https://cloud.google.com/blog/products/ai-machine-learning/announcing-agents-to-payments-ap2-protocol/?hl=en), [IMDA](https://www.imda.gov.sg/resources/press-releases-factsheets-and-speeches/factsheets/2026/updated-model-ai-governance-framework-for-agentic-ai), [StartSe Consulting](https://mundorh.com.br/ia-nas-empresas-84-dos-projetos-analisados-apresentam-resultados-e-revelam-novos-desafios-para-o-rh/) | runs on devnet |
+| Service contracts delivered by consultancies | Consultancy, review agent, rule engine | Service contract, acceptance record, invoice | service-delivery v1, v2 | Contract manager | [Law 4.320/1964, Arts. 62 and 63](https://www.planalto.gov.br/ccivil_03/leis/l4320.htm), when the contracting party is a public body | v1 runs on devnet; v2 runs offline |
+| Purchases prepared by AI agents | Supplier, purchasing agent, rule engine | Purchase request, supplier quote, supplier registration | agent-purchase v1, v2 | Purchasing manager | [AP2](https://cloud.google.com/blog/products/ai-machine-learning/announcing-agents-to-payments-ap2-protocol/?hl=en), [IMDA](https://www.imda.gov.sg/resources/press-releases-factsheets-and-speeches/factsheets/2026/updated-model-ai-governance-framework-for-agentic-ai), [StartSe Consulting](https://mundorh.com.br/ia-nas-empresas-84-dos-projetos-analisados-apresentam-resultados-e-revelam-novos-desafios-para-o-rh/) | v1 runs on devnet; v2 runs offline |
 
 Payments for ecosystem services are where the engine began.
 
@@ -699,10 +704,15 @@ Each rule is a JSON document in [offchain/crates/coorre-engine/rules](offchain/c
 | Rule | Documents | Demo cases |
 |---|---|---|
 | supplier-docs v1 | tax certificate, environmental license | SUP-001, SUP-002, SUP-003 |
-| agent-purchase v1 | purchase request, supplier quote, supplier registration | AGT-001, AGT-002 |
+| agent-purchase v1 | purchase request, supplier quote, supplier registration | AGT-001, AGT-002 (devnet run of 2026-10-10) |
+| agent-purchase v2 | as v1 | AGT-001, AGT-002 |
 | ecosystem-services-payment v1 | contract, monitoring report | PES-001, PES-002 |
-| milestone-payment v1 | funding agreement, milestone report, accountability report | MIL-001, MIL-002 |
-| service-delivery v1 | service contract, acceptance record, invoice | SRV-001, SRV-002 |
+| milestone-payment v1 | funding agreement, milestone report, accountability report | MIL-001, MIL-002 (devnet run of 2026-10-10) |
+| milestone-payment v2 | as v1 | MIL-001, MIL-002 |
+| service-delivery v1 | service contract, acceptance record, invoice | SRV-001, SRV-002 (devnet run of 2026-10-10) |
+| service-delivery v2 | as v1 | SRV-001, SRV-002 |
+
+Version 2 of agent-purchase, milestone-payment and service-delivery applies one date check to every rule: a milestone delivered, an acceptance recorded or an invoice issued after the evaluation date escalates with its own reason, and so does a purchase request past its needed-by date; a date on the evaluation date itself passes. The demo cases name v2. Version 1 stays in the registry unchanged, because each evidence names the rule version it was decided under and check 7 re-runs that version: the devnet runs of 2026-10-10 verify under v1 ([ADR-005](docs/decisions/ADR-005-rule-registry-and-application-domains.md)).
 
 The cases and their synthetic documents are described in [demo/fixtures](demo/fixtures/README.md).
 

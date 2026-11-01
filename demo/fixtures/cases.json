@@ -44,7 +44,7 @@
     },
     {
       "id": "AGT-001",
-      "rule": { "id": "agent-purchase", "version": "1" },
+      "rule": { "id": "agent-purchase", "version": "2" },
       "payee": "Fornecedor Demo D Ltda",
       "amount_lamports": "20000000",
       "autonomy_limit_lamports": "30000000",
@@ -58,7 +58,7 @@
     },
     {
       "id": "AGT-002",
-      "rule": { "id": "agent-purchase", "version": "1" },
+      "rule": { "id": "agent-purchase", "version": "2" },
       "payee": "Fornecedor Demo E Ltda",
       "amount_lamports": "40000000",
       "autonomy_limit_lamports": "30000000",
@@ -104,7 +104,7 @@
     },
     {
       "id": "MIL-001",
-      "rule": { "id": "milestone-payment", "version": "1" },
+      "rule": { "id": "milestone-payment", "version": "2" },
       "payee": "Instituto Demo Bacia Viva",
       "amount_lamports": "20000000",
       "autonomy_limit_lamports": "30000000",
@@ -118,7 +118,7 @@
     },
     {
       "id": "MIL-002",
-      "rule": { "id": "milestone-payment", "version": "1" },
+      "rule": { "id": "milestone-payment", "version": "2" },
       "payee": "Instituto Demo Rio Limpo",
       "amount_lamports": "20000000",
       "autonomy_limit_lamports": "30000000",
@@ -135,7 +135,7 @@
     },
     {
       "id": "SRV-001",
-      "rule": { "id": "service-delivery", "version": "1" },
+      "rule": { "id": "service-delivery", "version": "2" },
       "payee": "Consultoria Demo Alfa Ltda",
       "amount_lamports": "20000000",
       "autonomy_limit_lamports": "30000000",
@@ -149,7 +149,7 @@
     },
     {
       "id": "SRV-002",
-      "rule": { "id": "service-delivery", "version": "1" },
+      "rule": { "id": "service-delivery", "version": "2" },
       "payee": "Consultoria Demo Beta Ltda",
       "amount_lamports": "20000000",
       "autonomy_limit_lamports": "30000000",

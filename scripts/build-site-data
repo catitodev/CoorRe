@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 "use strict";
 
+const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -118,9 +119,28 @@ function caseFrom({ dir, source }) {
   };
 }
 
+function canonical(value) {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function ruleHash(rule) {
+  return `sha256:${crypto.createHash("sha256").update(canonical(rule), "utf8").digest("hex")}`;
+}
+
 function ruleFrom(file, cases) {
   const rule = readJson(file);
-  const hash = cases.find((c) => c.rule.id === rule.id && c.rule.version === rule.version)?.rule.hash ?? null;
+  const hash = ruleHash(rule);
+  const citing = cases.filter((c) => c.rule.id === rule.id && c.rule.version === rule.version);
+  for (const c of citing) {
+    if (c.rule.hash !== hash) throw new Error(`${c.id}: cites ${rule.id} v${rule.version} with hash ${c.rule.hash}, but ${path.basename(file)} hashes to ${hash}`);
+  }
   const conditions = Array.isArray(rule.conditions)
     ? rule.conditions.map((c) => ({ check: c.check, reason: c.reason }))
     : rule.requiredDocuments.map((kind) => ({
@@ -137,7 +157,7 @@ function ruleFrom(file, cases) {
     labels: rule.documentLabels ?? Object.fromEntries(rule.requiredDocuments.map((k) => [k, k.replace(/_/g, " ")])),
     conditions,
     mandate,
-    cases: cases.filter((c) => c.rule.id === rule.id).map((c) => c.id),
+    cases: citing.map((c) => c.id),
   };
 }
 
@@ -171,7 +191,11 @@ function build() {
     .sort()
     .map((f) => ruleFrom(path.join(ruleDir, f), cases));
   const order = ["supplier-docs", "agent-purchase", "ecosystem-services-payment", "milestone-payment", "service-delivery"];
-  rules.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+  for (const rule of rules) if (!order.includes(rule.id)) throw new Error(`rule ${rule.id} has no place in the page order`);
+  rules.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id) || a.version.localeCompare(b.version, "en", { numeric: true }));
+  for (const c of cases) {
+    if (!rules.some((r) => r.id === c.rule.id && r.version === c.rule.version)) throw new Error(`${c.id}: cites ${c.rule.id} v${c.rule.version}, which is not in the rule registry`);
+  }
   return {
     format: "coorre-site-data/1",
     program: PROGRAM,
@@ -201,4 +225,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { OUTCOME_BY_FINAL_STATE, outcomeOf, RUNS };
+module.exports = { OUTCOME_BY_FINAL_STATE, outcomeOf, RUNS, canonical, ruleHash, build };

@@ -10,6 +10,25 @@ use crate::rule::{Decision, parse_date};
 
 pub const MANDATE_REASON: &str = "amount exceeds autonomy limit";
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RuleVersion {
+    V1,
+    V2,
+}
+
+impl RuleVersion {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            RuleVersion::V1 => "1",
+            RuleVersion::V2 => "2",
+        }
+    }
+}
+
+pub fn after_evaluation_date(on: Date, evaluation_date: Date) -> bool {
+    on > evaluation_date
+}
+
 fn invalid(message: String) -> EngineError {
     EngineError::InvalidRuleInput(message)
 }
@@ -147,6 +166,21 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(error.contains("valid_from is after valid_until"), "{error}");
+    }
+
+    #[test]
+    fn rule_versions_are_spelled_as_in_the_rule_documents() {
+        assert_eq!(RuleVersion::V1.as_str(), "1");
+        assert_eq!(RuleVersion::V2.as_str(), "2");
+    }
+
+    #[test]
+    fn only_a_later_day_is_after_the_evaluation_date() {
+        let today = date("evaluation_date", "2026-10-09").unwrap();
+        let day = |text| date("on", text).unwrap();
+        assert!(after_evaluation_date(day("2026-10-10"), today));
+        assert!(!after_evaluation_date(today, today));
+        assert!(!after_evaluation_date(day("2026-10-08"), today));
     }
 
     #[test]

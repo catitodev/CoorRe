@@ -2,15 +2,23 @@ use serde::Deserialize;
 use time::Date;
 
 use crate::documents::{
-    artifact, date, date_range, decide, decimal, document_kind, single, typed, unknown_kind,
+    RuleVersion, after_evaluation_date, artifact, date, date_range, decide, decimal, document_kind,
+    single, typed, unknown_kind,
 };
 use crate::error::Result;
 use crate::registry::ParsedArtifact;
 use crate::rule::{Decision, parse_date};
 
 pub const RULE_ID: &str = "service-delivery";
-pub const RULE_VERSION: &str = "1";
-pub const RULE_DOCUMENT: &str = include_str!("../rules/service-delivery-v1.json");
+pub const RULE_DOCUMENT_V1: &str = include_str!("../rules/service-delivery-v1.json");
+pub const RULE_DOCUMENT_V2: &str = include_str!("../rules/service-delivery-v2.json");
+
+pub fn rule_document(version: RuleVersion) -> &'static str {
+    match version {
+        RuleVersion::V1 => RULE_DOCUMENT_V1,
+        RuleVersion::V2 => RULE_DOCUMENT_V2,
+    }
+}
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -91,7 +99,7 @@ pub enum Document {
     Invoice(Invoice),
 }
 
-pub fn parse(bytes: &[u8]) -> Result<(bool, Document)> {
+pub fn parse(version: RuleVersion, bytes: &[u8]) -> Result<(bool, Document)> {
     let (kind, value) = document_kind(bytes)?;
     match kind.as_str() {
         "service_contract" => {
@@ -135,12 +143,12 @@ pub fn parse(bytes: &[u8]) -> Result<(bool, Document)> {
                 }),
             ))
         }
-        other => Err(unknown_kind(other, RULE_ID, RULE_VERSION)),
+        other => Err(unknown_kind(other, RULE_ID, version.as_str())),
     }
 }
 
-pub fn parse_artifact(bytes: &[u8]) -> Result<ParsedArtifact> {
-    let (synthetic, document) = parse(bytes)?;
+pub fn parse_artifact(version: RuleVersion, bytes: &[u8]) -> Result<ParsedArtifact> {
+    let (synthetic, document) = parse(version, bytes)?;
     let kind = match document {
         Document::ServiceContract(_) => "service_contract",
         Document::AcceptanceRecord(_) => "acceptance_record",
@@ -150,15 +158,17 @@ pub fn parse_artifact(bytes: &[u8]) -> Result<ParsedArtifact> {
 }
 
 pub fn evaluate(
+    version: RuleVersion,
     evaluation_date: &str,
     amount_lamports: u64,
     autonomy_limit_lamports: u64,
     documents: &[&[u8]],
 ) -> Result<Decision> {
-    parse_date(evaluation_date)?;
+    let today = parse_date(evaluation_date)?;
+    let dated = version == RuleVersion::V2;
     let (mut contracts, mut acceptances, mut invoices) = (Vec::new(), Vec::new(), Vec::new());
     for bytes in documents {
-        match parse(bytes)?.1 {
+        match parse(version, bytes)?.1 {
             Document::ServiceContract(d) => contracts.push(d),
             Document::AcceptanceRecord(d) => acceptances.push(d),
             Document::Invoice(d) => invoices.push(d),
@@ -178,15 +188,19 @@ pub fn evaluate(
     {
         reasons.push("provider differs between contract and invoice".to_owned());
     }
-    if let (Some(c), Some(a)) = (contract, acceptance)
-        && (a.accepted_on < c.valid_from || a.accepted_on > c.valid_until)
-    {
-        reasons.push("acceptance outside the contract validity".to_owned());
+    if let (Some(c), Some(a)) = (contract, acceptance) {
+        if a.accepted_on < c.valid_from || a.accepted_on > c.valid_until {
+            reasons.push("acceptance outside the contract validity".to_owned());
+        } else if dated && after_evaluation_date(a.accepted_on, today) {
+            reasons.push("acceptance recorded after the evaluation date".to_owned());
+        }
     }
-    if let (Some(a), Some(i)) = (acceptance, invoice)
-        && i.issued_on < a.accepted_on
-    {
-        reasons.push("invoice issued before acceptance".to_owned());
+    if let (Some(a), Some(i)) = (acceptance, invoice) {
+        if i.issued_on < a.accepted_on {
+            reasons.push("invoice issued before acceptance".to_owned());
+        } else if dated && after_evaluation_date(i.issued_on, today) {
+            reasons.push("invoice issued after the evaluation date".to_owned());
+        }
     }
     if let Some(i) = invoice
         && amount_lamports != i.amount_lamports
@@ -207,6 +221,7 @@ mod tests {
     use serde_json::{Value, json};
 
     const TODAY: &str = "2026-10-09";
+    const VERSIONS: [RuleVersion; 2] = [RuleVersion::V1, RuleVersion::V2];
 
     fn contract() -> Value {
         json!({"synthetic": true, "kind": "service_contract", "issuer": "Client", "contract_number": "CT-1",
@@ -230,62 +245,172 @@ mod tests {
         value
     }
 
-    fn run(values: &[Value], amount: u64, limit: u64) -> Decision {
+    fn run(version: RuleVersion, values: &[Value], amount: u64, limit: u64) -> Decision {
         let files: Vec<Vec<u8>> = values.iter().map(|v| v.to_string().into_bytes()).collect();
         let refs: Vec<&[u8]> = files.iter().map(Vec::as_slice).collect();
-        evaluate(TODAY, amount, limit, &refs).unwrap()
+        evaluate(version, TODAY, amount, limit, &refs).unwrap()
     }
 
-    fn reasons(values: &[Value]) -> Vec<String> {
-        run(values, 20_000_000, 30_000_000).reasons().to_vec()
+    fn reasons(version: RuleVersion, values: &[Value]) -> Vec<String> {
+        run(version, values, 20_000_000, 30_000_000)
+            .reasons()
+            .to_vec()
     }
 
     #[test]
     fn every_condition_holding_auto_approves() {
+        for version in VERSIONS {
+            assert_eq!(
+                run(
+                    version,
+                    &[contract(), acceptance(), invoice()],
+                    20_000_000,
+                    30_000_000
+                ),
+                Decision::AutoApproved
+            );
+            assert_eq!(
+                run(
+                    version,
+                    &[
+                        with(contract(), "price_cap_lamports", "20000000"),
+                        with(acceptance(), "accepted_on", "2026-03-01"),
+                        with(invoice(), "issued_on", "2026-03-01")
+                    ],
+                    20_000_000,
+                    20_000_000
+                ),
+                Decision::AutoApproved
+            );
+        }
+    }
+
+    #[test]
+    fn v1_still_approves_an_acceptance_and_invoice_dated_after_the_evaluation_date() {
+        let later = [
+            contract(),
+            with(acceptance(), "accepted_on", "2026-11-02"),
+            with(invoice(), "issued_on", "2026-11-03"),
+        ];
+        assert_eq!(reasons(RuleVersion::V1, &later), Vec::<String>::new());
+        assert_eq!(
+            reasons(RuleVersion::V2, &later),
+            [
+                "acceptance recorded after the evaluation date",
+                "invoice issued after the evaluation date"
+            ]
+        );
+    }
+
+    #[test]
+    fn v2_escalates_an_acceptance_dated_after_the_evaluation_date() {
+        assert_eq!(
+            reasons(
+                RuleVersion::V2,
+                &[
+                    contract(),
+                    with(acceptance(), "accepted_on", "2026-10-10"),
+                    with(invoice(), "issued_on", "2026-10-10")
+                ]
+            ),
+            [
+                "acceptance recorded after the evaluation date",
+                "invoice issued after the evaluation date"
+            ]
+        );
+    }
+
+    #[test]
+    fn v2_escalates_an_invoice_dated_after_the_evaluation_date() {
+        assert_eq!(
+            reasons(
+                RuleVersion::V2,
+                &[
+                    contract(),
+                    acceptance(),
+                    with(invoice(), "issued_on", "2026-10-10")
+                ]
+            ),
+            ["invoice issued after the evaluation date"]
+        );
+    }
+
+    #[test]
+    fn v2_approves_an_acceptance_and_invoice_on_the_evaluation_date() {
         assert_eq!(
             run(
-                &[contract(), acceptance(), invoice()],
+                RuleVersion::V2,
+                &[
+                    contract(),
+                    with(acceptance(), "accepted_on", TODAY),
+                    with(invoice(), "issued_on", TODAY)
+                ],
                 20_000_000,
                 30_000_000
             ),
             Decision::AutoApproved
         );
+    }
+
+    #[test]
+    fn v2_reports_each_date_failure_once() {
         assert_eq!(
-            run(
+            reasons(
+                RuleVersion::V2,
                 &[
-                    with(contract(), "price_cap_lamports", "20000000"),
-                    with(acceptance(), "accepted_on", "2026-03-01"),
-                    with(invoice(), "issued_on", "2026-03-01")
-                ],
-                20_000_000,
-                20_000_000
+                    contract(),
+                    with(acceptance(), "accepted_on", "2027-03-01"),
+                    with(invoice(), "issued_on", "2027-03-02")
+                ]
             ),
-            Decision::AutoApproved
+            [
+                "acceptance outside the contract validity",
+                "invoice issued after the evaluation date"
+            ]
+        );
+        assert_eq!(
+            reasons(
+                RuleVersion::V2,
+                &[
+                    contract(),
+                    with(acceptance(), "accepted_on", "2026-10-20"),
+                    with(invoice(), "issued_on", "2026-10-15")
+                ]
+            ),
+            [
+                "acceptance recorded after the evaluation date",
+                "invoice issued before acceptance"
+            ]
         );
     }
 
     #[test]
     fn missing_and_duplicated_documents_skip_the_conditions_that_read_them() {
-        assert_eq!(
-            reasons(&[]),
-            [
-                "service contract missing",
-                "acceptance record missing",
-                "invoice missing"
-            ]
-        );
-        assert_eq!(
-            reasons(&[
-                contract(),
-                contract(),
-                with(acceptance(), "contract_number", "CT-9"),
-                with(invoice(), "issued_on", "2026-09-01")
-            ]),
-            [
-                "service contract submitted more than once",
-                "invoice issued before acceptance"
-            ]
-        );
+        for version in VERSIONS {
+            assert_eq!(
+                reasons(version, &[]),
+                [
+                    "service contract missing",
+                    "acceptance record missing",
+                    "invoice missing"
+                ]
+            );
+            assert_eq!(
+                reasons(
+                    version,
+                    &[
+                        contract(),
+                        contract(),
+                        with(acceptance(), "contract_number", "CT-9"),
+                        with(invoice(), "issued_on", "2026-09-01")
+                    ]
+                ),
+                [
+                    "service contract submitted more than once",
+                    "invoice issued before acceptance"
+                ]
+            );
+        }
     }
 
     #[test]
@@ -332,31 +457,35 @@ mod tests {
                 "invoice issued before acceptance",
             ),
         ];
-        for (documents, reason) in cases {
-            assert_eq!(reasons(&documents), [reason]);
+        for version in VERSIONS {
+            for (documents, reason) in &cases {
+                assert_eq!(reasons(version, documents), [*reason]);
+            }
+            assert_eq!(
+                run(
+                    version,
+                    &[contract(), acceptance(), invoice()],
+                    19_999_999,
+                    30_000_000
+                )
+                .reasons(),
+                ["amount differs from the invoice"]
+            );
+            assert_eq!(
+                run(
+                    version,
+                    &[
+                        with(contract(), "price_cap_lamports", "19999999"),
+                        acceptance(),
+                        invoice()
+                    ],
+                    20_000_000,
+                    30_000_000
+                )
+                .reasons(),
+                ["invoice amount exceeds the price cap"]
+            );
         }
-        assert_eq!(
-            run(
-                &[contract(), acceptance(), invoice()],
-                19_999_999,
-                30_000_000
-            )
-            .reasons(),
-            ["amount differs from the invoice"]
-        );
-        assert_eq!(
-            run(
-                &[
-                    with(contract(), "price_cap_lamports", "19999999"),
-                    acceptance(),
-                    invoice()
-                ],
-                20_000_000,
-                30_000_000
-            )
-            .reasons(),
-            ["invoice amount exceeds the price cap"]
-        );
     }
 
     #[test]
@@ -374,13 +503,29 @@ mod tests {
                 "2027-01-01",
             ),
         ];
+        for version in VERSIONS {
+            assert_eq!(
+                run(version, &documents, 40_000_000, 30_000_000).reasons(),
+                [
+                    "contract number differs between documents",
+                    "provider differs between contract and invoice",
+                    "acceptance outside the contract validity",
+                    "invoice issued before acceptance",
+                    "amount differs from the invoice",
+                    "invoice amount exceeds the price cap",
+                    "amount exceeds autonomy limit"
+                ]
+            );
+        }
+        let mut after = documents.clone();
+        after[1] = with(after[1].clone(), "accepted_on", "2026-12-01");
         assert_eq!(
-            run(&documents, 40_000_000, 30_000_000).reasons(),
+            run(RuleVersion::V2, &after, 40_000_000, 30_000_000).reasons(),
             [
                 "contract number differs between documents",
                 "provider differs between contract and invoice",
-                "acceptance outside the contract validity",
-                "invoice issued before acceptance",
+                "acceptance recorded after the evaluation date",
+                "invoice issued after the evaluation date",
                 "amount differs from the invoice",
                 "invoice amount exceeds the price cap",
                 "amount exceeds autonomy limit"
@@ -390,14 +535,19 @@ mod tests {
 
     #[test]
     fn srv_002_invoice_before_acceptance_within_the_limit_escalates_with_one_reason() {
-        assert_eq!(
-            reasons(&[
-                contract(),
-                acceptance(),
-                with(invoice(), "issued_on", "2026-09-20")
-            ]),
-            ["invoice issued before acceptance"]
-        );
+        for version in VERSIONS {
+            assert_eq!(
+                reasons(
+                    version,
+                    &[
+                        contract(),
+                        acceptance(),
+                        with(invoice(), "issued_on", "2026-09-20")
+                    ]
+                ),
+                ["invoice issued before acceptance"]
+            );
+        }
     }
 
     #[test]
@@ -415,34 +565,62 @@ mod tests {
                 v
             },
         ];
-        for value in bad {
-            assert!(parse(value.to_string().as_bytes()).is_err(), "{value}");
-            let bytes = value.to_string().into_bytes();
-            assert!(evaluate(TODAY, 1, 1, &[bytes.as_slice()]).is_err());
+        for version in VERSIONS {
+            for value in &bad {
+                assert!(
+                    parse(version, value.to_string().as_bytes()).is_err(),
+                    "{value}"
+                );
+                let bytes = value.to_string().into_bytes();
+                assert!(evaluate(version, TODAY, 1, 1, &[bytes.as_slice()]).is_err());
+            }
+            assert!(evaluate(version, "2026-10-9", 1, 1, &[]).is_err());
         }
-        assert!(evaluate("2026-10-9", 1, 1, &[]).is_err());
+    }
+
+    #[test]
+    fn an_unknown_kind_names_the_rule_version() {
+        let receipt = with(invoice(), "kind", "receipt").to_string();
+        for version in VERSIONS {
+            let error = parse(version, receipt.as_bytes()).unwrap_err().to_string();
+            assert!(
+                error.contains(&format!("service-delivery v{}", version.as_str())),
+                "{error}"
+            );
+        }
+    }
+
+    #[test]
+    fn each_version_has_its_own_rule_document() {
+        assert_eq!(rule_document(RuleVersion::V1), RULE_DOCUMENT_V1);
+        assert_eq!(rule_document(RuleVersion::V2), RULE_DOCUMENT_V2);
+        assert_ne!(RULE_DOCUMENT_V1, RULE_DOCUMENT_V2);
     }
 
     #[test]
     fn parse_and_parse_artifact_report_kind_and_values() {
-        let (synthetic, document) = parse(invoice().to_string().as_bytes()).unwrap();
-        assert!(synthetic);
-        assert!(matches!(
-            document,
-            Document::Invoice(Invoice {
-                amount_lamports: 20_000_000,
-                ..
-            })
-        ));
-        for (value, kind) in [
-            (contract(), "service_contract"),
-            (acceptance(), "acceptance_record"),
-            (invoice(), "invoice"),
-        ] {
-            assert_eq!(
-                parse_artifact(value.to_string().as_bytes()).unwrap().kind,
-                kind
-            );
+        for version in VERSIONS {
+            let (synthetic, document) = parse(version, invoice().to_string().as_bytes()).unwrap();
+            assert!(synthetic);
+            assert!(matches!(
+                document,
+                Document::Invoice(Invoice {
+                    amount_lamports: 20_000_000,
+                    ..
+                })
+            ));
+            for (value, kind) in [
+                (contract(), "service_contract"),
+                (acceptance(), "acceptance_record"),
+                (invoice(), "invoice"),
+            ] {
+                assert_eq!(
+                    parse_artifact(version, value.to_string().as_bytes())
+                        .unwrap()
+                        .kind,
+                    kind
+                );
+            }
         }
     }
 }

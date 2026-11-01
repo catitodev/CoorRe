@@ -253,7 +253,7 @@
 
       <section class="view" id="view-rules" data-view="rules" aria-labelledby="rules-title" hidden>
         <h1 id="rules-title" class="view-title">Rules</h1>
-        <p class="lead">The rules the verifier ships. A rule approves only when every condition holds; otherwise it escalates with one reason per failed condition, and the mandate check always comes last. A decision that names any other rule, version or hash fails check 7.</p>
+        <p class="lead">The rules the verifier ships. A rule approves only when every condition holds; otherwise it escalates with one reason per failed condition, and the mandate check always comes last. Every version stays in the registry, so a recorded decision is re-run under the version it names; a decision that names any other rule, version or hash fails check 7.</p>
         <article class="panel">
           <h2>Why devnet cases were escalated</h2>
           <p class="note">Reasons recorded by the rule engine across every escalated case.</p>

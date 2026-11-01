@@ -2,15 +2,22 @@ use serde::Deserialize;
 use time::Date;
 
 use crate::documents::{
-    artifact, date, decide, decimal, document_kind, single, typed, unknown_kind,
+    RuleVersion, artifact, date, decide, decimal, document_kind, single, typed, unknown_kind,
 };
 use crate::error::Result;
 use crate::registry::ParsedArtifact;
 use crate::rule::{Decision, parse_date};
 
 pub const RULE_ID: &str = "agent-purchase";
-pub const RULE_VERSION: &str = "1";
-pub const RULE_DOCUMENT: &str = include_str!("../rules/agent-purchase-v1.json");
+pub const RULE_DOCUMENT_V1: &str = include_str!("../rules/agent-purchase-v1.json");
+pub const RULE_DOCUMENT_V2: &str = include_str!("../rules/agent-purchase-v2.json");
+
+pub fn rule_document(version: RuleVersion) -> &'static str {
+    match version {
+        RuleVersion::V1 => RULE_DOCUMENT_V1,
+        RuleVersion::V2 => RULE_DOCUMENT_V2,
+    }
+}
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -85,7 +92,7 @@ pub enum Document {
     SupplierRegistration(SupplierRegistration),
 }
 
-pub fn parse(bytes: &[u8]) -> Result<(bool, Document)> {
+pub fn parse(version: RuleVersion, bytes: &[u8]) -> Result<(bool, Document)> {
     let (kind, value) = document_kind(bytes)?;
     match kind.as_str() {
         "purchase_request" => {
@@ -124,12 +131,12 @@ pub fn parse(bytes: &[u8]) -> Result<(bool, Document)> {
                 }),
             ))
         }
-        other => Err(unknown_kind(other, RULE_ID, RULE_VERSION)),
+        other => Err(unknown_kind(other, RULE_ID, version.as_str())),
     }
 }
 
-pub fn parse_artifact(bytes: &[u8]) -> Result<ParsedArtifact> {
-    let (synthetic, document) = parse(bytes)?;
+pub fn parse_artifact(version: RuleVersion, bytes: &[u8]) -> Result<ParsedArtifact> {
+    let (synthetic, document) = parse(version, bytes)?;
     let kind = match document {
         Document::PurchaseRequest(_) => "purchase_request",
         Document::SupplierQuote(_) => "supplier_quote",
@@ -139,6 +146,7 @@ pub fn parse_artifact(bytes: &[u8]) -> Result<ParsedArtifact> {
 }
 
 pub fn evaluate(
+    version: RuleVersion,
     evaluation_date: &str,
     amount_lamports: u64,
     autonomy_limit_lamports: u64,
@@ -147,7 +155,7 @@ pub fn evaluate(
     let today = parse_date(evaluation_date)?;
     let (mut requests, mut quotes, mut registrations) = (Vec::new(), Vec::new(), Vec::new());
     for bytes in documents {
-        match parse(bytes)?.1 {
+        match parse(version, bytes)?.1 {
             Document::PurchaseRequest(d) => requests.push(d),
             Document::SupplierQuote(d) => quotes.push(d),
             Document::SupplierRegistration(d) => registrations.push(d),
@@ -178,13 +186,21 @@ pub fn evaluate(
             reasons.push("supplier registration expired".to_owned());
         }
     }
-    if let Some(q) = quote {
-        if q.valid_until < today {
-            reasons.push("supplier quote expired".to_owned());
-        }
-        if amount_lamports != q.amount_lamports {
-            reasons.push("amount differs from the quote".to_owned());
-        }
+    if let Some(q) = quote
+        && q.valid_until < today
+    {
+        reasons.push("supplier quote expired".to_owned());
+    }
+    if let Some(r) = request
+        && version == RuleVersion::V2
+        && r.needed_by < today
+    {
+        reasons.push("purchase request is past its needed-by date".to_owned());
+    }
+    if let Some(q) = quote
+        && amount_lamports != q.amount_lamports
+    {
+        reasons.push("amount differs from the quote".to_owned());
     }
     if let Some(r) = request
         && amount_lamports > r.budget_cap_lamports
@@ -200,6 +216,8 @@ mod tests {
     use serde_json::{Value, json};
 
     const TODAY: &str = "2026-10-09";
+    const VERSIONS: [RuleVersion; 2] = [RuleVersion::V1, RuleVersion::V2];
+    const PAST_NEEDED_BY: &str = "purchase request is past its needed-by date";
 
     fn request() -> Value {
         json!({"synthetic": true, "kind": "purchase_request", "issuer": "Buyer", "request_number": "PR-1",
@@ -220,10 +238,10 @@ mod tests {
         values.iter().map(|v| v.to_string().into_bytes()).collect()
     }
 
-    fn run(values: &[Value], amount: u64, limit: u64) -> Decision {
+    fn run(version: RuleVersion, values: &[Value], amount: u64, limit: u64) -> Decision {
         let files = bytes(values);
         let refs: Vec<&[u8]> = files.iter().map(Vec::as_slice).collect();
-        evaluate(TODAY, amount, limit, &refs).unwrap()
+        evaluate(version, TODAY, amount, limit, &refs).unwrap()
     }
 
     fn with(mut value: Value, field: &str, text: &str) -> Value {
@@ -231,25 +249,70 @@ mod tests {
         value
     }
 
-    fn reasons(values: &[Value]) -> Vec<String> {
-        run(values, 20_000_000, 30_000_000).reasons().to_vec()
+    fn reasons(version: RuleVersion, values: &[Value]) -> Vec<String> {
+        run(version, values, 20_000_000, 30_000_000)
+            .reasons()
+            .to_vec()
     }
 
     #[test]
     fn every_condition_holding_auto_approves() {
+        for version in VERSIONS {
+            assert_eq!(
+                run(
+                    version,
+                    &[request(), quote(), registration()],
+                    20_000_000,
+                    30_000_000
+                ),
+                Decision::AutoApproved
+            );
+            assert_eq!(
+                run(
+                    version,
+                    &[registration(), request(), quote()],
+                    20_000_000,
+                    20_000_000
+                ),
+                Decision::AutoApproved
+            );
+        }
+    }
+
+    #[test]
+    fn v1_still_approves_a_request_past_its_needed_by_date() {
+        let late = [
+            with(request(), "needed_by", "2026-10-08"),
+            quote(),
+            registration(),
+        ];
+        assert_eq!(reasons(RuleVersion::V1, &late), Vec::<String>::new());
+        assert_eq!(reasons(RuleVersion::V2, &late), [PAST_NEEDED_BY]);
+    }
+
+    #[test]
+    fn v2_escalates_a_request_past_its_needed_by_date() {
+        assert_eq!(
+            reasons(
+                RuleVersion::V2,
+                &[
+                    with(request(), "needed_by", "2026-01-15"),
+                    quote(),
+                    registration()
+                ]
+            ),
+            [PAST_NEEDED_BY]
+        );
+    }
+
+    #[test]
+    fn v2_approves_a_request_needed_by_the_evaluation_date() {
         assert_eq!(
             run(
-                &[request(), quote(), registration()],
+                RuleVersion::V2,
+                &[with(request(), "needed_by", TODAY), quote(), registration()],
                 20_000_000,
                 30_000_000
-            ),
-            Decision::AutoApproved
-        );
-        assert_eq!(
-            run(
-                &[registration(), request(), quote()],
-                20_000_000,
-                20_000_000
             ),
             Decision::AutoApproved
         );
@@ -257,25 +320,42 @@ mod tests {
 
     #[test]
     fn missing_and_duplicated_documents_skip_the_conditions_that_read_them() {
+        for version in VERSIONS {
+            assert_eq!(
+                reasons(version, &[]),
+                [
+                    "purchase request missing",
+                    "supplier quote missing",
+                    "supplier registration missing"
+                ]
+            );
+            assert_eq!(
+                reasons(
+                    version,
+                    &[
+                        request(),
+                        quote(),
+                        quote(),
+                        with(registration(), "status", "suspended")
+                    ]
+                ),
+                [
+                    "supplier quote submitted more than once",
+                    "supplier registration not approved"
+                ]
+            );
+        }
         assert_eq!(
-            reasons(&[]),
-            [
-                "purchase request missing",
-                "supplier quote missing",
-                "supplier registration missing"
-            ]
-        );
-        assert_eq!(
-            reasons(&[
-                request(),
-                quote(),
-                quote(),
-                with(registration(), "status", "suspended")
-            ]),
-            [
-                "supplier quote submitted more than once",
-                "supplier registration not approved"
-            ]
+            reasons(
+                RuleVersion::V2,
+                &[
+                    with(request(), "needed_by", "2026-01-15"),
+                    quote(),
+                    quote(),
+                    registration()
+                ]
+            ),
+            ["supplier quote submitted more than once", PAST_NEEDED_BY]
         );
     }
 
@@ -327,82 +407,133 @@ mod tests {
                 "supplier quote expired",
             ),
         ];
-        for (documents, reason) in cases {
-            assert_eq!(reasons(&documents), [reason]);
+        for version in VERSIONS {
+            for (documents, reason) in &cases {
+                assert_eq!(reasons(version, documents), [*reason]);
+            }
+            assert_eq!(
+                run(
+                    version,
+                    &[request(), quote(), registration()],
+                    19_000_000,
+                    30_000_000
+                )
+                .reasons(),
+                ["amount differs from the quote"]
+            );
+            assert_eq!(
+                run(
+                    version,
+                    &[
+                        with(request(), "budget_cap_lamports", "19000000"),
+                        quote(),
+                        registration()
+                    ],
+                    20_000_000,
+                    30_000_000
+                )
+                .reasons(),
+                ["amount exceeds the budget cap"]
+            );
         }
-        assert_eq!(
-            run(
-                &[request(), quote(), registration()],
-                19_000_000,
-                30_000_000
-            )
-            .reasons(),
-            ["amount differs from the quote"]
-        );
-        assert_eq!(
-            run(
-                &[
-                    with(request(), "budget_cap_lamports", "19000000"),
-                    quote(),
-                    registration()
-                ],
-                20_000_000,
-                30_000_000
-            )
-            .reasons(),
-            ["amount exceeds the budget cap"]
-        );
     }
 
     #[test]
     fn validity_boundaries_are_inclusive() {
-        assert_eq!(
-            run(
-                &[
-                    request(),
-                    with(quote(), "valid_until", TODAY),
-                    with(registration(), "valid_until", TODAY)
-                ],
-                20_000_000,
-                30_000_000
-            ),
-            Decision::AutoApproved
-        );
-        assert_eq!(
-            run(
-                &[
-                    with(request(), "budget_cap_lamports", "20000000"),
-                    quote(),
-                    registration()
-                ],
-                20_000_000,
-                30_000_000
-            ),
-            Decision::AutoApproved
-        );
+        for version in VERSIONS {
+            assert_eq!(
+                run(
+                    version,
+                    &[
+                        request(),
+                        with(quote(), "valid_until", TODAY),
+                        with(registration(), "valid_until", TODAY)
+                    ],
+                    20_000_000,
+                    30_000_000
+                ),
+                Decision::AutoApproved
+            );
+            assert_eq!(
+                run(
+                    version,
+                    &[
+                        with(request(), "budget_cap_lamports", "20000000"),
+                        quote(),
+                        registration()
+                    ],
+                    20_000_000,
+                    30_000_000
+                ),
+                Decision::AutoApproved
+            );
+        }
     }
 
     #[test]
     fn reasons_follow_the_rule_order_with_the_mandate_last() {
-        let documents = [
-            with(request(), "budget_cap_lamports", "1000"),
-            with(
+        let documents = |needed_by: &str| {
+            [
                 with(
-                    with(with(quote(), "request_number", "PR-9"), "item", "Other"),
+                    with(request(), "budget_cap_lamports", "1000"),
+                    "needed_by",
+                    needed_by,
+                ),
+                with(
+                    with(
+                        with(with(quote(), "request_number", "PR-9"), "item", "Other"),
+                        "valid_until",
+                        "2026-01-01",
+                    ),
+                    "supplier",
+                    "Other",
+                ),
+                with(
+                    with(registration(), "status", "revoked"),
                     "valid_until",
                     "2026-01-01",
                 ),
-                "supplier",
-                "Other",
-            ),
-            with(
-                with(registration(), "status", "revoked"),
-                "valid_until",
-                "2026-01-01",
-            ),
+            ]
+        };
+        let v1_order = [
+            "request number differs between request and quote",
+            "item differs between request and quote",
+            "supplier differs between quote and registration",
+            "supplier registration not approved",
+            "supplier registration expired",
+            "supplier quote expired",
+            "amount differs from the quote",
+            "amount exceeds the budget cap",
+            "amount exceeds autonomy limit",
         ];
         assert_eq!(
-            run(&documents, 40_000_000, 30_000_000).reasons(),
+            run(
+                RuleVersion::V1,
+                &documents("2026-01-01"),
+                40_000_000,
+                30_000_000
+            )
+            .reasons(),
+            v1_order
+        );
+        assert_eq!(
+            run(
+                RuleVersion::V2,
+                &documents("2026-11-30"),
+                40_000_000,
+                30_000_000
+            )
+            .reasons(),
+            v1_order
+        );
+        assert_eq!(
+            run(
+                RuleVersion::V2,
+                &documents("2026-01-01"),
+                40_000_000,
+                30_000_000
+            )
+            .reasons(),
             [
                 "request number differs between request and quote",
                 "item differs between request and quote",
@@ -410,6 +541,7 @@ mod tests {
                 "supplier registration not approved",
                 "supplier registration expired",
                 "supplier quote expired",
+                PAST_NEEDED_BY,
                 "amount differs from the quote",
                 "amount exceeds the budget cap",
                 "amount exceeds autonomy limit"
@@ -424,13 +556,15 @@ mod tests {
             with(quote(), "amount_lamports", "40000000"),
             with(registration(), "valid_until", "2026-09-30"),
         ];
-        assert_eq!(
-            run(&documents, 40_000_000, 30_000_000).reasons(),
-            [
-                "supplier registration expired",
-                "amount exceeds autonomy limit"
-            ]
-        );
+        for version in VERSIONS {
+            assert_eq!(
+                run(version, &documents, 40_000_000, 30_000_000).reasons(),
+                [
+                    "supplier registration expired",
+                    "amount exceeds autonomy limit"
+                ]
+            );
+        }
     }
 
     #[test]
@@ -452,34 +586,63 @@ mod tests {
                 v
             },
         ];
-        for value in bad {
-            assert!(parse(value.to_string().as_bytes()).is_err(), "{value}");
-            let files = bytes(&[value]);
-            assert!(evaluate(TODAY, 1, 1, &[files[0].as_slice()]).is_err());
+        for version in VERSIONS {
+            for value in &bad {
+                assert!(
+                    parse(version, value.to_string().as_bytes()).is_err(),
+                    "{value}"
+                );
+                let files = bytes(std::slice::from_ref(value));
+                assert!(evaluate(version, TODAY, 1, 1, &[files[0].as_slice()]).is_err());
+            }
+            assert!(evaluate(version, "2026-13-01", 1, 1, &[]).is_err());
         }
-        assert!(evaluate("2026-13-01", 1, 1, &[]).is_err());
+    }
+
+    #[test]
+    fn an_unknown_kind_names_the_rule_version() {
+        let certificate = with(registration(), "kind", "tax_certificate").to_string();
+        for version in VERSIONS {
+            let error = parse(version, certificate.as_bytes())
+                .unwrap_err()
+                .to_string();
+            assert!(
+                error.contains(&format!("agent-purchase v{}", version.as_str())),
+                "{error}"
+            );
+        }
+    }
+
+    #[test]
+    fn each_version_has_its_own_rule_document() {
+        assert_eq!(rule_document(RuleVersion::V1), RULE_DOCUMENT_V1);
+        assert_eq!(rule_document(RuleVersion::V2), RULE_DOCUMENT_V2);
+        assert_ne!(RULE_DOCUMENT_V1, RULE_DOCUMENT_V2);
     }
 
     #[test]
     fn parse_and_parse_artifact_report_kind_and_synthetic_flag() {
-        let (synthetic, document) = parse(request().to_string().as_bytes()).unwrap();
-        assert!(synthetic);
-        assert!(matches!(
-            document,
-            Document::PurchaseRequest(PurchaseRequest {
-                budget_cap_lamports: 25_000_000,
-                ..
-            })
-        ));
-        let real = with(registration(), "issuer", "Registry");
-        let mut real = real;
-        real["synthetic"] = json!(false);
-        let parsed = parse_artifact(real.to_string().as_bytes()).unwrap();
-        assert!(!parsed.synthetic);
-        assert_eq!(parsed.kind, "supplier_registration");
-        assert_eq!(
-            parse_artifact(quote().to_string().as_bytes()).unwrap().kind,
-            "supplier_quote"
-        );
+        for version in VERSIONS {
+            let (synthetic, document) = parse(version, request().to_string().as_bytes()).unwrap();
+            assert!(synthetic);
+            assert!(matches!(
+                document,
+                Document::PurchaseRequest(PurchaseRequest {
+                    budget_cap_lamports: 25_000_000,
+                    ..
+                })
+            ));
+            let mut real = registration();
+            real["synthetic"] = json!(false);
+            let parsed = parse_artifact(version, real.to_string().as_bytes()).unwrap();
+            assert!(!parsed.synthetic);
+            assert_eq!(parsed.kind, "supplier_registration");
+            assert_eq!(
+                parse_artifact(version, quote().to_string().as_bytes())
+                    .unwrap()
+                    .kind,
+                "supplier_quote"
+            );
+        }
     }
 }

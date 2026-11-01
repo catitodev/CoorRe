@@ -316,11 +316,15 @@ export function renderOverview(data, rpcUrl) {
   );
 }
 
+function ruleKey(rule) {
+  return `${rule.id} v${rule.version}`;
+}
+
 function filtersFor(data, onChange) {
   const rule = document.getElementById("filter-rule");
   const outcome = document.getElementById("filter-outcome");
   if (!rule.options.length) {
-    rule.append(new Option("", ""), ...data.rules.map((r) => new Option(`${r.id} v${r.version}`, r.id)));
+    rule.append(new Option("", ""), ...data.rules.map((r) => new Option(`${r.id} v${r.version}`, ruleKey(r))));
     outcome.append(new Option("", ""), ...Object.keys(OUTCOMES).map((key) => new Option("", key)));
     rule.addEventListener("change", onChange);
     outcome.addEventListener("change", onChange);
@@ -334,7 +338,7 @@ function filtersFor(data, onChange) {
 export function renderCaseList(data) {
   const draw = () => {
     const f = filtersFor(data, draw);
-    const rows = data.cases.filter((c) => (!f.rule || c.rule.id === f.rule) && (!f.outcome || c.outcome === f.outcome));
+    const rows = data.cases.filter((c) => (!f.rule || ruleKey(c.rule) === f.rule) && (!f.outcome || c.outcome === f.outcome));
     const open = (c) => {
       location.hash = `#cases/${c.id}`;
     };
@@ -596,6 +600,7 @@ export function renderRules(data) {
         html("h3", null, t("Documents")),
         html("ul", "chips", ...rule.documents.map((d) => html("li", null, rule.labels[d] ?? d))),
         html("h3", null, t("Conditions and the devnet cases")),
+        cases.length ? null : html("p", "note", t("No devnet case has been decided under this version yet; the demo cases in demo/fixtures run under it.")),
         html("div", "table-wrap", table)
       );
     })

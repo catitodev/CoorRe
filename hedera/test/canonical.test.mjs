@@ -44,7 +44,7 @@ test("case_id matches the Rust core vector for SUP-001", () => {
   assert.equal(caseId("urn:coorre:case:SUP-001"), "3399ee0b9edb655f3ca4c144f4f37310fc6b20ca53423dd567d890970b50a805");
 });
 
-test("the JCS hash of every registry rule equals the hash recorded in the devnet bundles", () => {
+test("the JCS hash of every recorded rule equals the hash in the devnet bundles, and each newer version is pinned", () => {
   const recorded = new Map();
   for (const dir of BUNDLE_DIRS) {
     for (const name of readdirSync(dir, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name)) {
@@ -56,12 +56,20 @@ test("the JCS hash of every registry rule equals the hash recorded in the devnet
     }
   }
   const files = readdirSync(RULES).filter((name) => name.endsWith(".json"));
-  assert.equal(files.length, 5);
+  assert.equal(files.length, 8);
+  const unrecorded = {};
   for (const file of files) {
     const id = file.replace(/\.json$/, "");
-    assert.ok(recorded.has(id), `no devnet bundle records ${id}`);
-    assert.equal(`sha256:${jcsHash(JSON.parse(readFileSync(join(RULES, file), "utf8")))}`, recorded.get(id), id);
+    const hash = `sha256:${jcsHash(JSON.parse(readFileSync(join(RULES, file), "utf8")))}`;
+    if (recorded.has(id)) assert.equal(hash, recorded.get(id), id);
+    else unrecorded[id] = hash;
   }
+  assert.equal(recorded.size, 5);
+  assert.deepEqual(unrecorded, {
+    "agent-purchase-v2": "sha256:707c224f3ff8d0d0257dd23e075ac2cc8321752a09a9c390fee5a38149148f35",
+    "milestone-payment-v2": "sha256:f7d08860c8e3d5bdcfd03bad0d7386e51824ee0c84887de61dca282e1d94e0c7",
+    "service-delivery-v2": "sha256:9716660e20d2a88aee467e81020bd9630a2f2f9767d260964b9869dae67d05ab",
+  });
 });
 
 test("caseRef names the host period and lowercases the escrow address", () => {

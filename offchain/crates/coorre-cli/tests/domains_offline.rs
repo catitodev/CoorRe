@@ -16,6 +16,7 @@ const SEEDS: [[u8; 32]; 5] = [[41; 32], [42; 32], [43; 32], [44; 32], [45; 32]];
 struct Expected {
     id: &'static str,
     rule: &'static str,
+    version: &'static str,
     final_state: CaseState,
     rogue: Option<&'static str>,
     log_line: &'static str,
@@ -25,6 +26,7 @@ const EXPECTED: [Expected; 8] = [
     Expected {
         id: "AGT-001",
         rule: "agent-purchase",
+        version: "2",
         final_state: CaseState::AutoApproved,
         rogue: None,
         log_line: "within the mandate: escrow released to the payee",
@@ -32,6 +34,7 @@ const EXPECTED: [Expected; 8] = [
     Expected {
         id: "AGT-002",
         rule: "agent-purchase",
+        version: "2",
         final_state: CaseState::Approved,
         rogue: Some("MandateExceeded"),
         log_line: "escalated to the human approver: supplier registration expired; amount exceeds autonomy limit",
@@ -39,6 +42,7 @@ const EXPECTED: [Expected; 8] = [
     Expected {
         id: "PES-001",
         rule: "ecosystem-services-payment",
+        version: "1",
         final_state: CaseState::AutoApproved,
         rogue: None,
         log_line: "within the mandate: escrow released to the payee",
@@ -46,6 +50,7 @@ const EXPECTED: [Expected; 8] = [
     Expected {
         id: "PES-002",
         rule: "ecosystem-services-payment",
+        version: "1",
         final_state: CaseState::Approved,
         rogue: Some("MandateExceeded"),
         log_line: "escalated to the human approver: verified area below committed area; amount exceeds autonomy limit",
@@ -53,6 +58,7 @@ const EXPECTED: [Expected; 8] = [
     Expected {
         id: "MIL-001",
         rule: "milestone-payment",
+        version: "2",
         final_state: CaseState::AutoApproved,
         rogue: None,
         log_line: "within the mandate: escrow released to the payee",
@@ -60,6 +66,7 @@ const EXPECTED: [Expected; 8] = [
     Expected {
         id: "MIL-002",
         rule: "milestone-payment",
+        version: "2",
         final_state: CaseState::Rejected,
         rogue: None,
         log_line: "escalated to the human approver: open findings in the accountability report",
@@ -67,6 +74,7 @@ const EXPECTED: [Expected; 8] = [
     Expected {
         id: "SRV-001",
         rule: "service-delivery",
+        version: "2",
         final_state: CaseState::AutoApproved,
         rogue: None,
         log_line: "within the mandate: escrow released to the payee",
@@ -74,6 +82,7 @@ const EXPECTED: [Expected; 8] = [
     Expected {
         id: "SRV-002",
         rule: "service-delivery",
+        version: "2",
         final_state: CaseState::Rejected,
         rogue: None,
         log_line: "escalated to the human approver: invoice issued before acceptance",
@@ -125,6 +134,7 @@ fn every_domain_case_runs_offline_and_verifies_seven_of_seven() {
     for (spec, expected) in cases.iter().zip(&EXPECTED) {
         assert!(!spec.demo, "{} must not run in the default demo", spec.id);
         assert_eq!(spec.rule_id().unwrap().id(), expected.rule);
+        assert_eq!(spec.rule_id().unwrap().version(), expected.version);
         let mut out = Vec::new();
         let outcome = {
             let mut ctx = DemoContext {
@@ -164,6 +174,7 @@ fn every_domain_case_runs_offline_and_verifies_seven_of_seven() {
         let bundle = load_bundle(&outcome.bundle_path).unwrap();
         assert_eq!(bundle.rules.len(), 1);
         assert_eq!(bundle.rules[0]["id"], expected.rule);
+        assert_eq!(bundle.rules[0]["version"], expected.version);
         let files = read_artifacts(&outcome.artifacts_dir, &bundle).unwrap();
         let accounts = fetch_accounts(&mut anchorer, &bundle).unwrap();
         let again = verify_bundle(

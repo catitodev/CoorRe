@@ -29,11 +29,14 @@ const LIMIT: u64 = 30_000_000;
 const EVALUATION_DATE: &str = "2026-10-09";
 const SIGNING_DAY_NOON: i64 = 1_791_547_200;
 
-const DOMAIN_CASES: [(RuleId, &str); 4] = [
+const DOMAIN_CASES: [(RuleId, &str); 7] = [
     (RuleId::AgentPurchase, "AGT-002"),
+    (RuleId::AgentPurchaseV2, "AGT-002"),
     (RuleId::EcosystemServicesPayment, "PES-002"),
     (RuleId::MilestonePayment, "MIL-002"),
+    (RuleId::MilestonePaymentV2, "MIL-002"),
     (RuleId::ServiceDelivery, "SRV-002"),
+    (RuleId::ServiceDeliveryV2, "SRV-002"),
 ];
 
 fn key(seed: u8) -> Ed25519Keypair {
@@ -356,7 +359,7 @@ fn a_known_rule_with_a_different_hash_fails_only_check_7() {
 #[test]
 fn an_unknown_rule_id_or_version_fails_only_check_7() {
     let (rule, case) = DOMAIN_CASES[0];
-    for (id, version) in [("unknown-rule", "1"), (rule.id(), "2")] {
+    for (id, version) in [("unknown-rule", "1"), (rule.id(), "3")] {
         let files = case_files(case);
         let decision = decision_of(rule, &files);
         let mut unknown = Recorded::faithful(rule, &decision);
@@ -391,4 +394,33 @@ fn documents_of_one_domain_cannot_be_judged_under_another_rule() {
     swapped.reasons = decision.reasons().to_vec();
     let report = run(&build(files, &swapped, &decision));
     assert_eq!(failing(&report), [7], "{:#?}", report.checks);
+}
+
+#[test]
+fn a_v1_decision_on_a_delivery_after_the_evaluation_date_stays_reproducible_by_v1_only() {
+    let mut files = case_files("MIL-001");
+    let report_file = files.get_mut("milestone-report.json").unwrap();
+    let text = String::from_utf8(report_file.clone()).unwrap();
+    assert!(text.contains("\"delivered_on\": \"2026-09-20\""), "{text}");
+    *report_file = text.replace("2026-09-20", "2026-10-20").into_bytes();
+    let v1 = decision_of(RuleId::MilestonePayment, &files);
+    assert_eq!(v1, Decision::AutoApproved);
+    let v2 = decision_of(RuleId::MilestonePaymentV2, &files);
+    assert_eq!(
+        v2.reasons(),
+        ["milestone delivered after the evaluation date"]
+    );
+
+    let recorded = Recorded::faithful(RuleId::MilestonePayment, &v1);
+    let report = run(&build(files.clone(), &recorded, &v1));
+    assert!(report.passed(), "{:#?}", report.checks);
+
+    let relabelled = Recorded::faithful(RuleId::MilestonePaymentV2, &v1);
+    let report = run(&build(files, &relabelled, &v1));
+    assert_eq!(failing(&report), [7], "{:#?}", report.checks);
+    assert!(
+        detail(&report, 7).contains("the rule gives ESCALATED but AUTO_APPROVED was recorded"),
+        "{}",
+        detail(&report, 7)
+    );
 }

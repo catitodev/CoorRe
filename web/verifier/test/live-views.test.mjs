@@ -87,3 +87,43 @@ test("each recorded run says in words whether its cost matches DEPLOYMENTS.md", 
     assert.equal(dot.getAttribute("aria-label"), "Cost matches DEPLOYMENTS.md");
   }
 });
+
+test("each rule version has its own card, and a version no devnet case cites says so", async () => {
+  const { renderRules } = await import("../views.js");
+  renderRules(data);
+  const cards = byId("rules-list").children;
+  assert.deepEqual(
+    cards.map((card) => card.byClass("rule-head")[0].children[0].textContent),
+    data.rules.map((r) => `${r.id} v${r.version}`)
+  );
+  for (const [card, rule] of cards.map((card, i) => [card, data.rules[i]])) {
+    const header = card.descendants().filter((n) => n.tagName === "TH").map((n) => n.textContent).slice(1);
+    assert.deepEqual(header, rule.cases, `${rule.id} v${rule.version}`);
+    assert.equal(/No devnet case has been decided under this version yet/.test(card.textContent), rule.cases.length === 0, `${rule.id} v${rule.version}`);
+  }
+});
+
+test("the rule filter tells the versions of one rule apart", async () => {
+  const { renderCaseList } = await import("../views.js");
+  globalThis.Option = function Option(text, value) {
+    const option = document.createElement("option");
+    option.text = text;
+    option.value = value;
+    return option;
+  };
+  const select = byId("filter-rule");
+  Object.defineProperty(select, "options", { get: () => select.children });
+  Object.defineProperty(byId("filter-outcome"), "options", { get: () => byId("filter-outcome").children });
+  select.value = "";
+  byId("filter-outcome").value = "";
+  renderCaseList(data);
+  const values = select.children.slice(1).map((o) => o.value);
+  assert.deepEqual(values, data.rules.map((r) => `${r.id} v${r.version}`));
+  select.value = "agent-purchase v2";
+  renderCaseList(data);
+  assert.doesNotMatch(byId("query:#cases-table tbody").textContent, /AGT-00/);
+  select.value = "agent-purchase v1";
+  renderCaseList(data);
+  assert.match(byId("query:#cases-table tbody").textContent, /AGT-001/);
+  assert.match(byId("query:#cases-table tbody").textContent, /AGT-002/);
+});

@@ -2,7 +2,8 @@ use serde::Deserialize;
 use time::Date;
 
 use crate::documents::{
-    artifact, date, date_range, decide, decimal, document_kind, single, typed, unknown_kind,
+    after_evaluation_date, artifact, date, date_range, decide, decimal, document_kind, single,
+    typed, unknown_kind,
 };
 use crate::error::Result;
 use crate::registry::ParsedArtifact;
@@ -147,7 +148,7 @@ pub fn evaluate(
     if let (Some(c), Some(r)) = (contract, report) {
         if r.observed_on < c.valid_from || r.observed_on > c.valid_until {
             reasons.push("monitoring observed outside the contract validity".to_owned());
-        } else if r.observed_on > today {
+        } else if after_evaluation_date(r.observed_on, today) {
             reasons.push("monitoring observed after the evaluation date".to_owned());
         }
         if r.verified_area_m2 < c.committed_area_m2 {

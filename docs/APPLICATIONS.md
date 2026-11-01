@@ -10,15 +10,18 @@ The engine is the same in every combination: `coorre-model` (evidence, canonical
 
 ## Domains
 
-All five run on the same engine and the same anchor; only the rule changes ([ADR-005](decisions/ADR-005-rule-registry-and-application-domains.md)).
+All five run on the same engine and the same anchor; only the rule changes ([ADR-005](decisions/ADR-005-rule-registry-and-application-domains.md)). Version 2 of three rules also escalates a document dated after the evaluation date, and a purchase request past its needed-by date; version 1 stays in the registry, so the decisions recorded under it are re-run under it.
 
 | Rule | Cases | Status |
 |---|---|---|
 | supplier-docs v1 | SUP-001, SUP-002 (SUP-003 in tests only) | Runs on Solana devnet |
-| agent-purchase v1 | AGT-001, AGT-002 | Runs on Solana devnet |
+| agent-purchase v1 | AGT-001, AGT-002 | Runs on Solana devnet (run of 2026-10-10); kept so those decisions stay reproducible |
+| agent-purchase v2 | AGT-001, AGT-002 | In the engine and the verifier; the demo cases name it and run under it offline; no devnet run yet |
 | ecosystem-services-payment v1 | PES-001, PES-002 | Runs on Solana devnet |
-| milestone-payment v1 | MIL-001, MIL-002 | Runs on Solana devnet |
-| service-delivery v1 | SRV-001, SRV-002 | Runs on Solana devnet |
+| milestone-payment v1 | MIL-001, MIL-002 | Runs on Solana devnet (run of 2026-10-10); kept so those decisions stay reproducible |
+| milestone-payment v2 | MIL-001, MIL-002 | In the engine and the verifier; the demo cases name it and run under it offline; no devnet run yet |
+| service-delivery v1 | SRV-001, SRV-002 | Runs on Solana devnet (run of 2026-10-10); kept so those decisions stay reproducible |
+| service-delivery v2 | SRV-001, SRV-002 | In the engine and the verifier; the demo cases name it and run under it offline; no devnet run yet |
 
 ## Anchors
 

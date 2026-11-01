@@ -2,6 +2,7 @@ use coorre_model::jcs;
 use serde_json::{Map, Value, json};
 
 use crate::agent_purchase;
+use crate::documents::RuleVersion;
 use crate::ecosystem_services;
 use crate::error::{EngineError, Result};
 use crate::milestone;
@@ -12,9 +13,12 @@ use crate::service_delivery;
 pub enum RuleId {
     SupplierDocs,
     AgentPurchase,
+    AgentPurchaseV2,
     EcosystemServicesPayment,
     MilestonePayment,
+    MilestonePaymentV2,
     ServiceDelivery,
+    ServiceDeliveryV2,
 }
 
 fn parse_rule_document(source: &str, id: &str, version: &str) -> Result<Value> {
@@ -35,31 +39,45 @@ pub struct ParsedArtifact {
 }
 
 impl RuleId {
-    pub const ALL: [RuleId; 5] = [
+    pub const ALL: [RuleId; 8] = [
         RuleId::SupplierDocs,
         RuleId::AgentPurchase,
+        RuleId::AgentPurchaseV2,
         RuleId::EcosystemServicesPayment,
         RuleId::MilestonePayment,
+        RuleId::MilestonePaymentV2,
         RuleId::ServiceDelivery,
+        RuleId::ServiceDeliveryV2,
     ];
 
     pub fn id(self) -> &'static str {
         match self {
             RuleId::SupplierDocs => rule::RULE_ID,
-            RuleId::AgentPurchase => agent_purchase::RULE_ID,
-            RuleId::ServiceDelivery => service_delivery::RULE_ID,
-            RuleId::MilestonePayment => milestone::RULE_ID,
+            RuleId::AgentPurchase | RuleId::AgentPurchaseV2 => agent_purchase::RULE_ID,
+            RuleId::ServiceDelivery | RuleId::ServiceDeliveryV2 => service_delivery::RULE_ID,
+            RuleId::MilestonePayment | RuleId::MilestonePaymentV2 => milestone::RULE_ID,
             RuleId::EcosystemServicesPayment => ecosystem_services::RULE_ID,
+        }
+    }
+
+    fn rule_version(self) -> RuleVersion {
+        match self {
+            RuleId::SupplierDocs
+            | RuleId::AgentPurchase
+            | RuleId::EcosystemServicesPayment
+            | RuleId::MilestonePayment
+            | RuleId::ServiceDelivery => RuleVersion::V1,
+            RuleId::AgentPurchaseV2 | RuleId::MilestonePaymentV2 | RuleId::ServiceDeliveryV2 => {
+                RuleVersion::V2
+            }
         }
     }
 
     pub fn version(self) -> &'static str {
         match self {
             RuleId::SupplierDocs => rule::RULE_VERSION,
-            RuleId::AgentPurchase => agent_purchase::RULE_VERSION,
-            RuleId::ServiceDelivery => service_delivery::RULE_VERSION,
-            RuleId::MilestonePayment => milestone::RULE_VERSION,
             RuleId::EcosystemServicesPayment => ecosystem_services::RULE_VERSION,
+            _ => self.rule_version().as_str(),
         }
     }
 
@@ -70,29 +88,20 @@ impl RuleId {
     }
 
     pub fn document(self) -> Result<Value> {
-        match self {
-            RuleId::SupplierDocs => rule::rule_document(),
-            RuleId::AgentPurchase => parse_rule_document(
-                agent_purchase::RULE_DOCUMENT,
-                agent_purchase::RULE_ID,
-                agent_purchase::RULE_VERSION,
-            ),
-            RuleId::ServiceDelivery => parse_rule_document(
-                service_delivery::RULE_DOCUMENT,
-                service_delivery::RULE_ID,
-                service_delivery::RULE_VERSION,
-            ),
-            RuleId::MilestonePayment => parse_rule_document(
-                milestone::RULE_DOCUMENT,
-                milestone::RULE_ID,
-                milestone::RULE_VERSION,
-            ),
-            RuleId::EcosystemServicesPayment => parse_rule_document(
-                ecosystem_services::RULE_DOCUMENT,
-                ecosystem_services::RULE_ID,
-                ecosystem_services::RULE_VERSION,
-            ),
-        }
+        let source = match self {
+            RuleId::SupplierDocs => return rule::rule_document(),
+            RuleId::AgentPurchase | RuleId::AgentPurchaseV2 => {
+                agent_purchase::rule_document(self.rule_version())
+            }
+            RuleId::ServiceDelivery | RuleId::ServiceDeliveryV2 => {
+                service_delivery::rule_document(self.rule_version())
+            }
+            RuleId::MilestonePayment | RuleId::MilestonePaymentV2 => {
+                milestone::rule_document(self.rule_version())
+            }
+            RuleId::EcosystemServicesPayment => ecosystem_services::RULE_DOCUMENT,
+        };
+        parse_rule_document(source, self.id(), self.version())
     }
 
     pub fn hash(self) -> Result<[u8; 32]> {
@@ -100,6 +109,7 @@ impl RuleId {
     }
 
     pub fn parse_artifact(self, bytes: &[u8]) -> Result<ParsedArtifact> {
+        let version = self.rule_version();
         match self {
             RuleId::SupplierDocs => {
                 let document = DocumentArtifact::parse(bytes)?;
@@ -124,9 +134,15 @@ impl RuleId {
                     summary,
                 })
             }
-            RuleId::AgentPurchase => agent_purchase::parse_artifact(bytes),
-            RuleId::ServiceDelivery => service_delivery::parse_artifact(bytes),
-            RuleId::MilestonePayment => milestone::parse_artifact(bytes),
+            RuleId::AgentPurchase | RuleId::AgentPurchaseV2 => {
+                agent_purchase::parse_artifact(version, bytes)
+            }
+            RuleId::ServiceDelivery | RuleId::ServiceDeliveryV2 => {
+                service_delivery::parse_artifact(version, bytes)
+            }
+            RuleId::MilestonePayment | RuleId::MilestonePaymentV2 => {
+                milestone::parse_artifact(version, bytes)
+            }
             RuleId::EcosystemServicesPayment => ecosystem_services::parse_artifact(bytes),
         }
     }
@@ -138,6 +154,7 @@ impl RuleId {
         autonomy_limit_lamports: u64,
         documents: &[&[u8]],
     ) -> Result<Decision> {
+        let version = self.rule_version();
         match self {
             RuleId::SupplierDocs => rule::evaluate(&SupplierDocsInput {
                 evaluation_date: evaluation_date.to_owned(),
@@ -148,19 +165,22 @@ impl RuleId {
                     .map(|bytes| rule::submitted_document(bytes))
                     .collect::<Result<_>>()?,
             }),
-            RuleId::AgentPurchase => agent_purchase::evaluate(
+            RuleId::AgentPurchase | RuleId::AgentPurchaseV2 => agent_purchase::evaluate(
+                version,
                 evaluation_date,
                 amount_lamports,
                 autonomy_limit_lamports,
                 documents,
             ),
-            RuleId::ServiceDelivery => service_delivery::evaluate(
+            RuleId::ServiceDelivery | RuleId::ServiceDeliveryV2 => service_delivery::evaluate(
+                version,
                 evaluation_date,
                 amount_lamports,
                 autonomy_limit_lamports,
                 documents,
             ),
-            RuleId::MilestonePayment => milestone::evaluate(
+            RuleId::MilestonePayment | RuleId::MilestonePaymentV2 => milestone::evaluate(
+                version,
                 evaluation_date,
                 amount_lamports,
                 autonomy_limit_lamports,
@@ -215,11 +235,23 @@ mod tests {
         );
     }
 
-    const PINNED_RULE_HASHES: [(RuleId, &str); 5] = [
+    const PINNED_RULE_HASHES: [(RuleId, &str); 8] = [
         (RuleId::SupplierDocs, SUPPLIER_DOCS_RULE_HASH),
         (
             RuleId::AgentPurchase,
             "3d77e718e5ee0b6a66448c960024fe1dadff3950364eed67e2401d23eecc91b2",
+        ),
+        (
+            RuleId::AgentPurchaseV2,
+            "707c224f3ff8d0d0257dd23e075ac2cc8321752a09a9c390fee5a38149148f35",
+        ),
+        (
+            RuleId::MilestonePaymentV2,
+            "f7d08860c8e3d5bdcfd03bad0d7386e51824ee0c84887de61dca282e1d94e0c7",
+        ),
+        (
+            RuleId::ServiceDeliveryV2,
+            "9716660e20d2a88aee467e81020bd9630a2f2f9767d260964b9869dae67d05ab",
         ),
         (
             RuleId::EcosystemServicesPayment,
@@ -240,6 +272,62 @@ mod tests {
         assert_eq!(PINNED_RULE_HASHES.len(), RuleId::ALL.len());
         for (rule, expected) in PINNED_RULE_HASHES {
             assert_eq!(hash::to_hex(&rule.hash().unwrap()), expected, "{rule:?}");
+        }
+    }
+
+    const V1_RULE_FILES_SHA256: [(&str, &str); 4] = [
+        (
+            agent_purchase::RULE_DOCUMENT_V1,
+            "2e6bbf7b855a3089a8aaca7befd3ddb170562eb19af01150d01ed4dce765a5c8",
+        ),
+        (
+            ecosystem_services::RULE_DOCUMENT,
+            "30b7df3f6de79d05c257e20278bdeb4a1048b30bbe92da1e1ec80681c1876ff6",
+        ),
+        (
+            milestone::RULE_DOCUMENT_V1,
+            "3304c2bb2ec2ac458af995396f7c6d31457c09f3a33f5e1a0fc1eb73a1dfe85b",
+        ),
+        (
+            service_delivery::RULE_DOCUMENT_V1,
+            "ec8e20aa46b18ee3de0df087a3b30180cb90f81e61daec3afc1768a03e7fade7",
+        ),
+    ];
+
+    #[test]
+    fn v1_rule_files_keep_their_committed_bytes() {
+        for (source, expected) in V1_RULE_FILES_SHA256 {
+            assert_eq!(hash::to_hex(&hash::sha256(source.as_bytes())), expected);
+        }
+    }
+
+    #[test]
+    fn v2_differs_from_v1_only_where_the_dates_are_checked() {
+        for (v1, v2) in [
+            (RuleId::AgentPurchase, RuleId::AgentPurchaseV2),
+            (RuleId::MilestonePayment, RuleId::MilestonePaymentV2),
+            (RuleId::ServiceDelivery, RuleId::ServiceDeliveryV2),
+        ] {
+            let (old, new) = (v1.document().unwrap(), v2.document().unwrap());
+            assert_eq!(v1.id(), v2.id());
+            assert_eq!((v1.version(), v2.version()), ("1", "2"));
+            for field in [
+                "requiredDocuments",
+                "documentLabels",
+                "dates",
+                "notEvaluated",
+                "mandate",
+                "outcomes",
+            ] {
+                assert_eq!(old[field], new[field], "{v2:?} {field}");
+            }
+            assert!(
+                new["dates"]
+                    .as_str()
+                    .unwrap()
+                    .contains("comparisons are inclusive")
+            );
+            assert_ne!(old["conditions"], new["conditions"], "{v2:?}");
         }
     }
 
@@ -264,19 +352,21 @@ mod tests {
         };
         let agt_001 = files("AGT-001");
         let agt_001: Vec<&str> = agt_001.iter().map(String::as_str).collect();
-        assert_eq!(
-            evaluate_case(RuleId::AgentPurchase, &agt_001, 20_000_000, 30_000_000),
-            Decision::AutoApproved
-        );
         let agt_002 = files("AGT-002");
         let agt_002: Vec<&str> = agt_002.iter().map(String::as_str).collect();
-        assert_eq!(
-            evaluate_case(RuleId::AgentPurchase, &agt_002, 40_000_000, 30_000_000).reasons(),
-            [
-                "supplier registration expired",
-                "amount exceeds autonomy limit"
-            ]
-        );
+        for rule in [RuleId::AgentPurchase, RuleId::AgentPurchaseV2] {
+            assert_eq!(
+                evaluate_case(rule, &agt_001, 20_000_000, 30_000_000),
+                Decision::AutoApproved
+            );
+            assert_eq!(
+                evaluate_case(rule, &agt_002, 40_000_000, 30_000_000).reasons(),
+                [
+                    "supplier registration expired",
+                    "amount exceeds autonomy limit"
+                ]
+            );
+        }
         assert!(
             RuleId::SupplierDocs
                 .parse_artifact(&fixture("AGT-001/purchase-request.json"))
@@ -332,16 +422,18 @@ mod tests {
         };
         let mil_001 = files("MIL-001");
         let mil_001: Vec<&str> = mil_001.iter().map(String::as_str).collect();
-        assert_eq!(
-            evaluate_case(RuleId::MilestonePayment, &mil_001, 20_000_000, 30_000_000),
-            Decision::AutoApproved
-        );
         let mil_002 = files("MIL-002");
         let mil_002: Vec<&str> = mil_002.iter().map(String::as_str).collect();
-        assert_eq!(
-            evaluate_case(RuleId::MilestonePayment, &mil_002, 20_000_000, 30_000_000).reasons(),
-            ["open findings in the accountability report"]
-        );
+        for rule in [RuleId::MilestonePayment, RuleId::MilestonePaymentV2] {
+            assert_eq!(
+                evaluate_case(rule, &mil_001, 20_000_000, 30_000_000),
+                Decision::AutoApproved
+            );
+            assert_eq!(
+                evaluate_case(rule, &mil_002, 20_000_000, 30_000_000).reasons(),
+                ["open findings in the accountability report"]
+            );
+        }
     }
 
     #[test]
@@ -355,16 +447,18 @@ mod tests {
         };
         let srv_001 = files("SRV-001");
         let srv_001: Vec<&str> = srv_001.iter().map(String::as_str).collect();
-        assert_eq!(
-            evaluate_case(RuleId::ServiceDelivery, &srv_001, 20_000_000, 30_000_000),
-            Decision::AutoApproved
-        );
         let srv_002 = files("SRV-002");
         let srv_002: Vec<&str> = srv_002.iter().map(String::as_str).collect();
-        assert_eq!(
-            evaluate_case(RuleId::ServiceDelivery, &srv_002, 20_000_000, 30_000_000).reasons(),
-            ["invoice issued before acceptance"]
-        );
+        for rule in [RuleId::ServiceDelivery, RuleId::ServiceDeliveryV2] {
+            assert_eq!(
+                evaluate_case(rule, &srv_001, 20_000_000, 30_000_000),
+                Decision::AutoApproved
+            );
+            assert_eq!(
+                evaluate_case(rule, &srv_002, 20_000_000, 30_000_000).reasons(),
+                ["invoice issued before acceptance"]
+            );
+        }
     }
 
     #[test]
@@ -374,6 +468,20 @@ mod tests {
             Some(RuleId::SupplierDocs)
         );
         assert_eq!(RuleId::find("supplier-docs", "2"), None);
+        assert_eq!(
+            RuleId::find("agent-purchase", "2"),
+            Some(RuleId::AgentPurchaseV2)
+        );
+        assert_eq!(
+            RuleId::find("milestone-payment", "2"),
+            Some(RuleId::MilestonePaymentV2)
+        );
+        assert_eq!(
+            RuleId::find("service-delivery", "2"),
+            Some(RuleId::ServiceDeliveryV2)
+        );
+        assert_eq!(RuleId::find("ecosystem-services-payment", "2"), None);
+        assert_eq!(RuleId::find("agent-purchase", "3"), None);
         assert_eq!(RuleId::find("Supplier-Docs", "1"), None);
         assert_eq!(RuleId::find("other-rule", "1"), None);
         for rule in RuleId::ALL {
@@ -450,5 +558,75 @@ mod tests {
             })
         );
         assert!(RuleId::SupplierDocs.parse_artifact(b"{}").is_err());
+    }
+
+    const DEMO_HORIZON: (&str, &str) = ("2026-11-01", "2027-06-30");
+
+    const DOMAIN_CASE_DECISIONS: [(&str, &str, &[&str]); 8] = [
+        ("AGT-001", "2", &[]),
+        (
+            "AGT-002",
+            "2",
+            &[
+                "supplier registration expired",
+                "amount exceeds autonomy limit",
+            ],
+        ),
+        ("PES-001", "1", &[]),
+        (
+            "PES-002",
+            "1",
+            &[
+                "verified area below committed area",
+                "amount exceeds autonomy limit",
+            ],
+        ),
+        ("MIL-001", "2", &[]),
+        (
+            "MIL-002",
+            "2",
+            &["open findings in the accountability report"],
+        ),
+        ("SRV-001", "2", &[]),
+        ("SRV-002", "2", &["invoice issued before acceptance"]),
+    ];
+
+    #[test]
+    fn domain_cases_keep_their_documented_decision_every_day_of_the_demo_horizon() {
+        let cases: Value =
+            serde_json::from_slice(&fixture("cases.json")).unwrap_or_else(|e| panic!("{e}"));
+        let cases = cases["cases"].as_array().unwrap();
+        let first = rule::parse_date(DEMO_HORIZON.0).unwrap();
+        let last = rule::parse_date(DEMO_HORIZON.1).unwrap();
+        for (id, version, expected) in DOMAIN_CASE_DECISIONS {
+            let case = cases.iter().find(|c| c["id"] == id).unwrap();
+            let rule = RuleId::find(
+                case["rule"]["id"].as_str().unwrap(),
+                case["rule"]["version"].as_str().unwrap(),
+            )
+            .unwrap();
+            assert_eq!(rule.version(), version, "{id}");
+            let files: Vec<Vec<u8>> = case["documents"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|f| fixture(f.as_str().unwrap()))
+                .collect();
+            let refs: Vec<&[u8]> = files.iter().map(Vec::as_slice).collect();
+            let lamports = |field: &str| case[field].as_str().unwrap().parse::<u64>().unwrap();
+            let mut day = first;
+            while day <= last {
+                let decision = rule
+                    .evaluate(
+                        &day.to_string(),
+                        lamports("amount_lamports"),
+                        lamports("autonomy_limit_lamports"),
+                        &refs,
+                    )
+                    .unwrap();
+                assert_eq!(decision.reasons(), expected, "{id} on {day}");
+                day = day.next_day().unwrap();
+            }
+        }
     }
 }

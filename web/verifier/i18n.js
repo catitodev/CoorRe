@@ -104,8 +104,8 @@ export const PORTUGUESE = {
   Amount: "Valor",
   Limit: "Limite",
   Run: "Execução",
-  "The rules the verifier ships. A rule approves only when every condition holds; otherwise it escalates with one reason per failed condition, and the mandate check always comes last. A decision that names any other rule, version or hash fails check 7.":
-    "As regras que o verificador traz. Uma regra só aprova quando todas as condições são atendidas; caso contrário, escala com um motivo para cada condição não atendida, e a checagem do mandato vem sempre por último. Uma decisão que indique qualquer outra regra, versão ou hash falha na checagem 7.",
+  "The rules the verifier ships. A rule approves only when every condition holds; otherwise it escalates with one reason per failed condition, and the mandate check always comes last. Every version stays in the registry, so a recorded decision is re-run under the version it names; a decision that names any other rule, version or hash fails check 7.":
+    "As regras que o verificador traz. Uma regra só aprova quando todas as condições são atendidas; caso contrário, escala com um motivo para cada condição não atendida, e a checagem do mandato vem sempre por último. Toda versão continua no registro, então uma decisão gravada é refeita com a versão que ela indica; uma decisão que indique qualquer outra regra, versão ou hash falha na checagem 7.",
   "Why devnet cases were escalated": "Por que os casos da devnet foram escalados",
   "Reasons recorded by the rule engine across every escalated case.": "Motivos registrados pelo motor de regras em todos os casos escalados.",
   "The program that enforces the mandate, read live from devnet, and what each recorded run cost.":
@@ -282,6 +282,8 @@ export const PORTUGUESE = {
   failed: "falhou",
   held: "atendida",
   "Conditions and the devnet cases": "Condições e os casos da devnet",
+  "No devnet case has been decided under this version yet; the demo cases in demo/fixtures run under it.":
+    "Nenhum caso da devnet foi decidido com esta versão ainda; os casos de demonstração em demo/fixtures rodam com ela.",
   "Program id": "ID do programa",
   Executable: "Executável",
   Loader: "Loader",

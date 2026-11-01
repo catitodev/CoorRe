@@ -17,14 +17,23 @@ Every document carries `"synthetic": true`; names, issuers and numbers are inven
 
 | Case | Rule | Amount | Autonomy limit | Documents | Expected path |
 |---|---|---|---|---|---|
-| AGT-001 | agent-purchase v1 | 0.02 SOL | 0.03 SOL | purchase request, supplier quote and supplier registration agree and are current | AUTO_APPROVED, escrow released to the payee |
-| AGT-002 | agent-purchase v1 | 0.04 SOL | 0.03 SOL | supplier registration expired 2026-09-30 | rogue AUTO_APPROVED rejected with MandateExceeded, then ESCALATED ("supplier registration expired", "amount exceeds autonomy limit"), then APPROVED by the approver, escrow released |
+| AGT-001 | agent-purchase v2 | 0.02 SOL | 0.03 SOL | purchase request, supplier quote and supplier registration agree and are current; needed by 2027-06-30 | AUTO_APPROVED, escrow released to the payee |
+| AGT-002 | agent-purchase v2 | 0.04 SOL | 0.03 SOL | supplier registration expired 2026-09-30 | rogue AUTO_APPROVED rejected with MandateExceeded, then ESCALATED ("supplier registration expired", "amount exceeds autonomy limit"), then APPROVED by the approver, escrow released |
 | PES-001 | ecosystem-services-payment v1 | 0.02 SOL | 0.03 SOL | contract valid, monitoring observed within it, 124,500 m² verified against 120,000 m² committed | AUTO_APPROVED, escrow released to the payee |
 | PES-002 | ecosystem-services-payment v1 | 0.04 SOL | 0.03 SOL | 118,000 m² verified against 150,000 m² committed | rogue AUTO_APPROVED rejected with MandateExceeded, then ESCALATED ("verified area below committed area", "amount exceeds autonomy limit"), then APPROVED by the approver, escrow released |
-| MIL-001 | milestone-payment v1 | 0.02 SOL | 0.03 SOL | funding agreement, milestone report delivered in the window, previous installments accounted for with no open findings | AUTO_APPROVED, escrow released to the payee |
-| MIL-002 | milestone-payment v1 | 0.02 SOL | 0.03 SOL | accountability report with two open findings | ESCALATED ("open findings in the accountability report"), then REJECTED by the approver, escrow refunded to the creator |
-| SRV-001 | service-delivery v1 | 0.02 SOL | 0.03 SOL | service contract, acceptance within its validity, invoice issued after acceptance and within the price cap | AUTO_APPROVED, escrow released to the payee |
-| SRV-002 | service-delivery v1 | 0.02 SOL | 0.03 SOL | invoice issued 2026-09-20, before the acceptance of 2026-09-25 | ESCALATED ("invoice issued before acceptance"), then REJECTED by the approver, escrow refunded to the creator |
+| MIL-001 | milestone-payment v2 | 0.02 SOL | 0.03 SOL | funding agreement, milestone report delivered in the window, previous installments accounted for with no open findings | AUTO_APPROVED, escrow released to the payee |
+| MIL-002 | milestone-payment v2 | 0.02 SOL | 0.03 SOL | accountability report with two open findings | ESCALATED ("open findings in the accountability report"), then REJECTED by the approver, escrow refunded to the creator |
+| SRV-001 | service-delivery v2 | 0.02 SOL | 0.03 SOL | service contract, acceptance within its validity, invoice issued after acceptance and within the price cap | AUTO_APPROVED, escrow released to the payee |
+| SRV-002 | service-delivery v2 | 0.02 SOL | 0.03 SOL | invoice issued 2026-09-20, before the acceptance of 2026-09-25 | ESCALATED ("invoice issued before acceptance"), then REJECTED by the approver, escrow refunded to the creator |
 
 `cases.json` lists the cases; each document file is a JSON artifact whose SHA-256 goes
 into the evidence. Validity is evaluated on the day the demo runs.
+
+The AGT, MIL and SRV cases name version 2 of their rule, which also escalates a document
+dated after the evaluation date and a purchase request past its needed-by date. Their
+outcomes above hold on every day up to 2027-06-30: the purchase requests are needed by
+2027-06-30, the quotes and the AGT-001 registration are valid until 2027-06-30, and
+every delivery, acceptance and invoice is dated in September 2026. The devnet runs of
+these cases on 2026-10-10 were decided under version 1 and verify under it; their
+recorded documents carry the earlier dates (needed by 2026-11-30 and 2026-11-15, quotes
+valid until 2026-12-31).

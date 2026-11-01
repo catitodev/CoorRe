@@ -2,15 +2,23 @@ use serde::Deserialize;
 use time::Date;
 
 use crate::documents::{
-    artifact, date, date_range, decide, decimal, document_kind, single, typed, unknown_kind,
+    RuleVersion, after_evaluation_date, artifact, date, date_range, decide, decimal, document_kind,
+    single, typed, unknown_kind,
 };
 use crate::error::{EngineError, Result};
 use crate::registry::ParsedArtifact;
-use crate::rule::Decision;
+use crate::rule::{Decision, parse_date};
 
 pub const RULE_ID: &str = "milestone-payment";
-pub const RULE_VERSION: &str = "1";
-pub const RULE_DOCUMENT: &str = include_str!("../rules/milestone-payment-v1.json");
+pub const RULE_DOCUMENT_V1: &str = include_str!("../rules/milestone-payment-v1.json");
+pub const RULE_DOCUMENT_V2: &str = include_str!("../rules/milestone-payment-v2.json");
+
+pub fn rule_document(version: RuleVersion) -> &'static str {
+    match version {
+        RuleVersion::V1 => RULE_DOCUMENT_V1,
+        RuleVersion::V2 => RULE_DOCUMENT_V2,
+    }
+}
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -95,7 +103,7 @@ fn flag(field: &str, text: &str) -> Result<bool> {
     }
 }
 
-pub fn parse(bytes: &[u8]) -> Result<(bool, Document)> {
+pub fn parse(version: RuleVersion, bytes: &[u8]) -> Result<(bool, Document)> {
     let (kind, value) = document_kind(bytes)?;
     match kind.as_str() {
         "funding_agreement" => {
@@ -146,12 +154,12 @@ pub fn parse(bytes: &[u8]) -> Result<(bool, Document)> {
                 }),
             ))
         }
-        other => Err(unknown_kind(other, RULE_ID, RULE_VERSION)),
+        other => Err(unknown_kind(other, RULE_ID, version.as_str())),
     }
 }
 
-pub fn parse_artifact(bytes: &[u8]) -> Result<ParsedArtifact> {
-    let (synthetic, document) = parse(bytes)?;
+pub fn parse_artifact(version: RuleVersion, bytes: &[u8]) -> Result<ParsedArtifact> {
+    let (synthetic, document) = parse(version, bytes)?;
     let kind = match document {
         Document::FundingAgreement(_) => "funding_agreement",
         Document::MilestoneReport(_) => "milestone_report",
@@ -161,15 +169,16 @@ pub fn parse_artifact(bytes: &[u8]) -> Result<ParsedArtifact> {
 }
 
 pub fn evaluate(
+    version: RuleVersion,
     evaluation_date: &str,
     amount_lamports: u64,
     autonomy_limit_lamports: u64,
     documents: &[&[u8]],
 ) -> Result<Decision> {
-    crate::rule::parse_date(evaluation_date)?;
+    let today = parse_date(evaluation_date)?;
     let (mut agreements, mut reports, mut accountability) = (Vec::new(), Vec::new(), Vec::new());
     for bytes in documents {
-        match parse(bytes)?.1 {
+        match parse(version, bytes)?.1 {
             Document::FundingAgreement(d) => agreements.push(d),
             Document::MilestoneReport(d) => reports.push(d),
             Document::AccountabilityReport(d) => accountability.push(d),
@@ -190,6 +199,8 @@ pub fn evaluate(
         }
         if r.delivered_on < a.window_from || r.delivered_on > a.window_until {
             reasons.push("milestone delivered outside the agreed window".to_owned());
+        } else if version == RuleVersion::V2 && after_evaluation_date(r.delivered_on, today) {
+            reasons.push("milestone delivered after the evaluation date".to_owned());
         }
     }
     if let Some(c) = accounts {
@@ -214,6 +225,7 @@ mod tests {
     use serde_json::{Value, json};
 
     const TODAY: &str = "2026-10-09";
+    const VERSIONS: [RuleVersion; 2] = [RuleVersion::V1, RuleVersion::V2];
 
     fn agreement() -> Value {
         json!({"synthetic": true, "kind": "funding_agreement", "issuer": "Fund", "agreement_number": "TF-1",
@@ -236,67 +248,131 @@ mod tests {
         value
     }
 
-    fn run(values: &[Value], amount: u64, limit: u64) -> Decision {
+    fn run(version: RuleVersion, values: &[Value], amount: u64, limit: u64) -> Decision {
         let files: Vec<Vec<u8>> = values.iter().map(|v| v.to_string().into_bytes()).collect();
         let refs: Vec<&[u8]> = files.iter().map(Vec::as_slice).collect();
-        evaluate(TODAY, amount, limit, &refs).unwrap()
+        evaluate(version, TODAY, amount, limit, &refs).unwrap()
     }
 
-    fn reasons(values: &[Value]) -> Vec<String> {
-        run(values, 20_000_000, 30_000_000).reasons().to_vec()
+    fn reasons(version: RuleVersion, values: &[Value]) -> Vec<String> {
+        run(version, values, 20_000_000, 30_000_000)
+            .reasons()
+            .to_vec()
     }
 
     #[test]
     fn every_condition_holding_auto_approves() {
+        for version in VERSIONS {
+            assert_eq!(
+                run(
+                    version,
+                    &[agreement(), report(), accountability()],
+                    20_000_000,
+                    30_000_000
+                ),
+                Decision::AutoApproved
+            );
+            assert_eq!(
+                run(
+                    version,
+                    &[
+                        agreement(),
+                        with(report(), "delivered_on", "2026-07-01"),
+                        accountability()
+                    ],
+                    25_000_000,
+                    25_000_000
+                ),
+                Decision::AutoApproved
+            );
+        }
+    }
+
+    #[test]
+    fn v1_still_approves_a_delivery_dated_after_the_evaluation_date() {
+        let later = [
+            agreement(),
+            with(report(), "delivered_on", "2026-12-31"),
+            accountability(),
+        ];
+        assert_eq!(reasons(RuleVersion::V1, &later), Vec::<String>::new());
+        assert_eq!(
+            reasons(RuleVersion::V2, &later),
+            ["milestone delivered after the evaluation date"]
+        );
+    }
+
+    #[test]
+    fn v2_escalates_a_delivery_dated_after_the_evaluation_date() {
+        assert_eq!(
+            reasons(
+                RuleVersion::V2,
+                &[
+                    agreement(),
+                    with(report(), "delivered_on", "2026-10-10"),
+                    accountability()
+                ]
+            ),
+            ["milestone delivered after the evaluation date"]
+        );
+    }
+
+    #[test]
+    fn v2_approves_a_delivery_on_the_evaluation_date() {
         assert_eq!(
             run(
-                &[agreement(), report(), accountability()],
+                RuleVersion::V2,
+                &[
+                    agreement(),
+                    with(report(), "delivered_on", TODAY),
+                    accountability()
+                ],
                 20_000_000,
                 30_000_000
             ),
             Decision::AutoApproved
         );
+    }
+
+    #[test]
+    fn v2_reports_a_delivery_outside_the_window_once_even_after_the_evaluation_date() {
         assert_eq!(
-            run(
+            reasons(
+                RuleVersion::V2,
                 &[
                     agreement(),
-                    with(report(), "delivered_on", "2026-07-01"),
+                    with(report(), "delivered_on", "2027-01-01"),
                     accountability()
-                ],
-                25_000_000,
-                25_000_000
+                ]
             ),
-            Decision::AutoApproved
-        );
-        assert_eq!(
-            reasons(&[
-                agreement(),
-                with(report(), "delivered_on", "2026-12-31"),
-                accountability()
-            ]),
-            Vec::<String>::new()
+            ["milestone delivered outside the agreed window"]
         );
     }
 
     #[test]
     fn missing_and_duplicated_documents_skip_the_conditions_that_read_them() {
-        assert_eq!(
-            reasons(&[]),
-            [
-                "funding agreement missing",
-                "milestone report missing",
-                "accountability report missing"
-            ]
-        );
-        assert_eq!(
-            reasons(&[
-                agreement(),
-                with(report(), "agreement_number", "TF-9"),
-                accountability(),
-                accountability()
-            ]),
-            ["accountability report submitted more than once"]
-        );
+        for version in VERSIONS {
+            assert_eq!(
+                reasons(version, &[]),
+                [
+                    "funding agreement missing",
+                    "milestone report missing",
+                    "accountability report missing"
+                ]
+            );
+            assert_eq!(
+                reasons(
+                    version,
+                    &[
+                        agreement(),
+                        with(report(), "agreement_number", "TF-9"),
+                        accountability(),
+                        accountability()
+                    ]
+                ),
+                ["accountability report submitted more than once"]
+            );
+        }
     }
 
     #[test]
@@ -351,18 +427,21 @@ mod tests {
                 "open findings in the accountability report",
             ),
         ];
-        for (documents, reason) in cases {
-            assert_eq!(reasons(&documents), [reason]);
+        for version in VERSIONS {
+            for (documents, reason) in &cases {
+                assert_eq!(reasons(version, documents), [*reason]);
+            }
+            assert_eq!(
+                run(
+                    version,
+                    &[agreement(), report(), accountability()],
+                    25_000_001,
+                    30_000_000
+                )
+                .reasons(),
+                ["amount exceeds the milestone amount"]
+            );
         }
-        assert_eq!(
-            run(
-                &[agreement(), report(), accountability()],
-                25_000_001,
-                30_000_000
-            )
-            .reasons(),
-            ["amount exceeds the milestone amount"]
-        );
     }
 
     #[test]
@@ -384,12 +463,28 @@ mod tests {
                 "3",
             ),
         ];
+        for version in VERSIONS {
+            assert_eq!(
+                run(version, &documents, 40_000_000, 30_000_000).reasons(),
+                [
+                    "agreement number differs between documents",
+                    "milestone differs between agreement and report",
+                    "milestone delivered outside the agreed window",
+                    "previous installments not accounted for",
+                    "open findings in the accountability report",
+                    "amount exceeds the milestone amount",
+                    "amount exceeds autonomy limit"
+                ]
+            );
+        }
+        let mut after = documents.clone();
+        after[1] = with(after[1].clone(), "delivered_on", "2026-12-31");
         assert_eq!(
-            run(&documents, 40_000_000, 30_000_000).reasons(),
+            run(RuleVersion::V2, &after, 40_000_000, 30_000_000).reasons(),
             [
                 "agreement number differs between documents",
                 "milestone differs between agreement and report",
-                "milestone delivered outside the agreed window",
+                "milestone delivered after the evaluation date",
                 "previous installments not accounted for",
                 "open findings in the accountability report",
                 "amount exceeds the milestone amount",
@@ -400,14 +495,19 @@ mod tests {
 
     #[test]
     fn mil_002_open_findings_within_the_limit_escalates_with_one_reason() {
-        assert_eq!(
-            reasons(&[
-                agreement(),
-                report(),
-                with(accountability(), "open_findings", "2")
-            ]),
-            ["open findings in the accountability report"]
-        );
+        for version in VERSIONS {
+            assert_eq!(
+                reasons(
+                    version,
+                    &[
+                        agreement(),
+                        report(),
+                        with(accountability(), "open_findings", "2")
+                    ]
+                ),
+                ["open findings in the accountability report"]
+            );
+        }
     }
 
     #[test]
@@ -426,35 +526,64 @@ mod tests {
                 v
             },
         ];
-        for value in bad {
-            assert!(parse(value.to_string().as_bytes()).is_err(), "{value}");
-            let bytes = value.to_string().into_bytes();
-            assert!(evaluate(TODAY, 1, 1, &[bytes.as_slice()]).is_err());
+        for version in VERSIONS {
+            for value in &bad {
+                assert!(
+                    parse(version, value.to_string().as_bytes()).is_err(),
+                    "{value}"
+                );
+                let bytes = value.to_string().into_bytes();
+                assert!(evaluate(version, TODAY, 1, 1, &[bytes.as_slice()]).is_err());
+            }
+            assert!(evaluate(version, "09-10-2026", 1, 1, &[]).is_err());
         }
-        assert!(evaluate("09-10-2026", 1, 1, &[]).is_err());
+    }
+
+    #[test]
+    fn an_unknown_kind_names_the_rule_version() {
+        let invoice = with(report(), "kind", "invoice").to_string();
+        for version in VERSIONS {
+            let error = parse(version, invoice.as_bytes()).unwrap_err().to_string();
+            assert!(
+                error.contains(&format!("milestone-payment v{}", version.as_str())),
+                "{error}"
+            );
+        }
+    }
+
+    #[test]
+    fn each_version_has_its_own_rule_document() {
+        assert_eq!(rule_document(RuleVersion::V1), RULE_DOCUMENT_V1);
+        assert_eq!(rule_document(RuleVersion::V2), RULE_DOCUMENT_V2);
+        assert_ne!(RULE_DOCUMENT_V1, RULE_DOCUMENT_V2);
     }
 
     #[test]
     fn parse_and_parse_artifact_report_kind_and_values() {
-        let (synthetic, document) = parse(accountability().to_string().as_bytes()).unwrap();
-        assert!(synthetic);
-        assert_eq!(
-            document,
-            Document::AccountabilityReport(AccountabilityReport {
-                agreement_number: "TF-1".to_owned(),
-                previous_installments_accounted: true,
-                open_findings: 0,
-            })
-        );
-        for (value, kind) in [
-            (agreement(), "funding_agreement"),
-            (report(), "milestone_report"),
-            (accountability(), "accountability_report"),
-        ] {
+        for version in VERSIONS {
+            let (synthetic, document) =
+                parse(version, accountability().to_string().as_bytes()).unwrap();
+            assert!(synthetic);
             assert_eq!(
-                parse_artifact(value.to_string().as_bytes()).unwrap().kind,
-                kind
+                document,
+                Document::AccountabilityReport(AccountabilityReport {
+                    agreement_number: "TF-1".to_owned(),
+                    previous_installments_accounted: true,
+                    open_findings: 0,
+                })
             );
+            for (value, kind) in [
+                (agreement(), "funding_agreement"),
+                (report(), "milestone_report"),
+                (accountability(), "accountability_report"),
+            ] {
+                assert_eq!(
+                    parse_artifact(version, value.to_string().as_bytes())
+                        .unwrap()
+                        .kind,
+                    kind
+                );
+            }
         }
     }
 }

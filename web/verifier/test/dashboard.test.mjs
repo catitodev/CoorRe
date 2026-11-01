@@ -16,7 +16,16 @@ test("site-data.json is generated from the committed bundles and rules", () => {
 
 test("the dashboard data matches the recorded devnet runs", () => {
   assert.equal(data.cases.length, 10);
-  assert.deepEqual(data.rules.map((r) => r.id), ["supplier-docs", "agent-purchase", "ecosystem-services-payment", "milestone-payment", "service-delivery"]);
+  assert.deepEqual(
+    data.rules.map((r) => `${r.id} v${r.version}`),
+    ["supplier-docs v1", "agent-purchase v1", "agent-purchase v2", "ecosystem-services-payment v1", "milestone-payment v1", "milestone-payment v2", "service-delivery v1", "service-delivery v2"]
+  );
+  for (const rule of data.rules) {
+    const citing = data.cases.filter((c) => c.rule.id === rule.id && c.rule.version === rule.version);
+    assert.deepEqual(rule.cases, citing.map((c) => c.id), `${rule.id} v${rule.version}`);
+    for (const c of citing) assert.equal(c.rule.hash, rule.hash, c.id);
+  }
+  for (const v2 of data.rules.filter((r) => r.version === "2")) assert.deepEqual(v2.cases, [], v2.id);
   for (const run of data.runs) assert.equal(run.spent, run.recorded_spent, run.date);
   assert.deepEqual(data.cases.filter((c) => c.blocked_attempt).map((c) => c.id), ["SUP-002", "AGT-002", "PES-002"]);
   const outcomes = Object.groupBy(data.cases, (c) => c.outcome);
@@ -125,4 +134,24 @@ test("the site data only produces outcomes the dashboard can draw", async () => 
   for (const state of ["OPEN", "SUBMITTED", "AGENT_REVIEWED", "ESCALATED"]) assert.throws(() => outcomeOf(state, "X-001"), new RegExp(`X-001: final state ${state} has no dashboard outcome`));
   assert.equal(outcomeOf("APPROVED", "X-001"), "approved");
   for (const c of data.cases) assert.ok(OUTCOMES[c.outcome], c.id);
+});
+
+test("the page hashes every rule as the engine does (JCS, then SHA-256)", () => {
+  const { canonical, ruleHash } = createRequire(import.meta.url)("../../../scripts/build-site-data");
+  assert.equal(canonical({ b: [1, "x"], a: { d: null, c: true } }), '{"a":{"c":true,"d":null},"b":[1,"x"]}');
+  const pinned = {
+    "supplier-docs v1": "7320d1d698663198cb21f5f5cce3e6d0064b8300a1042ebf13fc8934fbdabd2f",
+    "agent-purchase v1": "3d77e718e5ee0b6a66448c960024fe1dadff3950364eed67e2401d23eecc91b2",
+    "agent-purchase v2": "707c224f3ff8d0d0257dd23e075ac2cc8321752a09a9c390fee5a38149148f35",
+    "ecosystem-services-payment v1": "eb9e053a54cf94256949e7bb134390e68efb86fa4be4434f1b0c24d34d4307c9",
+    "milestone-payment v1": "bb7edb9e6d965c6c508d1f3abcb56000811e7dbd4fe558145dddc874bc37ed85",
+    "milestone-payment v2": "f7d08860c8e3d5bdcfd03bad0d7386e51824ee0c84887de61dca282e1d94e0c7",
+    "service-delivery v1": "c8ef062c4eb22745086f9ff84b143c5549b06aef0079aa3e52327a0a9928e21c",
+    "service-delivery v2": "9716660e20d2a88aee467e81020bd9630a2f2f9767d260964b9869dae67d05ab",
+  };
+  for (const rule of data.rules) {
+    const file = new URL(`../../../offchain/crates/coorre-engine/rules/${rule.id}-v${rule.version}.json`, import.meta.url);
+    assert.equal(ruleHash(JSON.parse(readFileSync(file, "utf8"))), rule.hash, rule.id);
+    assert.equal(rule.hash, `sha256:${pinned[`${rule.id} v${rule.version}`]}`, `${rule.id} v${rule.version}`);
+  }
 });
